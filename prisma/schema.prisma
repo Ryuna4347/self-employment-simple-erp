@@ -9,6 +9,118 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+/// db에 url 정보를 넣는 것은 7 버전 이후 제거
 datasource db {
   provider = "postgresql"
+}
+
+enum Role { 
+  ADMIN
+  USER 
+}
+enum PaymentType { 
+  CASH
+  ACCOUNT
+  CARD 
+}
+
+model User {
+  id    String @id @default(cuid())
+  loginId String @unique
+  name  String
+  password String? // Note: null(초대중)상태가 존재할 수 있음
+  role  Role   @default(USER) 
+  inviteCode String? @unique
+  isDeleted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workRecords WorkRecord[]
+  expenses Expense[]
+  storeTemplates StoreTemplate[]
+}
+
+
+model Store{
+  id String @id @default(cuid())
+  name String
+  address String
+  managerName String? // Note: 담당자(현금 입금자)
+  PaymentType PaymentType @default(CASH)
+  kakaoPlaceId String? @unique
+  latitude Float?
+  longitude Float?
+
+  storeItems StoreItem[]
+  workRecords WorkRecord[]
+  templateMembers StoreTemplateMember[]
+}
+
+model SaleItem {
+  id String @id @default(cuid())
+  name String // Note: 품명(규격 포함)
+  unitPrice Int @default(0)
+  
+}
+
+model StoreItem {
+  id String @id @default(cuid())
+  storeId String
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name String
+  unitPrice Int @default(0)
+  quantity Int @default(0)
+}
+
+model StoreTemplate {
+  id String @id @default(cuid())
+  name String
+  description String?
+  userId String
+  creator User @relation(fields: [userId], references: [id])
+  members StoreTemplateMember[]
+}
+
+model StoreTemplateMember {
+  id String @id @default(cuid())
+  templateId String
+  template StoreTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  storeId String
+  store Store @relation(fields: [storeId], references: [id])
+  order Int @default(0)
+}
+
+model WorkRecord {
+  id String @id @default(cuid())
+  date DateTime @default(now())
+  storeId String
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  isCollected Boolean @default(false) // Note: 수금 여부
+  note String?
+  paymentTypeSnapshot PaymentType // Note: 거래 시점의 결제 방식
+
+  items RecordItem[]
+}
+
+model RecordItem {
+  id String @id @default(cuid())
+  workRecordId String
+  workRecord WorkRecord @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
+
+  name String
+  unitPrice Int 
+  quantity Int
+}
+
+model Expense {
+  id String @id @default(cuid())
+  date DateTime @default(now())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount Int
+  description String?
 }
