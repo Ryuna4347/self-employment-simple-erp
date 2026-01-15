@@ -9,7 +9,7 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-/// db에 url 정보를 넣는 것은 7 버전 이후 제거
+/// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
 datasource db {
   provider = "postgresql"
 }
