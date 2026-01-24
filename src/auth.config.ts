@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 // Edge 호환 설정 (Prisma, bcrypt 제외)
 export const authConfig = {
   pages: {
-    signIn: "/login",
+    signIn: "/",
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
@@ -12,7 +12,7 @@ export const authConfig = {
       const pathname = nextUrl.pathname
 
       // 로그인 페이지 접근 시: 이미 로그인된 사용자는 메인으로 리다이렉트
-      if (pathname === "/login" || pathname === "/") {
+      if (pathname === "/") {
         if (isLoggedIn) {
           return NextResponse.redirect(new URL("/work-records", nextUrl))
         }

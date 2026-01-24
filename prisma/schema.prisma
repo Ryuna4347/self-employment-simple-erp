@@ -38,6 +38,7 @@ model User {
   workRecords WorkRecord[]
   expenses Expense[]
   storeTemplates StoreTemplate[]
+  refreshTokens RefreshToken[]
 }
 
 
@@ -123,4 +124,21 @@ model Expense {
 
   amount Int
   description String?
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique          // 해시된 토큰 값
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  familyId  String                     // Token Rotation 추적용
+
+  expiresAt DateTime                   // 만료 시간
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?                  // 폐기 시점 (null = 유효)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
 }

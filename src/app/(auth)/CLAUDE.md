@@ -6,6 +6,7 @@
 
 ### 핵심 기능
 - Auth.js v5 기반 ID/PW 인증 (Credentials Provider + JWT 세션)
+- 로그인 상태 유지 (Remember Me): Refresh Token 기반 자동 로그인
 - 권한 분리: 관리자(ADMIN) / 일반 사원(USER)
 - 초대 시스템: 관리자가 생성한 초대 링크로 회원가입
 
@@ -27,6 +28,11 @@
 ### 인증
 - password가 null이거나 isDeleted가 true면 로그인 불가
 - 비밀번호는 bcrypt로 해싱
+
+### 로그인 상태 유지 (Remember Me)
+- **체크 시**: 7일 Refresh Token 발급, 접속마다 7일 연장
+- **미체크 시**: 18시간 절대 만료, 브라우저 닫으면 로그아웃
+- **보안**: Token Rotation + Token Reuse Attack 탐지
 
 ### 초대 시스템
 1. 관리자가 직원 이름으로 초대 생성

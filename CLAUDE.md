@@ -16,7 +16,7 @@ pnpm prisma studio    # DB GUI
 - **Frontend**: React 19, TypeScript, Tailwind CSS 4, shadcn/ui
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL + Prisma 7
-- **Auth**: Auth.js v5 (Credentials + JWT)
+- **Auth**: Auth.js v5 (Credentials + JWT + Refresh Token)
 - **Forms**: react-hook-form + zod
 
 ## 주요 도메인
@@ -28,6 +28,14 @@ pnpm prisma studio    # DB GUI
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹 관리 |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금 |
+
+## 인증 시스템
+
+- **로그인 상태 유지 (Remember Me)**
+  - 체크 시: 7일간 자동 로그인 (Refresh Token)
+  - 미체크 시: 18시간 후 만료 + 브라우저 닫으면 로그아웃
+- **Sliding Session**: Access Token 1시간 (30분 미만 남았을 때 자동 갱신)
+- **Token Rotation**: Refresh Token 사용 시마다 새 토큰 발급
 
 ## 규칙
 

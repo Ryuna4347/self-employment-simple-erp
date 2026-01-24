@@ -1,9 +1,13 @@
 import type { Role } from "@/generated/prisma/client"
 
+// 세션 에러 타입 정의
+type SessionError = "SessionExpired" | "RefreshTokenInvalid" | "TokenReused" | "UserDeleted"
+
 declare module "next-auth" {
   interface User {
     loginId?: string
     role?: Role
+    rememberMe?: boolean
   }
 
   interface Session {
@@ -13,6 +17,7 @@ declare module "next-auth" {
       loginId: string
       role: Role
     }
+    error?: SessionError  // 세션 에러 전달용
   }
 }
 
@@ -21,5 +26,10 @@ declare module "next-auth/jwt" {
     id?: string
     loginId?: string
     role?: Role
+    rememberMe?: boolean
+    refreshToken?: string | null
+    accessTokenExpires?: number
+    absoluteExpires?: number  // rememberMe=false만 사용 (18시간)
+    error?: SessionError
   }
 }
