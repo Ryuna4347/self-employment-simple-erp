@@ -32,10 +32,11 @@ pnpm prisma studio    # DB GUI
 ## 인증 시스템
 
 - **로그인 상태 유지 (Remember Me)**
-  - 체크 시: 7일간 자동 로그인 (Refresh Token)
-  - 미체크 시: 18시간 후 만료 + 브라우저 닫으면 로그아웃
+  - 체크 시: 7일간 자동 로그인 (Refresh Token + iron-session 슬라이딩)
+  - 미체크 시: 브라우저 닫으면 로그아웃 (iron-session 세션 쿠키)
 - **Sliding Session**: Access Token 1시간 (30분 미만 남았을 때 자동 갱신)
 - **Token Rotation**: Refresh Token 사용 시마다 새 토큰 발급
+- **이중 쿠키 시스템**: Auth.js JWT 쿠키 + iron-session 세션 체크 쿠키
 
 ## 규칙
 

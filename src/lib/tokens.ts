@@ -110,8 +110,8 @@ export async function revokeRefreshToken(token: string) {
   })
 }
 
-// 사용자의 모든 토큰 폐기 (모든 기기 로그아웃)
-export async function revokeAllUserTokens(userId: string) {
+// 사용자의 모든 활성 Refresh Token 폐기 (로그아웃 시 / 모든 기기 로그아웃)
+export async function revokeAllUserRefreshTokens(userId: string) {
   await prisma.refreshToken.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() }

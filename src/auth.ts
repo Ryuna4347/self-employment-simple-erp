@@ -4,12 +4,12 @@ import { prisma } from "@/lib/prisma"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
 import { authConfig } from "./auth.config"
-import { createRefreshToken, rotateRefreshToken } from "@/lib/tokens"
+import { createRefreshToken, rotateRefreshToken, revokeAllUserRefreshTokens } from "@/lib/tokens"
+import { createSessionCookie, renewSessionCookie, destroySessionCookie } from "@/lib/session-cookie"
 // 타입 확장은 src/types/next-auth.d.ts에서 처리
 
 const ACCESS_TOKEN_MAX_AGE = 60 * 60              // 1시간
 const REFRESH_THRESHOLD = 30 * 60 * 1000          // 30분 (밀리초)
-const ABSOLUTE_MAX_AGE_NO_REMEMBER = 18 * 60 * 60 * 1000  // 18시간 (rememberMe=false)
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -64,6 +64,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const rememberMe = user.rememberMe ?? false
         const refreshTokenData = await createRefreshToken(user.id as string, rememberMe)
 
+        // 세션 쿠키 생성 (rememberMe에 따라 세션/persistent)
+        await createSessionCookie(rememberMe)
+
         return {
           id: user.id,
           loginId: user.loginId,
@@ -71,23 +74,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           rememberMe,
           refreshToken: refreshTokenData?.token ?? null,
           accessTokenExpires: Date.now() + ACCESS_TOKEN_MAX_AGE * 1000,
-          // rememberMe=false만 절대 만료 설정 (18시간)
-          absoluteExpires: rememberMe ? undefined : Date.now() + ABSOLUTE_MAX_AGE_NO_REMEMBER,
         }
       }
 
-      // 2. 절대 만료 시간 체크 (rememberMe=false만 해당)
-      if (token.absoluteExpires && Date.now() >= (token.absoluteExpires as number)) {
-        return { ...token, error: "SessionExpired" as const }
-      }
-
-      // 3. Access Token 아직 유효 → Sliding Session (30분 미만 남았을 때만 갱신)
+      // 2. Access Token 아직 유효 → Sliding Session (30분 미만 남았을 때만 갱신)
       const accessTokenExpires = token.accessTokenExpires as number | undefined
       if (Date.now() < (accessTokenExpires ?? 0)) {
         const timeRemaining = (accessTokenExpires as number) - Date.now()
 
         // 남은 시간이 30분 미만일 때만 연장 (불필요한 JWT 재서명 방지)
         if (timeRemaining < REFRESH_THRESHOLD) {
+          // iron-session 쿠키도 갱신 (rememberMe=true만)
+          if (token.rememberMe) {
+            await renewSessionCookie()
+          }
+
           return {
             ...token,
             accessTokenExpires: Date.now() + ACCESS_TOKEN_MAX_AGE * 1000,
@@ -121,6 +122,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return { ...token, error: "UserDeleted" as const }
         }
 
+        // Refresh Token 갱신 성공 시 iron-session도 갱신 (rememberMe=true만)
+        if (token.rememberMe) {
+          await renewSessionCookie()
+        }
+
         return {
           ...token,
           role: dbUser.role,
@@ -148,6 +154,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.loginId = token.loginId as string
       session.user.role = token.role as "ADMIN" | "USER"
       return session
+    },
+  },
+  events: {
+    async signOut(message) {
+      // JWT 전략: message에 token이 있음
+      if ("token" in message && message.token?.id) {
+        // 사용자의 모든 활성 Refresh Token 폐기 (DB)
+        await revokeAllUserRefreshTokens(message.token.id as string)
+      }
+      // iron-session 쿠키 삭제
+      await destroySessionCookie()
     },
   },
 })

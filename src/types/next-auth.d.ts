@@ -29,7 +29,6 @@ declare module "next-auth/jwt" {
     rememberMe?: boolean
     refreshToken?: string | null
     accessTokenExpires?: number
-    absoluteExpires?: number  // rememberMe=false만 사용 (18시간)
     error?: SessionError
   }
 }
