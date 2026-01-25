@@ -119,6 +119,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* 스크롤바 공간 미리 확보하여 레이아웃 shift 방지 */
+    scrollbar-gutter: stable;
+  }
   body {
     @apply bg-background text-foreground;
   }
