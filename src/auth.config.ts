@@ -20,16 +20,15 @@ export const authConfig = {
         return true
       }
 
-      // 관리자 전용 경로 체크
-      if (pathname.startsWith("/admin")) {
-        if (!isLoggedIn) return false
-        // JWT의 role 체크 (Edge에서는 token 직접 접근 불가, 별도 처리 필요)
-        // 상세 권한 체크는 각 페이지/API에서 수행
-        return true
+      // 비로그인 시 로그인 페이지로 (callbackUrl 없이)
+      if (!isLoggedIn) {
+        return NextResponse.redirect(new URL("/", nextUrl))
       }
 
-      // 그 외 보호된 경로: 로그인 필요
-      return isLoggedIn
+      // 관리자 전용 경로 체크
+      // JWT의 role 체크 (Edge에서는 token 직접 접근 불가, 별도 처리 필요)
+      // 상세 권한 체크는 각 페이지/API에서 수행
+      return true
     },
   },
   providers: [],
