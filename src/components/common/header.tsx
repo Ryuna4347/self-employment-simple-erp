@@ -55,59 +55,50 @@ export function Header() {
     fetchSession();
   }, []);
 
-  // 로딩 중이거나 사용자가 없으면 렌더링하지 않음
-  if (isLoading || !user) {
-    return null;
-  }
-
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN";
   const isOnAdminPage = pathname.startsWith("/admin");
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-40 border-b border-gray-100">
       <div className="px-4 py-4 flex items-center justify-between max-w-7xl mx-auto">
         {/* 좌측: 제품명 */}
-        <h1 className="text-lg font-semibold text-gray-900">
-          Small-Shop ERP
-        </h1>
+        <h1 className="text-lg font-semibold text-gray-900">Small-Shop ERP</h1>
 
-        {/* 우측: 네비게이션 및 프로필 */}
-        <div className="flex items-center gap-3">
-          {/* 관리자 메뉴 버튼 (ADMIN만 표시) */}
-          {isAdmin && (
+        {/* 우측: 네비게이션 및 프로필 (로그인 시에만 표시) */}
+        {!isLoading && user && (
+          <div className="flex items-center gap-3">
+            {/* 관리자 메뉴 버튼 (ADMIN만 표시) */}
+            {isAdmin && (
+              <Button
+                asChild
+                variant={isOnAdminPage ? "default" : "outline"}
+                size="sm"
+                className="transition-all"
+              >
+                <Link href="/admin">관리자</Link>
+              </Button>
+            )}
+
+            {/* 사용자 프로필 버튼 */}
             <Button
               asChild
-              variant={isOnAdminPage ? "default" : "outline"}
+              variant="ghost"
               size="sm"
-              className="transition-all"
+              className="gap-2 hover:bg-gray-50 transition-colors"
             >
-              <Link href="/admin">
-                관리자
+              <Link href="/profile">
+                <span className="text-gray-700 font-medium">{user.name}</span>
+                {/* 역할 표시 인디케이터 */}
+                <span
+                  className={`size-2 rounded-full ${
+                    isAdmin ? "bg-red-500" : "bg-green-500"
+                  }`}
+                  aria-label={isAdmin ? "관리자" : "사용자"}
+                />
               </Link>
             </Button>
-          )}
-
-          {/* 사용자 프로필 버튼 */}
-          <Button
-            asChild
-            variant="ghost"
-            size="sm"
-            className="gap-2 hover:bg-gray-50 transition-colors"
-          >
-            <Link href="/profile">
-              <span className="text-gray-700 font-medium">
-                {user.name}
-              </span>
-              {/* 역할 표시 인디케이터 */}
-              <span
-                className={`size-2 rounded-full ${
-                  isAdmin ? "bg-red-500" : "bg-green-500"
-                }`}
-                aria-label={isAdmin ? "관리자" : "사용자"}
-              />
-            </Link>
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );
