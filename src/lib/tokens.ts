@@ -117,3 +117,32 @@ export async function revokeAllUserRefreshTokens(userId: string) {
     data: { revokedAt: new Date() }
   })
 }
+
+// 만료된 Refresh Token 정리 (Cron Job 용)
+// - 만료 시간이 지난 토큰 삭제 (expiresAt < now)
+// - 이미 폐기된 오래된 토큰도 함께 삭제 (revokedAt이 설정되고 일정 시간 경과)
+export async function cleanupExpiredRefreshTokens(): Promise<{
+  deletedCount: number
+  executedAt: Date
+}> {
+  const now = new Date()
+
+  // 만료되었거나 폐기된 지 7일 이상 지난 토큰 삭제
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+  const result = await prisma.refreshToken.deleteMany({
+    where: {
+      OR: [
+        // 만료된 토큰 (expiresAt이 현재 시간보다 이전)
+        { expiresAt: { lt: now } },
+        // 폐기된 지 7일 이상 지난 토큰 (감사 로그 보존 기간)
+        { revokedAt: { lt: sevenDaysAgo } }
+      ]
+    }
+  })
+
+  return {
+    deletedCount: result.count,
+    executedAt: now
+  }
+}
