@@ -15,7 +15,8 @@ import { apiSuccess, ApiErrors } from "@/lib/api-response"
 export async function GET() {
   const session = await auth()
 
-  if (!session?.user) {
+  // 빈 객체 {}도 truthy이므로 user.id로 체크
+  if (!session?.user?.id) {
     return ApiErrors.unauthorized("로그인이 필요합니다")
   }
 
