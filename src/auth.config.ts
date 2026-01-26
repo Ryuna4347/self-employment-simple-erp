@@ -8,8 +8,10 @@ export const authConfig = {
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
-      // 빈 객체 {}도 truthy이므로 user.id로 체크
-      const isLoggedIn = !!auth?.user?.id
+      // Edge Runtime에서는 auth.user가 빈 객체 {}로 전달됨
+      // user.id 체크는 불가하므로 user 존재 여부만 확인
+      // 상세 검증은 (authenticated) layout에서 수행
+      const isLoggedIn = !!auth?.user
       const pathname = nextUrl.pathname
 
       // 로그인 페이지 접근 시: 이미 로그인된 사용자는 메인으로 리다이렉트
