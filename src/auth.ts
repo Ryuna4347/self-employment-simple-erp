@@ -69,6 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         return {
           id: user.id,
+          name: user.name,
           loginId: user.loginId,
           role: user.role,
           rememberMe,
@@ -151,6 +152,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       session.user.id = token.id as string
+      session.user.name = token.name as string
       session.user.loginId = token.loginId as string
       session.user.role = token.role as "ADMIN" | "USER"
       return session

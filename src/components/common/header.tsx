@@ -40,9 +40,9 @@ export function Header() {
       try {
         const response = await fetch("/api/auth/session");
         if (response.ok) {
-          const session = await response.json();
-          if (session?.user) {
-            setUser(session.user);
+          const result = await response.json();
+          if (result?.data?.user) {
+            setUser(result.data.user);
           }
         }
       } catch (error) {
@@ -88,13 +88,6 @@ export function Header() {
             >
               <Link href="/profile">
                 <span className="text-gray-700 font-medium">{user.name}</span>
-                {/* 역할 표시 인디케이터 */}
-                <span
-                  className={`size-2 rounded-full ${
-                    isAdmin ? "bg-red-500" : "bg-green-500"
-                  }`}
-                  aria-label={isAdmin ? "관리자" : "사용자"}
-                />
               </Link>
             </Button>
           </div>
