@@ -42,9 +42,9 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
         />
       )}
 
-      {/* 메뉴 아이템 */}
+      {/* 메뉴 아이템 (하단 네비 위에 표시) */}
       {isOpen && (
-        <div className="fixed bottom-28 right-6 z-40 flex flex-col gap-3">
+        <div className="fixed bottom-[8.5rem] right-6 z-40 flex flex-col gap-3">
           {/* 템플릿 적용 */}
           <button
             onClick={handleApplyTemplate}
@@ -65,11 +65,11 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
         </div>
       )}
 
-      {/* FAB 버튼 */}
+      {/* FAB 버튼 (하단 네비 위에 배치: bottom-nav 높이 ~5rem + 여백 0.75rem) */}
       <button
         onClick={handleToggle}
         className={cn(
-          "fixed bottom-6 right-6 size-14 rounded-full shadow-lg transition-all z-40",
+          "fixed bottom-[5.75rem] right-6 size-14 rounded-full shadow-lg transition-all z-40",
           "flex items-center justify-center",
           "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
           isOpen

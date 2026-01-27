@@ -96,7 +96,7 @@ export default function WorkRecordsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
+      <div className="max-w-4xl mx-auto px-4 py-6 pb-8">
         {/* 페이지 헤더 */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">근무 기록</h1>
