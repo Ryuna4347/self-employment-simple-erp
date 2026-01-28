@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -42,7 +42,9 @@ export function SaleItemModal({
   editItem,
   isLoading,
 }: SaleItemModalProps) {
-  const isEditMode = !!editItem
+  // 내부 상태로 수정 모드 유지 (닫힘 애니메이션 중 라벨 변경 방지)
+  const [internalEditItem, setInternalEditItem] = useState<SaleItem | null>(null)
+  const isEditMode = !!internalEditItem
 
   const {
     register,
@@ -57,9 +59,10 @@ export function SaleItemModal({
     },
   })
 
-  // 모달 열릴 때 폼 초기화
+  // 모달 열릴 때만 외부 editItem을 내부 상태로 동기화
   useEffect(() => {
     if (open) {
+      setInternalEditItem(editItem ?? null)
       if (editItem) {
         reset({
           name: editItem.name,
@@ -118,7 +121,7 @@ export function SaleItemModal({
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
