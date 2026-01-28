@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/generated/prisma/client";
 
-interface SessionUser {
-  id: string;
-  name: string;
-  loginId: string;
-  role: Role;
+interface HeaderProps {
+  user: {
+    id: string;
+    name: string;
+    loginId: string;
+    role: Role;
+  };
 }
 
 /**
@@ -22,40 +23,19 @@ interface SessionUser {
  * - 좌측: 제품명 표시 (브랜드 아이덴티티)
  * - 우측:
  *   - 관리자 메뉴 버튼 (ADMIN 권한만 표시)
- *   - 사용자 프로필 버튼 (이름 + 역할 표시)
+ *   - 사용자 프로필 버튼 (이름 표시)
+ *
+ * **데이터**: layout.tsx에서 서버 세션으로부터 user 정보를 props로 전달받음
  *
  * **접근성**:
  * - semantic header 태그 사용
  * - 키보드 네비게이션 지원
  * - 명확한 시각적 피드백 (현재 페이지 표시)
  */
-export function Header() {
+export function Header({ user }: HeaderProps) {
   const pathname = usePathname();
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
-  // 세션 정보 가져오기
-  useEffect(() => {
-    async function fetchSession() {
-      try {
-        const response = await fetch("/api/auth/session");
-        if (response.ok) {
-          const result = await response.json();
-          if (result?.data?.user) {
-            setUser(result.data.user);
-          }
-        }
-      } catch (error) {
-        console.error("세션 로드 실패:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchSession();
-  }, []);
-
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user.role === "ADMIN";
   const isOnAdminPage = pathname.startsWith("/admin");
 
   return (
@@ -64,34 +44,32 @@ export function Header() {
         {/* 좌측: 제품명 */}
         <h1 className="text-lg font-semibold text-gray-900">Small-Shop ERP</h1>
 
-        {/* 우측: 네비게이션 및 프로필 (로그인 시에만 표시) */}
-        {!isLoading && user && (
-          <div className="flex items-center gap-3">
-            {/* 관리자 메뉴 버튼 (ADMIN만 표시) */}
-            {isAdmin && (
-              <Button
-                asChild
-                variant={isOnAdminPage ? "default" : "outline"}
-                size="sm"
-                className="transition-all"
-              >
-                <Link href="/admin">관리자</Link>
-              </Button>
-            )}
-
-            {/* 사용자 프로필 버튼 */}
+        {/* 우측: 네비게이션 및 프로필 */}
+        <div className="flex items-center gap-3">
+          {/* 관리자 메뉴 버튼 (ADMIN만 표시) */}
+          {isAdmin && (
             <Button
               asChild
-              variant="ghost"
+              variant={isOnAdminPage ? "default" : "outline"}
               size="sm"
-              className="gap-2 hover:bg-gray-50 transition-colors"
+              className="transition-all"
             >
-              <Link href="/profile">
-                <span className="text-gray-700 font-medium">{user.name}</span>
-              </Link>
+              <Link href="/admin">관리자</Link>
             </Button>
-          </div>
-        )}
+          )}
+
+          {/* 사용자 프로필 버튼 */}
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="gap-2 hover:bg-gray-50 transition-colors"
+          >
+            <Link href="/profile">
+              <span className="text-gray-700 font-medium">{user.name}</span>
+            </Link>
+          </Button>
+        </div>
       </div>
     </header>
   );
