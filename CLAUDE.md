@@ -18,6 +18,22 @@ pnpm prisma studio    # DB GUI
 - **Database**: PostgreSQL + Prisma 7
 - **Auth**: Auth.js v5 (Credentials + JWT + Refresh Token)
 - **Forms**: react-hook-form + zod
+- **Data Fetching**: TanStack Query (react-query) - 401 전역 처리
+
+## 라우트 구조
+
+```
+src/app/
+├── (with-nav)/       # 네비게이션 포함 (Header + BottomNav)
+│   ├── layout.tsx    # 세션 검증 + 공통 레이아웃
+│   ├── work-records/
+│   ├── stores/
+│   ├── store-templates/
+│   └── admin/
+├── register/         # 회원가입
+├── api/              # API 라우트
+└── page.tsx          # 로그인 페이지 (/)
+```
 
 ## 주요 도메인
 
@@ -37,6 +53,12 @@ pnpm prisma studio    # DB GUI
 - **Sliding Session**: Access Token 1시간 (30분 미만 남았을 때 자동 갱신)
 - **Token Rotation**: Refresh Token 사용 시마다 새 토큰 발급
 - **이중 쿠키 시스템**: Auth.js JWT 쿠키 + iron-session 세션 체크 쿠키
+
+### 세션 처리 흐름 (3단계)
+
+1. **미들웨어**: `erp-session` 쿠키 체크 (브라우저 종료 감지)
+2. **auth.config.ts**: `auth?.user` 존재 여부 (비로그인 차단)
+3. **layout.tsx**: `session.error`, `user.id` 체크 (토큰 만료/무효화)
 
 ## 규칙
 
