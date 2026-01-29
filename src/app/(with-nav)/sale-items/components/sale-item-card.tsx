@@ -13,7 +13,6 @@ interface SaleItemCardProps {
 
 /**
  * 물품 카드 컴포넌트
- * - 프로젝트 패턴: hover shadow, 좌측 컬러바
  */
 export function SaleItemCard({ item, onEdit, onDelete }: SaleItemCardProps) {
   const handleDelete = () => {
@@ -25,22 +24,19 @@ export function SaleItemCard({ item, onEdit, onDelete }: SaleItemCardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all flex",
+        "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all",
         "hover:shadow-md"
       )}
     >
-      {/* 좌측 컬러바 (물품은 파란색으로 통일) */}
-      <div className="w-1.5 flex-shrink-0 bg-blue-500" />
-
       {/* 카드 콘텐츠 */}
-      <div className="flex-1 p-4">
+      <div className="p-4">
         <div className="flex items-center justify-between gap-3">
           {/* 좌측: 물품 정보 */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-base mb-1">
               {item.name}
             </h3>
-            <p className="text-blue-600 font-medium">
+            <p className="text-gray-600 font-medium">
               {item.unitPrice.toLocaleString()}원
             </p>
           </div>
