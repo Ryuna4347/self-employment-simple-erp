@@ -15,11 +15,14 @@ export const authConfig = {
       const pathname = nextUrl.pathname
 
       // 로그인 페이지 접근 시: 이미 로그인된 사용자는 메인으로 리다이렉트
+      // 단, sessionExpired=true인 경우는 세션 만료로 리다이렉트된 것이므로 로그인 페이지 표시
       if (pathname === "/") {
-        if (isLoggedIn) {
+        const isSessionExpired =
+          nextUrl.searchParams.get("sessionExpired") === "true"
+        if (isLoggedIn && !isSessionExpired) {
           return NextResponse.redirect(new URL("/work-records", nextUrl))
         }
-        // 로그인 페이지는 비로그인 사용자에게 허용
+        // 로그인 페이지는 비로그인 사용자 또는 세션 만료 사용자에게 허용
         return true
       }
 
