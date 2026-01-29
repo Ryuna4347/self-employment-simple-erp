@@ -49,8 +49,8 @@ export function createQueryClient(): QueryClient {
           }
           return failureCount < 3;
         },
-        // 포커스 시 자동 refetch
-        refetchOnWindowFocus: true,
+        // 포커스 시 자동 refetch 비활성화 (토큰 갱신 race condition 방지)
+        refetchOnWindowFocus: false,
         // 오래된 데이터 기준 (5분)
         staleTime: 5 * 60 * 1000,
       },
