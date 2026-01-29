@@ -5,7 +5,7 @@ import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
 import { authConfig } from "./auth.config"
 import { createRefreshToken, rotateRefreshToken, revokeAllUserRefreshTokens } from "@/lib/tokens"
-import { createSessionCookie, renewSessionCookie, destroySessionCookie } from "@/lib/session-cookie"
+import { createSessionCookie, renewSessionCookie, destroySessionCookie, canModifyCookies } from "@/lib/session-cookie"
 // 타입 확장은 src/types/next-auth.d.ts에서 처리
 
 const ACCESS_TOKEN_MAX_AGE = 60 * 60              // 1시간
@@ -85,6 +85,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // 남은 시간이 30분 미만일 때만 연장 (불필요한 JWT 재서명 방지)
         if (timeRemaining < REFRESH_THRESHOLD) {
+          // 서버 컴포넌트에서는 쿠키 수정 불가 → 갱신 스킵
+          if (!(await canModifyCookies())) {
+            return token
+          }
+
           // iron-session 쿠키도 갱신 (rememberMe=true만)
           if (token.rememberMe) {
             await renewSessionCookie()
@@ -99,12 +104,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return token  // 변경 없음 (쿠키 재발급 안함)
       }
 
+      // 3. Access Token 만료 → 쿠키 수정 가능 여부 확인
+      // 서버 컴포넌트에서는 JWT 쿠키 저장이 안 되므로 token rotation 하면 안 됨
+      // (DB에서 토큰이 rotate되면 다음 요청에서 "Token reuse" 발생)
+      if (!(await canModifyCookies())) {
+        // 서버 컴포넌트에서는 만료된 토큰 상태 그대로 유지 (에러 없이)
+        // 실제 API 호출 시 (Route Handler에서) 갱신됨
+        return token
+      }
+
       // 4. Access Token 만료 + Refresh Token 없음: 세션 종료
       if (!token.refreshToken) {
         return { ...token, error: "SessionExpired" as const }
       }
 
-      // 5. Refresh Token으로 갱신 (Promise.all 병렬 처리)
+      // 5. Refresh Token으로 갱신 (Route Handler에서만 실행됨)
       try {
         const [rotateResult, dbUser] = await Promise.all([
           rotateRefreshToken(token.refreshToken as string, token.id as string),
