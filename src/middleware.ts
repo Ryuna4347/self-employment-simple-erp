@@ -6,6 +6,10 @@ import { SESSION_COOKIE_NAME } from "@/lib/session-cookie"
 
 const { auth } = NextAuth(authConfig)
 
+// Auth.js 세션 쿠키 이름 (개발/프로덕션)
+const AUTH_COOKIE_NAME = "authjs.session-token"
+const AUTH_COOKIE_NAME_SECURE = "__Secure-authjs.session-token"
+
 // 세션 쿠키 체크 미들웨어
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -20,10 +24,16 @@ export default async function middleware(request: NextRequest) {
 
   if (!sessionCookie) {
     // 세션 쿠키 없음 = 브라우저 닫았거나 만료
-    // Next-Auth 쿠키가 있어도 무시하고 로그인 페이지로
+    // Auth.js 쿠키도 삭제하여 무한 리디렉션 방지
     const url = new URL("/", request.url)
     url.searchParams.set("sessionExpired", "true")
-    return NextResponse.redirect(url)
+    const response = NextResponse.redirect(url)
+
+    // Auth.js 쿠키 삭제 (개발/프로덕션 모두 처리)
+    response.cookies.delete(AUTH_COOKIE_NAME)
+    response.cookies.delete(AUTH_COOKIE_NAME_SECURE)
+
+    return response
   }
 
   // 세션 쿠키 있으면 기존 Auth.js authorized 콜백 진행
