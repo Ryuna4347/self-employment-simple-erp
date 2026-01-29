@@ -25,7 +25,10 @@ const SALE_ITEMS_KEY = ["sale-items"] as const
 /**
  * 물품 목록 조회 훅
  */
-export function useSaleItems(search?: string) {
+export function useSaleItems(
+  search?: string,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: [...SALE_ITEMS_KEY, { search }],
     queryFn: async () => {
@@ -35,6 +38,7 @@ export function useSaleItems(search?: string) {
       )
       return response.data
     },
+    enabled: options?.enabled,
   })
 }
 

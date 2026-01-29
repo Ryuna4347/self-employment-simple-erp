@@ -22,7 +22,7 @@ const paymentTypeLabels: Record<string, string> = {
  * 매장 카드 컴포넌트 (Accordion)
  *
  * 축약 모드 (기본):
- * - 매장명 + (현금일 때 담당자 뱃지)
+ * - 매장명 + (계좌일 때 담당자 뱃지)
  * - 주소
  *
  * 상세 모드 (클릭 시 확장):
@@ -65,7 +65,7 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
               <h3 className="font-semibold text-gray-900 text-base">
                 {store.name}
               </h3>
-              {store.PaymentType === "CASH" && store.managerName && (
+              {store.PaymentType === "ACCOUNT" && store.managerName && (
                 <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
                   {store.managerName}
                 </span>

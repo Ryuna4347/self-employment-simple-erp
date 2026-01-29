@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -23,12 +23,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Store, StoreInput } from "../hooks/use-stores"
+import { useSaleItems, type SaleItem } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
 
 // 품목 스키마
 const storeItemSchema = z.object({
   name: z.string().min(1, "품명을 입력해주세요"),
-  unitPrice: z.number().int().min(0, "단가는 0 이상이어야 합니다"),
-  quantity: z.number().int().min(0, "수량은 0 이상이어야 합니다"),
+  unitPrice: z.number().int().min(1, "단가를 입력해주세요"),
+  quantity: z.number().int().min(1, "수량을 입력해주세요"),
 })
 
 // 매장 스키마
@@ -64,6 +65,14 @@ export function StoreModal({
   const [internalEditStore, setInternalEditStore] = useState<Store | null>(null)
   const isEditMode = !!internalEditStore
 
+  // Autocomplete 상태
+  const [itemSearchTerms, setItemSearchTerms] = useState<Record<number, string>>({})
+  const [showDropdown, setShowDropdown] = useState<Record<number, boolean>>({})
+  const dropdownTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({})
+
+  // SaleItem 목록 조회 (모달이 열릴 때만)
+  const { data: saleItems = [] } = useSaleItems(undefined, { enabled: open })
+
   const {
     register,
     control,
@@ -71,9 +80,10 @@ export function StoreModal({
     reset,
     watch,
     setValue,
-    formState: { errors },
+    formState: { errors, isValid },
   } = useForm<StoreFormData>({
     resolver: zodResolver(storeSchema),
+    mode: "onChange",
     defaultValues: {
       name: "",
       address: "",
@@ -94,7 +104,16 @@ export function StoreModal({
   useEffect(() => {
     if (open) {
       setInternalEditStore(editStore ?? null)
+      // Autocomplete 상태 초기화
+      setItemSearchTerms({})
+      setShowDropdown({})
       if (editStore) {
+        // 수정 모드: 기존 품목명을 검색어로 설정
+        const initialSearchTerms: Record<number, string> = {}
+        editStore.storeItems.forEach((item, index) => {
+          initialSearchTerms[index] = item.name
+        })
+        setItemSearchTerms(initialSearchTerms)
         reset({
           name: editStore.name,
           address: editStore.address,
@@ -123,10 +142,19 @@ export function StoreModal({
       name: data.name,
       address: data.address,
       PaymentType: data.PaymentType,
-      managerName: data.PaymentType === "CASH" ? data.managerName : null,
+      managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
     }
     onSubmit(submitData)
+  }
+
+  // SaleItem 선택 핸들러
+  const handleSaleItemSelect = (index: number, saleItem: SaleItem) => {
+    setValue(`items.${index}.name`, saleItem.name, { shouldValidate: true })
+    setValue(`items.${index}.unitPrice`, saleItem.unitPrice, { shouldValidate: true })
+    setValue(`items.${index}.quantity`, 1, { shouldValidate: true })
+    setItemSearchTerms((prev) => ({ ...prev, [index]: saleItem.name }))
+    setShowDropdown((prev) => ({ ...prev, [index]: false }))
   }
 
   const handleAddItem = () => {
@@ -194,8 +222,8 @@ export function StoreModal({
             </Select>
           </div>
 
-          {/* 담당자 (현금일 때만) */}
-          {paymentType === "CASH" && (
+          {/* 담당자 (계좌일 때만) */}
+          {paymentType === "ACCOUNT" && (
             <div className="space-y-2">
               <Label htmlFor="managerName">담당자 (입금자)</Label>
               <Input
@@ -228,14 +256,59 @@ export function StoreModal({
                   className="bg-gray-50 rounded-lg p-3 space-y-3"
                 >
                   <div className="grid grid-cols-12 gap-2 items-start">
-                    {/* 품명 */}
-                    <div className="col-span-5">
+                    {/* 품명 (Autocomplete) */}
+                    <div className="col-span-5 relative">
                       <Label className="text-xs text-gray-600">품명</Label>
                       <Input
-                        placeholder="품목명"
-                        {...register(`items.${index}.name`)}
+                        placeholder="품목 검색..."
+                        value={itemSearchTerms[index] ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          setItemSearchTerms((prev) => ({ ...prev, [index]: value }))
+                          setValue(`items.${index}.name`, value, { shouldValidate: true })
+                          setShowDropdown((prev) => ({ ...prev, [index]: true }))
+                        }}
+                        onFocus={() => setShowDropdown((prev) => ({ ...prev, [index]: true }))}
+                        onBlur={() => {
+                          // 드롭다운 클릭 이벤트가 먼저 처리되도록 지연
+                          if (dropdownTimeoutRef.current[index]) {
+                            clearTimeout(dropdownTimeoutRef.current[index])
+                          }
+                          dropdownTimeoutRef.current[index] = setTimeout(() => {
+                            setShowDropdown((prev) => ({ ...prev, [index]: false }))
+                          }, 200)
+                        }}
                         className="mt-1"
                       />
+
+                      {/* Autocomplete 드롭다운 */}
+                      {showDropdown[index] && (itemSearchTerms[index] ?? "").length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                          {saleItems
+                            .filter((item) =>
+                              item.name.toLowerCase().includes((itemSearchTerms[index] ?? "").toLowerCase())
+                            )
+                            .slice(0, 5)
+                            .map((item) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onMouseDown={() => handleSaleItemSelect(index, item)}
+                                className="w-full px-3 py-2 text-left hover:bg-gray-50"
+                              >
+                                <p className="text-sm text-gray-900">{item.name}</p>
+                                <p className="text-xs text-gray-500">{item.unitPrice.toLocaleString()}원</p>
+                              </button>
+                            ))}
+                          {saleItems.filter((item) =>
+                            item.name.toLowerCase().includes((itemSearchTerms[index] ?? "").toLowerCase())
+                          ).length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-400">
+                              검색 결과가 없습니다
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {errors.items?.[index]?.name && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors.items[index]?.name?.message}
@@ -248,13 +321,18 @@ export function StoreModal({
                       <Label className="text-xs text-gray-600">단가</Label>
                       <Input
                         type="number"
-                        min={0}
+                        min={1}
                         placeholder="0"
                         {...register(`items.${index}.unitPrice`, {
                           valueAsNumber: true,
                         })}
                         className="mt-1"
                       />
+                      {errors.items?.[index]?.unitPrice && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.unitPrice?.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* 기본 수량 */}
@@ -262,13 +340,18 @@ export function StoreModal({
                       <Label className="text-xs text-gray-600">기본 수량</Label>
                       <Input
                         type="number"
-                        min={0}
+                        min={1}
                         placeholder="0"
                         {...register(`items.${index}.quantity`, {
                           valueAsNumber: true,
                         })}
                         className="mt-1"
                       />
+                      {errors.items?.[index]?.quantity && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.quantity?.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* 삭제 버튼 */}
@@ -304,7 +387,7 @@ export function StoreModal({
             >
               취소
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !isValid}>
               {isLoading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
             </Button>
           </DialogFooter>
