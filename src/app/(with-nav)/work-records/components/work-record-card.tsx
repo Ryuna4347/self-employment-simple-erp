@@ -3,13 +3,29 @@
 import { useState } from "react";
 import { MapPin, ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { WorkRecord, calculateTotalAmount, formatPaymentType } from "../types";
+import type { WorkRecordResponse, WorkRecordItem } from "../hooks/use-work-records";
+import type { PaymentType } from "@/generated/prisma/client";
 import { cn } from "@/lib/utils";
 
 interface WorkRecordCardProps {
-  record: WorkRecord;
-  onEdit?: (record: WorkRecord) => void;
+  record: WorkRecordResponse;
+  onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
+}
+
+// 유틸리티 함수: 총 금액 계산
+function calculateTotalAmount(items: WorkRecordItem[]): number {
+  return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+}
+
+// 유틸리티 함수: 결제 방식 한글 변환
+function formatPaymentType(type: PaymentType): string {
+  const typeMap: Record<PaymentType, string> = {
+    CASH: "현금",
+    ACCOUNT: "계좌이체",
+    CARD: "카드",
+  };
+  return typeMap[type];
 }
 
 /**
