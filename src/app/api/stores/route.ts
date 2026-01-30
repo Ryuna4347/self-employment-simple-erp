@@ -7,7 +7,7 @@ import { auth } from "@/auth"
 const createStoreSchema = z.object({
   name: z.string().min(1, "매장명을 입력해주세요"),
   address: z.string().min(1, "주소를 입력해주세요"),
-  managerName: z.string().optional(),
+  managerName: z.string().nullish(),
   PaymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
   kakaoPlaceId: z.string().optional(),
   latitude: z.number().optional(),
