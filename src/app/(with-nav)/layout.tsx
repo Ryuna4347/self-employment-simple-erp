@@ -29,6 +29,7 @@ export default async function WithNavLayout({
 }) {
   const session = await auth();
 
+  console.log(session);
   // 세션 에러 또는 user.id 없음 → 로그인 페이지로
   if (session?.error || !session?.user?.id) {
     redirect("/?sessionExpired=true");

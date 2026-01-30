@@ -48,12 +48,13 @@ export function CalendarHeader({ selectedDate, onDateChange }: CalendarHeaderPro
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="border-t border-gray-200 p-4 flex flex-col items-center">
+          <div className="border-t border-gray-200 p-4">
             <Calendar
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
               locale={ko}
+              className="w-full"
             />
             {!isToday && (
               <div className="flex justify-center mt-2">
