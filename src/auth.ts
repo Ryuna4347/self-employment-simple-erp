@@ -59,6 +59,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     // JWT 토큰에 사용자 정보 추가
     async jwt({ token, user }) {
+      const canModify = await canModifyCookies()
+      console.log("[DEBUG jwt callback]", {
+        hasUser: !!user,
+        tokenId: token.id,
+        tokenError: token.error,
+        accessTokenExpires: token.accessTokenExpires,
+        now: Date.now(),
+        isExpired: Date.now() >= (token.accessTokenExpires as number ?? 0),
+        canModifyCookies: canModify,
+        hasRefreshToken: !!token.refreshToken,
+      })
+
       // 1. 최초 로그인
       if (user) {
         const rememberMe = user.rememberMe ?? false
@@ -155,6 +167,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     // 세션에 JWT 정보 전달
     async session({ session, token }) {
+      // 디버깅 로그
+      console.log("[DEBUG session callback]", { tokenId: token.id, tokenError: token.error, tokenRole: token.role })
+
       // JWT의 error를 Session으로 전달 (필수!)
       if (token.error) {
         return { ...session, error: token.error }
