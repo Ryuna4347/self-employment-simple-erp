@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/auth"
+import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 
 // 매장 생성 스키마
 const createStoreSchema = z.object({
@@ -28,15 +28,10 @@ const createStoreSchema = z.object({
  * 매장 목록 조회 (검색 지원)
  */
 export async function GET(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "인증이 필요합니다" },
-        { status: 401 }
-      )
-    }
+  const authResult = await requireAuth()
+  if (isErrorResponse(authResult)) return authResult
 
+  try {
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get("search")
 
@@ -71,15 +66,10 @@ export async function GET(request: NextRequest) {
  * 매장 추가 (품목과 함께 트랜잭션 처리)
  */
 export async function POST(request: NextRequest) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "인증이 필요합니다" },
-        { status: 401 }
-      )
-    }
+  const authResult = await requireAuth()
+  if (isErrorResponse(authResult)) return authResult
 
+  try {
     const body = await request.json()
 
     // 입력 검증

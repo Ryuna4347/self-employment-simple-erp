@@ -28,6 +28,11 @@ interface AuthResult {
 export async function requireAuth(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized>> {
   const session = await auth()
 
+  // session.error 체크 (TokenReused, SessionExpired, UserDeleted 등)
+  if (session?.error) {
+    return ApiErrors.unauthorized(`세션 오류: ${session.error}`)
+  }
+
   if (!session?.user) {
     return ApiErrors.unauthorized("로그인이 필요합니다")
   }
@@ -51,6 +56,11 @@ export async function requireAuth(): Promise<AuthResult | ReturnType<typeof ApiE
 export async function requireAdmin(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.adminRequired>> {
   const session = await auth()
 
+  // session.error 체크 (TokenReused, SessionExpired, UserDeleted 등)
+  if (session?.error) {
+    return ApiErrors.unauthorized(`세션 오류: ${session.error}`)
+  }
+
   if (!session?.user) {
     return ApiErrors.unauthorized("로그인이 필요합니다")
   }
@@ -69,6 +79,11 @@ export async function requireRole(
   allowedRoles: Role[]
 ): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.forbidden>> {
   const session = await auth()
+
+  // session.error 체크 (TokenReused, SessionExpired, UserDeleted 등)
+  if (session?.error) {
+    return ApiErrors.unauthorized(`세션 오류: ${session.error}`)
+  }
 
   if (!session?.user) {
     return ApiErrors.unauthorized("로그인이 필요합니다")

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { auth } from "@/auth"
+import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 
 // 매장 수정 스키마
 const updateStoreSchema = z.object({
@@ -31,15 +31,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "인증이 필요합니다" },
-        { status: 401 }
-      )
-    }
+  const authResult = await requireAuth()
+  if (isErrorResponse(authResult)) return authResult
 
+  try {
     const { id } = await params
 
     const store = await prisma.store.findUnique({
@@ -72,15 +67,10 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "인증이 필요합니다" },
-        { status: 401 }
-      )
-    }
+  const authResult = await requireAuth()
+  if (isErrorResponse(authResult)) return authResult
 
+  try {
     const { id } = await params
     const body = await request.json()
 
@@ -155,15 +145,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { success: false, message: "인증이 필요합니다" },
-        { status: 401 }
-      )
-    }
+  const authResult = await requireAuth()
+  if (isErrorResponse(authResult)) return authResult
 
+  try {
     const { id } = await params
 
     // 매장 존재 확인
