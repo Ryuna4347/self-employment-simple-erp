@@ -5,11 +5,12 @@ import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
 import { authConfig } from "./auth.config"
 import { createRefreshToken, rotateRefreshToken, revokeAllUserRefreshTokens } from "@/lib/tokens"
-import { createSessionCookie, renewSessionCookie, destroySessionCookie, canModifyCookies } from "@/lib/session-cookie"
+import { createSessionCookie, renewSessionCookie, destroySessionCookie } from "@/lib/session-cookie"
 // 타입 확장은 src/types/next-auth.d.ts에서 처리
 
-const ACCESS_TOKEN_MAX_AGE = 60 * 60              // 1시간
-const REFRESH_THRESHOLD = 30 * 60 * 1000          // 30분 (밀리초)
+const ACCESS_TOKEN_MAX_AGE = 60 * 60                    // 1시간
+const ACCESS_TOKEN_REFRESH_THRESHOLD = 15 * 60 * 1000   // 15분 (밀리초) - Access Token 갱신 임계값
+const REFRESH_TOKEN_ROTATION_AGE = 24 * 60 * 60 * 1000  // 1일 (밀리초) - Refresh Token 재발급 임계값
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -58,42 +59,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     // JWT 토큰에 사용자 정보 추가
+    // Note: auth()는 Route Handler에서만 호출됨 (서버 컴포넌트에서는 getSessionFromJWT 사용)
     async jwt({ token, user }) {
-      const canModify = await canModifyCookies()
       const accessTokenExpires = token.accessTokenExpires as number | undefined
       const now = Date.now()
 
-      console.log("[DEBUG jwt callback] ========== START ==========")
-      console.log("[DEBUG jwt callback] 기본 정보:", {
-        hasUser: !!user,
-        tokenId: token.id,
-        tokenError: token.error,
-        canModifyCookies: canModify,
-        hasRefreshToken: !!token.refreshToken,
-      })
-      console.log("[DEBUG jwt callback] 시간 정보:", {
-        accessTokenExpires,
-        accessTokenExpiresFormatted: accessTokenExpires ? new Date(accessTokenExpires).toISOString() : "undefined",
-        now,
-        nowFormatted: new Date(now).toISOString(),
-        isExpired: accessTokenExpires === undefined ? "undefined (treated as expired)" : now >= accessTokenExpires,
-        timeRemaining: accessTokenExpires ? Math.round((accessTokenExpires - now) / 1000) + "초" : "N/A",
-      })
-
       // 1. 최초 로그인
       if (user) {
-        console.log("[DEBUG jwt callback] >>> BRANCH: 최초 로그인 (user 있음)")
         const rememberMe = user.rememberMe ?? false
-        console.log("[DEBUG jwt callback] createRefreshToken 호출 전, rememberMe:", rememberMe)
         const refreshTokenData = await createRefreshToken(user.id as string, rememberMe)
-        console.log("[DEBUG jwt callback] createRefreshToken 완료, 토큰 생성됨:", !!refreshTokenData)
 
         // 세션 쿠키 생성 (rememberMe에 따라 세션/persistent)
         await createSessionCookie(rememberMe)
 
         const newAccessTokenExpires = Date.now() + ACCESS_TOKEN_MAX_AGE * 1000
-        console.log("[DEBUG jwt callback] 새 accessTokenExpires 설정:", new Date(newAccessTokenExpires).toISOString())
-        console.log("[DEBUG jwt callback] ========== END (로그인 완료) ==========")
 
         return {
           id: user.id,
@@ -102,23 +81,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           role: user.role,
           rememberMe,
           refreshToken: refreshTokenData?.token ?? null,
+          refreshTokenIssuedAt: refreshTokenData?.createdAt.getTime() ?? null,
           accessTokenExpires: newAccessTokenExpires,
         }
       }
 
-      // 2. Access Token 아직 유효 → Sliding Session (30분 미만 남았을 때만 갱신)
+      // 2. Access Token 아직 유효 → Sliding Session (15분 미만 남았을 때만 갱신)
       if (accessTokenExpires !== undefined && now < accessTokenExpires) {
         const timeRemaining = accessTokenExpires - now
-        console.log("[DEBUG jwt callback] >>> BRANCH: Access Token 유효, 남은 시간:", Math.round(timeRemaining / 1000) + "초")
 
-        // 남은 시간이 30분 미만일 때만 연장 (불필요한 JWT 재서명 방지)
-        if (timeRemaining < REFRESH_THRESHOLD) {
-          console.log("[DEBUG jwt callback] 30분 미만 남음, sliding session 시도")
-          // 서버 컴포넌트에서는 쿠키 수정 불가 → 갱신 스킵
-          if (!canModify) {
-            console.log("[DEBUG jwt callback] 쿠키 수정 불가 (서버 컴포넌트), 스킵")
-            console.log("[DEBUG jwt callback] ========== END ==========")
-            return token
+        // 남은 시간이 15분 미만일 때만 연장 (불필요한 JWT 재서명 방지)
+        if (timeRemaining < ACCESS_TOKEN_REFRESH_THRESHOLD) {
+          let newRefreshToken = token.refreshToken as string | null
+          let newRefreshTokenIssuedAt = token.refreshTokenIssuedAt as number | undefined
+
+          // Refresh Token 1일 이상 사용 시 rotation (rememberMe=true만)
+          if (token.rememberMe && token.refreshToken && token.refreshTokenIssuedAt) {
+            const refreshTokenAge = now - (token.refreshTokenIssuedAt as number)
+            if (refreshTokenAge >= REFRESH_TOKEN_ROTATION_AGE) {
+              try {
+                const rotateResult = await rotateRefreshToken(
+                  token.refreshToken as string,
+                  token.id as string
+                )
+                if (!("error" in rotateResult)) {
+                  newRefreshToken = rotateResult.newToken
+                  newRefreshTokenIssuedAt = rotateResult.createdAt.getTime()
+                }
+              } catch {
+                // rotation 실패 시 기존 토큰 유지
+              }
+            }
           }
 
           // iron-session 쿠키도 갱신 (rememberMe=true만)
@@ -126,41 +119,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             await renewSessionCookie()
           }
 
-          console.log("[DEBUG jwt callback] ========== END (sliding session) ==========")
           return {
             ...token,
+            refreshToken: newRefreshToken,
+            refreshTokenIssuedAt: newRefreshTokenIssuedAt,
             accessTokenExpires: Date.now() + ACCESS_TOKEN_MAX_AGE * 1000,
           }
         }
 
-        console.log("[DEBUG jwt callback] ========== END (토큰 유효, 변경 없음) ==========")
         return token  // 변경 없음 (쿠키 재발급 안함)
       }
 
-      // 여기 도달 = accessTokenExpires가 undefined이거나 만료됨
-      console.log("[DEBUG jwt callback] >>> BRANCH: Access Token 만료 또는 undefined")
-      console.log("[DEBUG jwt callback] accessTokenExpires === undefined:", accessTokenExpires === undefined)
-
-      // 3. Access Token 만료 → 쿠키 수정 가능 여부 확인
-      // 서버 컴포넌트에서는 JWT 쿠키 저장이 안 되므로 token rotation 하면 안 됨
-      // (DB에서 토큰이 rotate되면 다음 요청에서 "Token reuse" 발생)
-      if (!canModify) {
-        // 서버 컴포넌트에서는 만료된 토큰 상태 그대로 유지 (에러 없이)
-        // 실제 API 호출 시 (Route Handler에서) 갱신됨
-        console.log("[DEBUG jwt callback] 쿠키 수정 불가 (서버 컴포넌트), rotation 스킵")
-        console.log("[DEBUG jwt callback] ========== END ==========")
-        return token
-      }
-
-      // 4. Access Token 만료 + Refresh Token 없음: 세션 종료
+      // 3. Access Token 만료 + Refresh Token 없음: 세션 종료
       if (!token.refreshToken) {
-        console.log("[DEBUG jwt callback] Refresh Token 없음, 세션 만료 처리")
-        console.log("[DEBUG jwt callback] ========== END ==========")
         return { ...token, error: "SessionExpired" as const }
       }
 
       // 5. Refresh Token으로 갱신 (Route Handler에서만 실행됨)
-      console.log("[DEBUG jwt callback] >>> rotateRefreshToken 호출!")
       try {
         const [rotateResult, dbUser] = await Promise.all([
           rotateRefreshToken(token.refreshToken as string, token.id as string),
@@ -169,18 +144,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             select: { role: true, isDeleted: true }
           })
         ])
-        console.log("[DEBUG jwt callback] rotateRefreshToken 결과:", "error" in rotateResult ? rotateResult.error : "성공")
 
         // 토큰 재사용 감지
         if ("error" in rotateResult) {
-          console.log("[DEBUG jwt callback] rotation 에러:", rotateResult.error)
-          console.log("[DEBUG jwt callback] ========== END ==========")
           return { ...token, error: rotateResult.error === "REUSED" ? "TokenReused" as const : "RefreshTokenInvalid" as const }
         }
 
         if (!dbUser || dbUser.isDeleted) {
-          console.log("[DEBUG jwt callback] 사용자 삭제됨")
-          console.log("[DEBUG jwt callback] ========== END ==========")
           return { ...token, error: "UserDeleted" as const }
         }
 
@@ -189,26 +159,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await renewSessionCookie()
         }
 
-        console.log("[DEBUG jwt callback] rotation 성공, 새 토큰 발급됨")
-        console.log("[DEBUG jwt callback] ========== END ==========")
         return {
           ...token,
           role: dbUser.role,
           refreshToken: rotateResult.newToken,
+          refreshTokenIssuedAt: rotateResult.createdAt.getTime(),
           accessTokenExpires: Date.now() + ACCESS_TOKEN_MAX_AGE * 1000,
           error: undefined,
         }
-      } catch (error) {
-        console.log("[DEBUG jwt callback] rotation 예외 발생:", error)
-        console.log("[DEBUG jwt callback] ========== END ==========")
+      } catch {
         return { ...token, error: "RefreshTokenInvalid" as const }
       }
     },
     // 세션에 JWT 정보 전달
     async session({ session, token }) {
-      // 디버깅 로그
-      console.log("[DEBUG session callback]", { tokenId: token.id, tokenError: token.error, tokenRole: token.role })
-
       // JWT의 error를 Session으로 전달 (필수!)
       if (token.error) {
         return { ...session, error: token.error }

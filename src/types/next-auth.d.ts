@@ -28,6 +28,7 @@ declare module "next-auth/jwt" {
     role?: Role
     rememberMe?: boolean
     refreshToken?: string | null
+    refreshTokenIssuedAt?: number | null  // Refresh Token 발급 시점
     accessTokenExpires?: number
     error?: SessionError
   }

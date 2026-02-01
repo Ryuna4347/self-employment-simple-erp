@@ -1,7 +1,6 @@
-import { redirect } from "next/navigation";
 import { Header, BottomNav } from "@/components/common";
 import { AppProviders } from "@/components/providers/app-providers";
-import { auth } from "@/auth";
+import { getSessionFromJWT } from "@/lib/get-session";
 
 /**
  * 네비게이션 포함 레이아웃
@@ -9,9 +8,9 @@ import { auth } from "@/auth";
  * **적용 범위**: /work-records, /stores, /store-templates, /admin 등
  *
  * **세션 처리**:
- * - 서버에서 auth() 호출하여 세션 상태 확인
- * - session.error 또는 user.id 없음 → 로그인 페이지로 redirect
- * - 유효한 세션이면 Header에 user 정보를 props로 전달
+ * - 미들웨어에서 JWT 검증 완료 (에러 체크, 로그인 여부)
+ * - 여기서는 JWT 디코딩하여 user 정보만 가져옴
+ * - 토큰 갱신은 실제 API 호출 시 Route Handler에서만 발생
  *
  * **Provider 구조**:
  * - AppProviders: QueryClientProvider (401 전역 처리 포함)
@@ -27,12 +26,12 @@ export default async function WithNavLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  // 미들웨어에서 이미 검증됨 - 여기선 user 정보만 가져옴
+  const session = await getSessionFromJWT();
 
-  console.log(session);
-  // 세션 에러 또는 user.id 없음 → 로그인 페이지로
-  if (session?.error || !session?.user?.id) {
-    redirect("/?sessionExpired=true");
+  // 안전장치 (미들웨어 통과 못하면 여기 도달 안함)
+  if (!session?.user) {
+    return null;
   }
 
   return (

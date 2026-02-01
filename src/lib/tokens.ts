@@ -21,9 +21,7 @@ function hashToken(token: string): string {
 
 // Refresh Token 생성
 export async function createRefreshToken(userId: string, rememberMe: boolean) {
-  console.log("[DEBUG createRefreshToken] 호출됨, userId:", userId, "rememberMe:", rememberMe)
   if (!rememberMe) {
-    console.log("[DEBUG createRefreshToken] rememberMe=false, null 반환")
     return null
   }
 
@@ -32,18 +30,17 @@ export async function createRefreshToken(userId: string, rememberMe: boolean) {
   const familyId = randomBytes(16).toString("hex")  // 새 토큰 체인 시작
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_MAX_AGE)
 
-  console.log("[DEBUG createRefreshToken] DB 저장 시작, familyId:", familyId)
-  await prisma.refreshToken.create({
+  const created = await prisma.refreshToken.create({
     data: {
       tokenHash,
       userId,
       familyId,
       expiresAt,
     },
+    select: { createdAt: true }
   })
-  console.log("[DEBUG createRefreshToken] DB 저장 완료, 토큰 생성됨")
 
-  return { token, expiresAt }
+  return { token, expiresAt, createdAt: created.createdAt }
 }
 
 // Refresh Token 검증
@@ -89,7 +86,7 @@ function sleep(ms: number): Promise<void> {
 export async function rotateRefreshToken(
   oldToken: string,
   userId: string
-): Promise<{ newToken: string } | { error: "INVALID" | "REUSED" }> {
+): Promise<{ newToken: string; createdAt: Date } | { error: "INVALID" | "REUSED" }> {
   const oldTokenHash = hashToken(oldToken)
 
   for (let attempt = 0; attempt < MAX_ROTATION_RETRIES; attempt++) {
@@ -134,16 +131,17 @@ export async function rotateRefreshToken(
 
         // 6. 새 토큰 생성 (같은 family 유지)
         const newToken = randomBytes(32).toString("hex")
-        await tx.refreshToken.create({
+        const created = await tx.refreshToken.create({
           data: {
             tokenHash: hashToken(newToken),
             userId,
             familyId: existing.familyId,  // 체인 유지
             expiresAt: new Date(Date.now() + REFRESH_TOKEN_MAX_AGE)
-          }
+          },
+          select: { createdAt: true }
         })
 
-        return { newToken }
+        return { newToken, createdAt: created.createdAt }
       })
     } catch (error) {
       // 락 획득 실패 시 재시도 (마지막 시도가 아닌 경우)
