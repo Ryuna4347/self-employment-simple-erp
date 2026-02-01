@@ -44,6 +44,7 @@ export default async function middleware(request: NextRequest) {
 
   // 토큰 없음 또는 에러 → 로그인 페이지로
   if (!token || token.error || !token.id) {
+    console.log(`[Middleware] 인증 실패: path=${pathname}, hasToken=${!!token}, error=${token?.error}, userId=${token?.id}`)
     const url = new URL("/", request.url)
     url.searchParams.set("sessionExpired", "true")
     const response = NextResponse.redirect(url)
@@ -54,6 +55,7 @@ export default async function middleware(request: NextRequest) {
 
   // 4. 관리자 전용 경로 체크
   if (pathname.startsWith("/admin") && token.role !== "ADMIN") {
+    console.log(`[Middleware] 관리자 권한 없음: userId=${token.id}, role=${token.role}`)
     return NextResponse.redirect(new URL("/work-records", request.url))
   }
 

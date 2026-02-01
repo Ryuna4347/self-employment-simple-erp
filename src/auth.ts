@@ -74,6 +74,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const newAccessTokenExpires = Date.now() + ACCESS_TOKEN_MAX_AGE * 1000
 
+        console.log(`[Auth] 로그인 성공: userId=${user.id}, rememberMe=${rememberMe}, hasRefreshToken=${!!refreshTokenData}`)
+
         return {
           id: user.id,
           name: user.name,
@@ -92,6 +94,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // 남은 시간이 15분 미만일 때만 연장 (불필요한 JWT 재서명 방지)
         if (timeRemaining < ACCESS_TOKEN_REFRESH_THRESHOLD) {
+          console.log(`[Auth] Access Token 슬라이딩: userId=${token.id}, 남은시간=${Math.round(timeRemaining / 1000)}초`)
+
           let newRefreshToken = token.refreshToken as string | null
           let newRefreshTokenIssuedAt = token.refreshTokenIssuedAt as number | undefined
 
@@ -99,6 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (token.rememberMe && token.refreshToken && token.refreshTokenIssuedAt) {
             const refreshTokenAge = now - (token.refreshTokenIssuedAt as number)
             if (refreshTokenAge >= REFRESH_TOKEN_ROTATION_AGE) {
+              console.log(`[Auth] Refresh Token rotation 시작 (슬라이딩): userId=${token.id}, 사용기간=${Math.round(refreshTokenAge / 1000 / 60 / 60)}시간`)
               try {
                 const rotateResult = await rotateRefreshToken(
                   token.refreshToken as string,
@@ -107,9 +112,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (!("error" in rotateResult)) {
                   newRefreshToken = rotateResult.newToken
                   newRefreshTokenIssuedAt = rotateResult.createdAt.getTime()
+                  console.log(`[Auth] Refresh Token rotation 성공 (슬라이딩): userId=${token.id}`)
+                } else {
+                  console.log(`[Auth] Refresh Token rotation 실패 (슬라이딩): userId=${token.id}, error=${rotateResult.error}`)
                 }
-              } catch {
-                // rotation 실패 시 기존 토큰 유지
+              } catch (e) {
+                console.error(`[Auth] Refresh Token rotation 예외 (슬라이딩): userId=${token.id}`, e)
               }
             }
           }
@@ -132,10 +140,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       // 3. Access Token 만료 + Refresh Token 없음: 세션 종료
       if (!token.refreshToken) {
+        console.log(`[Auth] 세션 만료: userId=${token.id}, Refresh Token 없음`)
         return { ...token, error: "SessionExpired" as const }
       }
 
-      // 5. Refresh Token으로 갱신 (Route Handler에서만 실행됨)
+      // 4. Refresh Token으로 갱신 (Route Handler에서만 실행됨)
+      console.log(`[Auth] Access Token 만료, Refresh Token으로 갱신 시도: userId=${token.id}`)
       try {
         const [rotateResult, dbUser] = await Promise.all([
           rotateRefreshToken(token.refreshToken as string, token.id as string),
@@ -147,10 +157,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // 토큰 재사용 감지
         if ("error" in rotateResult) {
+          console.error(`[Auth] Refresh Token 갱신 실패: userId=${token.id}, error=${rotateResult.error}`)
           return { ...token, error: rotateResult.error === "REUSED" ? "TokenReused" as const : "RefreshTokenInvalid" as const }
         }
 
         if (!dbUser || dbUser.isDeleted) {
+          console.log(`[Auth] 사용자 삭제됨: userId=${token.id}`)
           return { ...token, error: "UserDeleted" as const }
         }
 
@@ -158,6 +170,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (token.rememberMe) {
           await renewSessionCookie()
         }
+
+        console.log(`[Auth] Refresh Token 갱신 성공: userId=${token.id}`)
 
         return {
           ...token,
@@ -167,7 +181,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           accessTokenExpires: Date.now() + ACCESS_TOKEN_MAX_AGE * 1000,
           error: undefined,
         }
-      } catch {
+      } catch (e) {
+        console.error(`[Auth] Refresh Token 갱신 예외: userId=${token.id}`, e)
         return { ...token, error: "RefreshTokenInvalid" as const }
       }
     },
