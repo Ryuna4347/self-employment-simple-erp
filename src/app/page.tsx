@@ -71,7 +71,9 @@ function LoginForm() {
         setErrorMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
         setIsSubmitting(false);
       } else if (result?.ok) {
-        // 로그인 성공 - /work-records로 리다이렉트
+        // 로그인 성공 - 세션 쿠키 초기화 후 리다이렉트
+        // Auth.js signIn()에서 iron-session 쿠키가 설정되지 않으므로 별도 호출 필요
+        await fetch("/api/auth/init-session", { method: "POST" })
         router.push("/work-records");
         router.refresh();
       }
