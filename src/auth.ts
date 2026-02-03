@@ -169,6 +169,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.name = token.name as string
       session.user.loginId = token.loginId as string
       session.user.role = token.role as "ADMIN" | "USER"
+      // 클라이언트 토큰 만료 체크용
+      session.accessTokenExpires = token.accessTokenExpires
       return session
     },
   },

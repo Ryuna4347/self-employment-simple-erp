@@ -17,6 +17,7 @@ declare module "next-auth" {
       loginId: string
       role: Role
     }
+    accessTokenExpires?: number  // 클라이언트 토큰 만료 체크용
     error?: SessionError  // 세션 에러 전달용
   }
 }
