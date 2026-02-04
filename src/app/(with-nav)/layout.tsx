@@ -10,7 +10,7 @@ import { auth } from "@/auth";
  *
  * **세션 처리**:
  * - 서버에서 auth() 호출하여 세션 상태 확인
- * - session.error 또는 user.id 없음 → 로그인 페이지로 redirect
+ * - user.id 없음 → 로그인 페이지로 redirect
  * - 유효한 세션이면 Header에 user 정보를 props로 전달
  *
  * **Provider 구조**:
@@ -29,13 +29,13 @@ export default async function WithNavLayout({
 }) {
   const session = await auth();
 
-  // 세션 에러 또는 user.id 없음 → 로그인 페이지로
-  if (session?.error || !session?.user?.id) {
+  // user.id 없음 → 로그인 페이지로
+  if (!session?.user?.id) {
     redirect("/?sessionExpired=true");
   }
 
   return (
-    <AppProviders initialTokenExpiry={session.accessTokenExpires}>
+    <AppProviders>
       <Header user={session.user} />
       <main className="pb-20">{children}</main>
       <BottomNav />

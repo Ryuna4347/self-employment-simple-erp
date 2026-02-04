@@ -12,21 +12,15 @@ interface JWTPayload {
   name?: string
   loginId?: string
   role?: "ADMIN" | "USER"
-  accessTokenExpires?: number
-  error?: string
 }
 
 /**
  * JWT 쿠키를 직접 디코딩하여 세션 정보 반환
  * - auth() 호출 없이 JWT 읽기만 수행
- * - JWT 콜백 실행 안 됨 → race condition 없음
- * - 토큰 갱신은 Route Handler에서만 발생
- * - accessTokenExpires 포함 → 클라이언트에서 토큰 만료 체크 가능
+ * - JWT 콜백 실행 안 됨
  */
 export async function getSessionFromJWT(): Promise<{
   user: { id: string; name: string; loginId: string; role: "ADMIN" | "USER" }
-  accessTokenExpires?: number
-  error?: string
 } | null> {
   try {
     const cookieStore = await cookies()
@@ -47,10 +41,8 @@ export async function getSessionFromJWT(): Promise<{
 
     const data = decoded as JWTPayload
 
-    // 에러 또는 user.id 없음
-    if (data.error || !data.id) {
-      return { user: null as any, error: data.error || "InvalidSession" }
-    }
+    // user.id 없음
+    if (!data.id) return null
 
     return {
       user: {
@@ -59,7 +51,6 @@ export async function getSessionFromJWT(): Promise<{
         loginId: data.loginId || "",
         role: data.role || "USER",
       },
-      accessTokenExpires: data.accessTokenExpires,
     }
   } catch {
     // JWT 디코딩 실패 (만료, 변조 등)
