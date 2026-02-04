@@ -7,7 +7,13 @@ import { DailyStats } from "./daily-stats"
 import { WorkRecordList } from "./work-record-list"
 import { FabMenu } from "./fab-menu"
 import { UserFilter } from "./user-filter"
-import { useWorkRecords } from "../hooks/use-work-records"
+import { WorkRecordModal } from "./work-record-modal"
+import { TemplateApplyModal } from "./template-apply-modal"
+import {
+  useWorkRecords,
+  useDeleteWorkRecord,
+  type WorkRecordResponse,
+} from "../hooks/use-work-records"
 import type { DailySummary } from "../types"
 
 interface WorkRecordsClientProps {
@@ -19,6 +25,11 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
 
+  // 모달 상태
+  const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<WorkRecordResponse | null>(null)
+
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
 
@@ -26,6 +37,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     dateString,
     isAdmin ? selectedUserId : undefined
   )
+
+  const deleteMutation = useDeleteWorkRecord()
 
   const dailySummary = useMemo((): DailySummary => {
     const totalVisits = workRecords.length
@@ -46,12 +59,27 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     return { totalVisits, totalSales, collectedSales, uncollectedSales }
   }, [workRecords])
 
-  const handleAddRecord = () => alert("근무 기록 추가 모달 - TODO")
-  const handleApplyTemplate = () => alert("템플릿 적용 모달 - TODO")
-  const handleEditRecord = () => alert("근무 기록 수정 모달 - TODO")
+  // 근무기록 추가 모달 열기
+  const handleAddRecord = () => {
+    setEditingRecord(null)
+    setWorkRecordModalOpen(true)
+  }
+
+  // 템플릿 적용 모달 열기
+  const handleApplyTemplate = () => {
+    setTemplateModalOpen(true)
+  }
+
+  // 근무기록 수정 모달 열기
+  const handleEditRecord = (record: WorkRecordResponse) => {
+    setEditingRecord(record)
+    setWorkRecordModalOpen(true)
+  }
+
+  // 근무기록 삭제
   const handleDeleteRecord = (id: string) => {
     if (confirm("정말 삭제하시겠습니까?")) {
-      alert(`삭제: ${id} - TODO`)
+      deleteMutation.mutate(id)
     }
   }
 
@@ -85,6 +113,21 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
         <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} />
       </div>
+
+      {/* 근무기록 추가/수정 모달 */}
+      <WorkRecordModal
+        open={workRecordModalOpen}
+        onOpenChange={setWorkRecordModalOpen}
+        selectedDate={selectedDate}
+        editRecord={editingRecord}
+      />
+
+      {/* 템플릿 적용 모달 */}
+      <TemplateApplyModal
+        open={templateModalOpen}
+        onOpenChange={setTemplateModalOpen}
+        selectedDate={selectedDate}
+      />
     </div>
   )
 }
