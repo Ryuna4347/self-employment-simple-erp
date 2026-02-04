@@ -38,6 +38,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 id: true,
                 name: true,
                 PaymentType: true,
+                storeItems: {
+                  select: {
+                    name: true,
+                    unitPrice: true,
+                    quantity: true,
+                  },
+                },
               },
             },
           },
@@ -105,6 +112,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               userId: user.id,
               isCollected: false,
               paymentTypeSnapshot: member.store.PaymentType,
+              items: {
+                create: member.store.storeItems.map((item) => ({
+                  name: item.name,
+                  unitPrice: item.unitPrice,
+                  quantity: item.quantity,
+                })),
+              },
             },
             include: {
               store: {
