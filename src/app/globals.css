@@ -123,6 +123,11 @@
     /* 스크롤바 공간 미리 확보하여 레이아웃 shift 방지 */
     scrollbar-gutter: stable;
   }
+  /* Radix UI 스크롤 잠금 시 padding-right 중복 방지 (scrollbar-gutter와 충돌) */
+  body[data-scroll-locked] {
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+  }
   body {
     @apply bg-background text-foreground;
   }

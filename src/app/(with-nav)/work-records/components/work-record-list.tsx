@@ -1,12 +1,12 @@
 "use client";
 
 import { FileX } from "lucide-react";
-import { WorkRecord } from "../types";
+import type { WorkRecordResponse } from "../hooks/use-work-records";
 import { WorkRecordCard } from "./work-record-card";
 
 interface WorkRecordListProps {
-  records: WorkRecord[];
-  onEdit?: (record: WorkRecord) => void;
+  records: WorkRecordResponse[];
+  onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
 }
 
