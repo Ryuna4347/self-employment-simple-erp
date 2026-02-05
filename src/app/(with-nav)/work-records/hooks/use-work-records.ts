@@ -5,7 +5,11 @@ import type { PaymentType } from "@/generated/prisma/client"
 // 근무기록 생성 입력 타입
 export interface WorkRecordInput {
   date: string // YYYY-MM-DD
-  storeId: string
+  storeId?: string // 매장 검색 선택 시 (optional)
+  storeName: string // 매장명 (필수)
+  storeAddress?: string // 주소 (선택)
+  paymentType: PaymentType // 결제방식 (필수)
+  managerName?: string // 담당자 (선택)
   isCollected: boolean
   note?: string
   items: {
@@ -48,12 +52,16 @@ export interface WorkRecordUser {
 export interface WorkRecordResponse {
   id: string
   date: string
-  storeId: string
+  storeId: string | null // nullable (직접 입력 시 null)
   userId: string
   isCollected: boolean
   note: string | null
+  // 스냅샷 필드
+  storeNameSnapshot: string | null
+  storeAddressSnapshot: string | null
+  managerNameSnapshot: string | null
   paymentTypeSnapshot: PaymentType
-  store: WorkRecordStore
+  store: WorkRecordStore | null // nullable (직접 입력 시 null)
   items: WorkRecordItem[]
   user: WorkRecordUser
 }
@@ -123,6 +131,26 @@ export function useDeleteWorkRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+    },
+  })
+}
+
+// 직접 입력한 매장을 Store DB에 저장하는 훅
+export function useSaveStoreFromWorkRecord() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (workRecordId: string) => {
+      const response = await apiClient<{
+        data: { store: unknown; workRecord: WorkRecordResponse }
+      }>(`/api/work-records/${workRecordId}/save-store`, {
+        method: "POST",
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: ["stores"] })
     },
   })
 }

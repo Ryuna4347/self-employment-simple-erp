@@ -13,7 +13,11 @@ const querySchema = z.object({
 // 근무기록 생성 스키마
 const createWorkRecordSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
-  storeId: z.string().min(1, "매장을 선택해주세요"),
+  storeId: z.string().optional(), // 매장 검색 선택 시 (optional)
+  storeName: z.string().min(1, "매장명을 입력해주세요"), // 필수
+  storeAddress: z.string().optional(), // 주소 (선택)
+  paymentType: z.enum(["CASH", "ACCOUNT", "CARD"]), // 결제방식 (필수)
+  managerName: z.string().optional(), // 담당자 (선택)
   isCollected: z.boolean(),
   note: z.string().optional(),
   items: z
@@ -105,27 +109,34 @@ export async function POST(request: NextRequest) {
     ])
   }
 
-  const { date, storeId, isCollected, note, items } = parseResult.data
+  const { date, storeId, storeName, storeAddress, paymentType, managerName, isCollected, note, items } = parseResult.data
 
-  // 매장 존재 여부 및 PaymentType 조회
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
-    select: { id: true, PaymentType: true },
-  })
+  // storeId가 있으면 매장 존재 여부 확인
+  if (storeId) {
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true },
+    })
 
-  if (!store) {
-    return ApiErrors.notFound("매장을 찾을 수 없습니다")
+    if (!store) {
+      return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
+    }
   }
 
   // 트랜잭션으로 WorkRecord + RecordItem 생성
   const workRecord = await prisma.workRecord.create({
     data: {
       date: parseISO(date),
-      storeId,
-      userId: user.id,
+      // storeId가 있으면 store connect, 없으면 관계 생략
+      ...(storeId ? { store: { connect: { id: storeId } } } : {}),
+      user: { connect: { id: user.id } },
       isCollected,
       note: note || null,
-      paymentTypeSnapshot: store.PaymentType,
+      // 스냅샷 필드 (항상 요청값 사용)
+      storeNameSnapshot: storeName,
+      storeAddressSnapshot: storeAddress || null,
+      managerNameSnapshot: managerName || null,
+      paymentTypeSnapshot: paymentType,
       items: {
         create: items.map((item) => ({
           name: item.name,

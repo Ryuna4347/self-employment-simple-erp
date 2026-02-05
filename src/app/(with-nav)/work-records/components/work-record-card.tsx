@@ -82,14 +82,16 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
           className="w-full text-left focus:outline-none p-4"
         >
           <div className="flex items-start justify-between gap-3">
-            {/* 좌측: 매장 정보 */}
+            {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-gray-900 text-base mb-1">
-                {record.store.name}
+                {record.storeNameSnapshot ?? record.store?.name ?? "알 수 없음"}
               </h3>
               <div className="flex items-start gap-1.5 text-sm text-gray-600">
                 <MapPin className="size-4 flex-shrink-0 mt-0.5" />
-                <span className="line-clamp-1">{record.store.address}</span>
+                <span className="line-clamp-1">
+                  {record.storeAddressSnapshot ?? record.store?.address ?? "주소 없음"}
+                </span>
               </div>
             </div>
 
@@ -139,11 +141,11 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
                     {record.isCollected ? "수금 완료" : "미수금"}
                   </p>
                 </div>
-                {record.store.managerName && (
+                {(record.managerNameSnapshot ?? record.store?.managerName) && (
                   <div className="col-span-2">
                     <span className="text-gray-600">담당자</span>
                     <p className="font-medium text-gray-900 mt-0.5">
-                      {record.store.managerName}
+                      {record.managerNameSnapshot ?? record.store?.managerName}
                     </p>
                   </div>
                 )}

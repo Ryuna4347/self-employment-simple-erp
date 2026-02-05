@@ -1,127 +1,133 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
-/// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
 datasource db {
   provider = "postgresql"
 }
 
-enum Role { 
-  ADMIN
-  USER 
-}
-enum PaymentType { 
-  CASH
-  ACCOUNT
-  CARD 
-}
-
 model User {
-  id    String @id @default(cuid())
-  loginId String @unique
-  name  String
-  password String? // Note: null(초대중)상태가 존재할 수 있음
-  role  Role   @default(USER) 
-  inviteCode String? @unique
-  isDeleted Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  workRecords WorkRecord[]
-  expenses Expense[]
+  id             String          @id @default(cuid())
+  loginId        String          @unique
+  name           String
+  password       String?
+  role           Role            @default(USER)
+  inviteCode     String?         @unique
+  isDeleted      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  expenses       Expense[]
+  RefreshToken   RefreshToken[]
   storeTemplates StoreTemplate[]
+  workRecords    WorkRecord[]
 }
 
-
-model Store{
-  id String @id @default(cuid())
-  name String
-  address String
-  managerName String? // Note: 담당자(현금 입금자)
-  PaymentType PaymentType @default(CASH)
-  kakaoPlaceId String? @unique
-  latitude Float?
-  longitude Float?
-
-  storeItems StoreItem[]
-  workRecords WorkRecord[]
+model Store {
+  id              String                @id @default(cuid())
+  name            String
+  address         String
+  managerName     String?
+  PaymentType     PaymentType           @default(CASH)
+  kakaoPlaceId    String?               @unique
+  latitude        Float?
+  longitude       Float?
+  storeItems      StoreItem[]
   templateMembers StoreTemplateMember[]
+  workRecords     WorkRecord[]
 }
 
 model SaleItem {
-  id String @id @default(cuid())
-  name String // Note: 품명(규격 포함)
-  unitPrice Int @default(0)
-  
+  id        String @id @default(cuid())
+  name      String
+  unitPrice Int    @default(0)
 }
 
 model StoreItem {
-  id String @id @default(cuid())
-  storeId String
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name String
-  unitPrice Int @default(0)
-  quantity Int @default(0)
+  id        String @id @default(cuid())
+  storeId   String
+  name      String
+  unitPrice Int    @default(0)
+  quantity  Int    @default(0)
+  store     Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model StoreTemplate {
-  id String @id @default(cuid())
-  name String
+  id          String                @id @default(cuid())
+  name        String
   description String?
-  userId String
-  creator User @relation(fields: [userId], references: [id])
-  members StoreTemplateMember[]
+  userId      String
+  creator     User                  @relation(fields: [userId], references: [id])
+  members     StoreTemplateMember[]
 }
 
 model StoreTemplateMember {
-  id String @id @default(cuid())
+  id         String        @id @default(cuid())
   templateId String
-  template StoreTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  storeId String
-  store Store @relation(fields: [storeId], references: [id])
-  order Int @default(0)
+  storeId    String
+  order      Int           @default(0)
+  store      Store         @relation(fields: [storeId], references: [id])
+  template   StoreTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 }
 
 model WorkRecord {
-  id String @id @default(cuid())
-  date DateTime @default(now())
-  storeId String
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  isCollected Boolean @default(false) // Note: 수금 여부
-  note String?
-  paymentTypeSnapshot PaymentType // Note: 거래 시점의 결제 방식
-
-  items RecordItem[]
+  id                   String       @id @default(cuid())
+  date                 DateTime     @default(now())
+  storeId              String?      // nullable로 변경 (직접 입력 시 null)
+  userId               String
+  isCollected          Boolean      @default(false)
+  note                 String?
+  // 스냅샷 필드 (거래 시점의 매장 정보)
+  storeNameSnapshot    String?      // 매장명 스냅샷
+  storeAddressSnapshot String?      // 주소 스냅샷
+  managerNameSnapshot  String?      // 담당자 스냅샷
+  paymentTypeSnapshot  PaymentType  // 결제 방식 스냅샷
+  items                RecordItem[]
+  store                Store?       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model RecordItem {
-  id String @id @default(cuid())
+  id           String     @id @default(cuid())
   workRecordId String
-  workRecord WorkRecord @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
-
-  name String
-  unitPrice Int 
-  quantity Int
+  name         String
+  unitPrice    Int
+  quantity     Int
+  workRecord   WorkRecord @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
 }
 
 model Expense {
-  id String @id @default(cuid())
-  date DateTime @default(now())
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  amount Int
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  userId      String
+  amount      Int
   description String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model RefreshToken {
+  id        String    @id
+  tokenHash String    @unique
+  userId    String
+  familyId  String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([familyId])
+  @@index([userId])
+}
+
+/// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
+enum Role {
+  ADMIN
+  USER
+}
+
+enum PaymentType {
+  CASH
+  ACCOUNT
+  CARD
+}
