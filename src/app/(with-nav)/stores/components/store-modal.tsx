@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -22,8 +22,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ItemAutocomplete } from "@/components/common"
+import { useIndexedDropdownState } from "@/hooks/use-dropdown-state"
 import type { Store, StoreInput } from "../hooks/use-stores"
-import { useSaleItems, type SaleItem } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
+import { useSaleItems } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
 
 // 품목 스키마
 const storeItemSchema = z.object({
@@ -65,10 +67,8 @@ export function StoreModal({
   const [internalEditStore, setInternalEditStore] = useState<Store | null>(null)
   const isEditMode = !!internalEditStore
 
-  // Autocomplete 상태
-  const [itemSearchTerms, setItemSearchTerms] = useState<Record<number, string>>({})
-  const [showDropdown, setShowDropdown] = useState<Record<number, boolean>>({})
-  const dropdownTimeoutRef = useRef<Record<number, NodeJS.Timeout>>({})
+  // 품목 자동완성 상태 (공용 Hook 사용)
+  const itemDropdown = useIndexedDropdownState()
 
   // SaleItem 목록 조회 (모달이 열릴 때만)
   const { data: saleItems = [] } = useSaleItems(undefined, { enabled: open })
@@ -104,16 +104,15 @@ export function StoreModal({
   useEffect(() => {
     if (open) {
       setInternalEditStore(editStore ?? null)
-      // Autocomplete 상태 초기화
-      setItemSearchTerms({})
-      setShowDropdown({})
+      itemDropdown.reset()
+
       if (editStore) {
         // 수정 모드: 기존 품목명을 검색어로 설정
         const initialSearchTerms: Record<number, string> = {}
         editStore.storeItems.forEach((item, index) => {
           initialSearchTerms[index] = item.name
         })
-        setItemSearchTerms(initialSearchTerms)
+        itemDropdown.reset(initialSearchTerms)
         reset({
           name: editStore.name,
           address: editStore.address,
@@ -135,6 +134,7 @@ export function StoreModal({
         })
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dropdown reset은 open 변경 시에만 필요
   }, [open, editStore, reset])
 
   const handleFormSubmit = (data: StoreFormData) => {
@@ -149,16 +149,21 @@ export function StoreModal({
   }
 
   // SaleItem 선택 핸들러
-  const handleSaleItemSelect = (index: number, saleItem: SaleItem) => {
+  const handleSaleItemSelect = (index: number, saleItem: { id: string; name: string; unitPrice: number }) => {
     setValue(`items.${index}.name`, saleItem.name, { shouldValidate: true })
     setValue(`items.${index}.unitPrice`, saleItem.unitPrice, { shouldValidate: true })
     setValue(`items.${index}.quantity`, 1, { shouldValidate: true })
-    setItemSearchTerms((prev) => ({ ...prev, [index]: saleItem.name }))
-    setShowDropdown((prev) => ({ ...prev, [index]: false }))
+    itemDropdown.setSearchTerm(index, saleItem.name)
+    itemDropdown.closeDropdown(index)
   }
 
   const handleAddItem = () => {
     append({ name: "", unitPrice: 0, quantity: 0 })
+  }
+
+  const handleRemoveItem = (index: number) => {
+    remove(index)
+    itemDropdown.reindexAfterRemove(index)
   }
 
   return (
@@ -172,11 +177,14 @@ export function StoreModal({
 
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
-          className="flex-1 overflow-y-auto space-y-4 px-1"
+          className="flex flex-col flex-1 overflow-hidden"
         >
+          <div className="flex-1 overflow-y-auto space-y-4 px-1">
           {/* 매장명 */}
           <div className="space-y-2">
-            <Label htmlFor="name">매장명</Label>
+            <Label htmlFor="name">
+              매장명 <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="name"
               placeholder="예: 서울 편의점"
@@ -190,7 +198,9 @@ export function StoreModal({
 
           {/* 주소 */}
           <div className="space-y-2">
-            <Label htmlFor="address">주소</Label>
+            <Label htmlFor="address">
+              주소 <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="address"
               placeholder="예: 서울시 강남구 테헤란로 123"
@@ -257,63 +267,22 @@ export function StoreModal({
                 >
                   <div className="grid grid-cols-12 gap-2 items-start">
                     {/* 품명 (Autocomplete) */}
-                    <div className="col-span-5 relative">
-                      <Label className="text-xs text-gray-600">품명</Label>
-                      <Input
-                        placeholder="품목 검색..."
-                        value={itemSearchTerms[index] ?? ""}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setItemSearchTerms((prev) => ({ ...prev, [index]: value }))
+                    <div className="col-span-5">
+                      <ItemAutocomplete
+                        searchTerm={itemDropdown.getSearchTerm(index)}
+                        onSearchChange={(value) => {
+                          itemDropdown.handleSearchChange(index, value)
                           setValue(`items.${index}.name`, value, { shouldValidate: true })
-                          setShowDropdown((prev) => ({ ...prev, [index]: true }))
                         }}
-                        onFocus={() => setShowDropdown((prev) => ({ ...prev, [index]: true }))}
-                        onBlur={() => {
-                          // 드롭다운 클릭 이벤트가 먼저 처리되도록 지연
-                          if (dropdownTimeoutRef.current[index]) {
-                            clearTimeout(dropdownTimeoutRef.current[index])
-                          }
-                          dropdownTimeoutRef.current[index] = setTimeout(() => {
-                            setShowDropdown((prev) => ({ ...prev, [index]: false }))
-                          }, 200)
-                        }}
-                        className="mt-1"
+                        showDropdown={itemDropdown.isDropdownOpen(index)}
+                        onFocus={() => itemDropdown.openDropdown(index)}
+                        onBlur={() => itemDropdown.handleBlur(index)}
+                        items={saleItems}
+                        onItemSelect={(item) => handleSaleItemSelect(index, item)}
+                        error={errors.items?.[index]?.name?.message}
+                        label="품명"
+                        placeholder="품목 검색..."
                       />
-
-                      {/* Autocomplete 드롭다운 */}
-                      {showDropdown[index] && (itemSearchTerms[index] ?? "").length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                          {saleItems
-                            .filter((item) =>
-                              item.name.toLowerCase().includes((itemSearchTerms[index] ?? "").toLowerCase())
-                            )
-                            .slice(0, 5)
-                            .map((item) => (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onMouseDown={() => handleSaleItemSelect(index, item)}
-                                className="w-full px-3 py-2 text-left hover:bg-gray-50"
-                              >
-                                <p className="text-sm text-gray-900">{item.name}</p>
-                                <p className="text-xs text-gray-500">{item.unitPrice.toLocaleString()}원</p>
-                              </button>
-                            ))}
-                          {saleItems.filter((item) =>
-                            item.name.toLowerCase().includes((itemSearchTerms[index] ?? "").toLowerCase())
-                          ).length === 0 && (
-                            <div className="px-3 py-2 text-sm text-gray-400">
-                              검색 결과가 없습니다
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {errors.items?.[index]?.name && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.name?.message}
-                        </p>
-                      )}
                     </div>
 
                     {/* 단가 */}
@@ -360,7 +329,7 @@ export function StoreModal({
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => remove(index)}
+                        onClick={() => handleRemoveItem(index)}
                         className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
                       >
                         <X className="size-4" />
@@ -376,6 +345,7 @@ export function StoreModal({
                 </div>
               )}
             </div>
+          </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">

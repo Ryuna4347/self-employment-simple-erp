@@ -90,7 +90,7 @@ export function TemplateApplyModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="size-5" />
@@ -101,7 +101,7 @@ export function TemplateApplyModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-4 px-1">
           {/* 적용 날짜 */}
           <div className="space-y-2">
             <Label>적용 날짜</Label>
@@ -192,7 +192,7 @@ export function TemplateApplyModal({
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
           <Button
             type="button"
             variant="outline"

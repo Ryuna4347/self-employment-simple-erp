@@ -83,14 +83,15 @@ export function SaleItemModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? "물품 정보 수정" : "물품 추가"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto space-y-4 px-1">
           {/* 물품명 */}
           <div className="space-y-2">
             <Label htmlFor="name">물품명 (규격 포함)</Label>
@@ -120,8 +121,9 @@ export function SaleItemModal({
               <p className="text-sm text-red-500">{errors.unitPrice.message}</p>
             )}
           </div>
+          </div>
 
-          <DialogFooter className="gap-2 sm:gap-2">
+          <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
             <Button
               type="button"
               variant="outline"

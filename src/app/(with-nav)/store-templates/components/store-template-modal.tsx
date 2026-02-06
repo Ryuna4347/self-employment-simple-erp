@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { X, Search, GripVertical, MapPin } from "lucide-react"
+import { X, GripVertical, MapPin } from "lucide-react"
 import {
   DndContext,
   closestCenter,
@@ -32,6 +32,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { SearchableDropdown } from "@/components/common"
+import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { cn } from "@/lib/utils"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { StoreTemplate, StoreTemplateInput } from "../hooks/use-store-templates"
@@ -141,10 +143,8 @@ export function StoreTemplateModal({
   const [internalEditTemplate, setInternalEditTemplate] = useState<StoreTemplate | null>(null)
   const isEditMode = !!internalEditTemplate
 
-  // 매장 검색 상태
-  const [storeSearchTerm, setStoreSearchTerm] = useState("")
-  const [showStoreDropdown, setShowStoreDropdown] = useState(false)
-  const dropdownTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // 매장 검색 상태 (공용 Hook 사용)
+  const storeDropdown = useDropdownState()
 
   // 선택된 매장 목록
   const [selectedStores, setSelectedStores] = useState<SelectedStore[]>([])
@@ -178,8 +178,7 @@ export function StoreTemplateModal({
   useEffect(() => {
     if (open) {
       setInternalEditTemplate(editTemplate ?? null)
-      setStoreSearchTerm("")
-      setShowStoreDropdown(false)
+      storeDropdown.reset()
 
       if (editTemplate) {
         // 수정 모드
@@ -241,8 +240,7 @@ export function StoreTemplateModal({
       order: selectedStores.length,
     }
     setSelectedStores([...selectedStores, newStore])
-    setStoreSearchTerm("")
-    setShowStoreDropdown(false)
+    storeDropdown.reset()
   }
 
   // 매장 제거 핸들러
@@ -253,11 +251,15 @@ export function StoreTemplateModal({
   }
 
   // 필터링된 매장 목록 (이미 선택된 매장 제외)
-  const filteredStores = stores.filter(
-    (store) =>
-      store.name.toLowerCase().includes(storeSearchTerm.toLowerCase()) &&
-      !selectedStores.some((s) => s.storeId === store.id)
-  )
+  const filteredStores = useMemo(() => {
+    return stores
+      .filter(
+        (store) =>
+          store.name.toLowerCase().includes(storeDropdown.searchTerm.toLowerCase()) &&
+          !selectedStores.some((s) => s.storeId === store.id)
+      )
+      .slice(0, 5)
+  }, [stores, storeDropdown.searchTerm, selectedStores])
 
   // 폼 제출 핸들러
   const handleFormSubmit = (data: TemplateFormData) => {
@@ -288,8 +290,9 @@ export function StoreTemplateModal({
 
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
-          className="flex-1 overflow-y-auto space-y-4 px-1"
+          className="flex flex-col flex-1 overflow-hidden"
         >
+          <div className="flex-1 overflow-y-auto space-y-4 px-1">
           {/* 템플릿 이름 */}
           <div className="space-y-2">
             <Label htmlFor="name">템플릿 이름</Label>
@@ -318,52 +321,27 @@ export function StoreTemplateModal({
           <div className="border-t border-gray-200 pt-4">
             <div className="space-y-2 mb-4">
               <Label>매장 추가</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
-                <Input
-                  placeholder="매장 검색..."
-                  value={storeSearchTerm}
-                  onChange={(e) => {
-                    setStoreSearchTerm(e.target.value)
-                    setShowStoreDropdown(true)
-                  }}
-                  onFocus={() => setShowStoreDropdown(true)}
-                  onBlur={() => {
-                    if (dropdownTimeoutRef.current) {
-                      clearTimeout(dropdownTimeoutRef.current)
-                    }
-                    dropdownTimeoutRef.current = setTimeout(() => {
-                      setShowStoreDropdown(false)
-                    }, 200)
-                  }}
-                  className="pl-9"
-                />
-
-                {/* 매장 검색 드롭다운 */}
-                {showStoreDropdown && storeSearchTerm && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredStores.length > 0 ? (
-                      filteredStores.slice(0, 5).map((store) => (
-                        <button
-                          key={store.id}
-                          type="button"
-                          onMouseDown={() => handleStoreSelect(store)}
-                          className="w-full px-4 py-2 text-left hover:bg-gray-50 transition"
-                        >
-                          <p className="font-medium text-gray-900 text-sm">
-                            {store.name}
-                          </p>
-                          <p className="text-gray-600 text-xs">{store.address}</p>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="px-4 py-3 text-gray-400 text-sm">
-                        검색 결과가 없습니다
-                      </div>
-                    )}
-                  </div>
+              <SearchableDropdown
+                searchTerm={storeDropdown.searchTerm}
+                onSearchChange={storeDropdown.handleSearchChange}
+                showDropdown={storeDropdown.showDropdown && storeDropdown.searchTerm.length > 0}
+                onFocus={() => storeDropdown.setShowDropdown(true)}
+                onBlur={storeDropdown.handleBlur}
+                items={filteredStores}
+                getItemKey={(store) => store.id}
+                renderItem={(store) => (
+                  <>
+                    <p className="font-medium text-gray-900 text-sm">{store.name}</p>
+                    <p className="text-gray-600 text-xs flex items-center gap-1">
+                      <MapPin className="size-3" />
+                      {store.address}
+                    </p>
+                  </>
                 )}
-              </div>
+                onItemSelect={handleStoreSelect}
+                placeholder="매장 검색..."
+                emptyMessage="검색 결과가 없습니다"
+              />
             </div>
 
             {/* 선택된 매장 목록 */}
@@ -404,6 +382,7 @@ export function StoreTemplateModal({
                 </div>
               )}
             </div>
+          </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
