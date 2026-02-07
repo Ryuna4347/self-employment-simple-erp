@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/generated/prisma/client";
 
@@ -50,11 +51,18 @@ export function Header({ user }: HeaderProps) {
           {isAdmin && (
             <Button
               asChild
-              variant={isOnAdminPage ? "default" : "outline"}
+              variant="outline"
               size="sm"
               className="transition-all"
             >
-              <Link href="/admin">관리자</Link>
+              {isOnAdminPage ? (
+                <Link href="/work-records">
+                  <ArrowLeft className="size-4" />
+                  돌아가기
+                </Link>
+              ) : (
+                <Link href="/admin">관리자</Link>
+              )}
             </Button>
           )}
 

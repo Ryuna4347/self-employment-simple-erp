@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Store, Layers, Package } from "lucide-react";
+import {
+  Home,
+  Store,
+  Layers,
+  Package,
+  LayoutDashboard,
+  Users,
+  CircleDollarSign,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,6 +46,32 @@ const NAV_ITEMS = [
 ] as const;
 
 /**
+ * 어드민 모드 전용 네비게이션 아이템
+ *
+ * 관리자 페이지(/admin/*) 진입 시 하단 메뉴가 전환됨:
+ * - 대시보드: 매출/미수금 통계
+ * - 직원 관리: 초대, 계정 관리
+ * - 미수금 관리: 미수금 추적 및 완납 처리
+ */
+const ADMIN_NAV_ITEMS = [
+  {
+    href: "/admin/dashboard",
+    label: "대시보드",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/admin/staff",
+    label: "직원 관리",
+    icon: Users,
+  },
+  {
+    href: "/admin/outstanding",
+    label: "미수금 관리",
+    icon: CircleDollarSign,
+  },
+] as const;
+
+/**
  * 하단 네비게이션 컴포넌트
  *
  * **디자인 목적**: 모바일 환경에서 주요 도메인 간 빠른 전환을 제공
@@ -56,14 +90,16 @@ const NAV_ITEMS = [
  */
 export function BottomNav() {
   const pathname = usePathname();
+  const isAdminMode = pathname.startsWith("/admin");
+  const navItems = isAdminMode ? ADMIN_NAV_ITEMS : NAV_ITEMS;
 
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border shadow-[0_-1px_3px_0_rgb(0_0_0/0.05)]"
-      aria-label="주요 메뉴"
+      aria-label={isAdminMode ? "관리자 메뉴" : "주요 메뉴"}
     >
       <div className="flex items-stretch justify-around max-w-4xl mx-auto">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           // 현재 경로가 해당 메뉴의 하위 경로인지 확인
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
