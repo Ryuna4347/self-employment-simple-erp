@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Store } from "lucide-react";
+import { koreanToEnglish } from "@/lib/korean-to-english";
 
 // 로그인 폼 스키마
 const loginSchema = z.object({
@@ -124,6 +125,10 @@ function LoginForm() {
                       autoComplete="current-password"
                       className="h-10"
                       {...field}
+                      onChange={(e) => {
+                        e.target.value = koreanToEnglish(e.target.value)
+                        field.onChange(e)
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

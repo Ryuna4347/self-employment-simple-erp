@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { passwordSchema } from "@/lib/validations";
+import { koreanToEnglish } from "@/lib/korean-to-english";
 import {
   Form,
   FormControl,
@@ -41,13 +43,7 @@ interface CompleteResponse {
 // 폼 스키마
 const formSchema = z.object({
   loginId: z.string().min(4, "아이디는 4자리 이상 입력해야합니다."),
-  password: z
-    .string()
-    .min(8, "비밀번호는 8자리 이상 입력해야합니다.")
-    .regex(
-      /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      "비밀번호는 영문+숫자+특수문자 포함 8자리 이상 입력해야합니다.",
-    ),
+  password: passwordSchema,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -245,6 +241,10 @@ function RegisterFormWithCode({ code }: { code: string }) {
                         placeholder="비밀번호를 입력하세요. (영문+숫자+특수문자 포함 8자리 이상)"
                         disabled={isSubmitting}
                         {...field}
+                        onChange={(e) => {
+                          e.target.value = koreanToEnglish(e.target.value)
+                          field.onChange(e)
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

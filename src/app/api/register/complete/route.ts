@@ -3,17 +3,12 @@ import { z } from "zod"
 import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { decodeInviteCode } from "@/lib/invite"
+import { passwordSchema } from "@/lib/validations"
 
 const completeSchema = z.object({
   code: z.string().min(1, "초대 코드가 필요합니다"),
   loginId: z.string().min(4, "아이디는 4자리 이상 입력해야합니다"),
-  password: z
-    .string()
-    .min(8, "비밀번호는 8자리 이상 입력해야합니다")
-    .regex(
-      /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-      "비밀번호는 영문+숫자+특수문자 포함 8자리 이상 입력해야합니다"
-    ),
+  password: passwordSchema,
 })
 
 export async function POST(request: NextRequest) {
