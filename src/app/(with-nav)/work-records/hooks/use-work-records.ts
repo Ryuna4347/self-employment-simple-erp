@@ -71,6 +71,7 @@ interface ApiResponse {
 }
 
 const WORK_RECORDS_KEY = ["work-records"] as const
+const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
 export function useWorkRecords(date: string, userId?: string) {
   return useQuery({
@@ -99,6 +100,7 @@ export function useCreateWorkRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
     },
   })
 }
@@ -117,6 +119,7 @@ export function useUpdateWorkRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
     },
   })
 }
@@ -131,6 +134,7 @@ export function useDeleteWorkRecord() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
     },
   })
 }
