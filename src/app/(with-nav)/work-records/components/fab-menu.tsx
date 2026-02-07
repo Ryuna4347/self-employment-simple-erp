@@ -44,7 +44,7 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
 
       {/* 메뉴 아이템 (하단 네비 위에 표시) */}
       {isOpen && (
-        <div className="fixed bottom-[8.5rem] right-6 z-40 flex flex-col gap-3">
+        <div className="fixed bottom-[10rem] right-6 z-50 flex flex-col gap-3">
           {/* 템플릿 적용 */}
           <button
             onClick={handleApplyTemplate}
@@ -74,7 +74,7 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
           "focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
           isOpen
             ? "bg-gray-500 hover:bg-gray-600 text-white"
-            : "bg-primary hover:bg-primary/90 text-primary-foreground"
+            : "bg-primary hover:bg-primary/90 text-primary-foreground",
         )}
         aria-label={isOpen ? "메뉴 닫기" : "메뉴 열기"}
         aria-expanded={isOpen}
@@ -82,7 +82,7 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
         <Plus
           className={cn(
             "size-6 transition-transform duration-200",
-            isOpen && "rotate-45"
+            isOpen && "rotate-45",
           )}
         />
       </button>
