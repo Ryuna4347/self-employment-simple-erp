@@ -1,18 +1,32 @@
-import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { generateInviteCode, createInviteUrl } from "@/lib/invite"
+import { z } from "zod"
 
-export async function POST(request: NextRequest) {
+const inviteSchema = z.object({
+  name: z.string().min(1, "이름을 입력해주세요").trim(),
+})
+
+export async function POST(request: Request) {
+  const authResult = await requireAdmin()
+  if (isErrorResponse(authResult)) return authResult
+
   try {
     const body = await request.json()
-    const { name } = body
+    const parsed = inviteSchema.safeParse(body)
 
-    if (!name || typeof name !== "string" || name.trim() === "") {
-      return NextResponse.json(
-        { success: false, message: "사용자명을 입력해주세요" },
-        { status: 400 }
+    if (!parsed.success) {
+      return ApiErrors.validationError(
+        "입력값이 올바르지 않습니다",
+        parsed.error.issues.map((issue) => ({
+          field: issue.path.join("."),
+          message: issue.message,
+        }))
       )
     }
+
+    const { name } = parsed.data
 
     // 초대 코드 생성
     const inviteCode = generateInviteCode()
@@ -20,10 +34,10 @@ export async function POST(request: NextRequest) {
     // 사용자 생성 (password는 null, 초대 상태)
     const user = await prisma.user.create({
       data: {
-        loginId: `pending_${inviteCode}`, // 임시 loginId (나중에 사용자가 변경)
-        name: name.trim(),
+        loginId: `pending_${inviteCode}`,
+        name,
         inviteCode,
-        password: null, // 초대 상태
+        password: null,
         role: "USER",
       },
     })
@@ -32,20 +46,14 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.AUTH_URL || "http://localhost:3000"
     const inviteUrl = createInviteUrl(baseUrl, user.name, inviteCode)
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        userId: user.id,
-        name: user.name,
-        inviteCode,
-        inviteUrl,
-      },
+    return apiSuccess({
+      userId: user.id,
+      name: user.name,
+      inviteCode,
+      inviteUrl,
     })
   } catch (error) {
     console.error("초대 생성 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "초대 생성 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("초대 생성 중 오류가 발생했습니다")
   }
 }
