@@ -317,7 +317,10 @@ export function DashboardContent() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-900">최근 미수금</h3>
                 <Link
-                  href={`/admin/outstanding?year=${year}&month=${period === "daily" ? month : new Date().getMonth() + 1}`}
+                  href={period === "daily"
+                    ? `/admin/outstanding?year=${year}&month=${month}`
+                    : `/admin/outstanding?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`
+                  }
                   className="text-xs text-blue-500 hover:text-blue-700 font-medium"
                 >
                   더보기
