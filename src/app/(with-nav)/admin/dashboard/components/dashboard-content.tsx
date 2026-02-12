@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import Link from "next/link"
 import { useDashboard, type DashboardPeriod } from "../hooks/use-dashboard"
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
@@ -313,7 +314,15 @@ export function DashboardContent() {
 
             {/* 최근 미수금 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">최근 미수금</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">최근 미수금</h3>
+                <Link
+                  href={`/admin/outstanding?year=${year}&month=${period === "daily" ? month : new Date().getMonth() + 1}`}
+                  className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                >
+                  더보기
+                </Link>
+              </div>
               <div className="space-y-3">
                 {data.recentOutstanding.length > 0 ? (
                   data.recentOutstanding.map((record) => (

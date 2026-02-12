@@ -1,7 +1,17 @@
+import { Suspense } from "react"
+import { Loader2 } from "lucide-react"
+import { OutstandingContent } from "./components"
+
 export default function OutstandingPage() {
   return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <p className="text-gray-400">미수금 관리 (준비 중)</p>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <OutstandingContent />
+    </Suspense>
   )
 }
