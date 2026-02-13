@@ -5,12 +5,12 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -93,17 +93,17 @@ export function ChangePasswordModal({
   const isPending = changePasswordMutation.isPending
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>비밀번호 변경</DialogTitle>
-        </DialogHeader>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="fullscreen">
+      <ResponsiveModalContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>비밀번호 변경</ResponsiveModalTitle>
+        </ResponsiveModalHeader>
 
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="flex flex-col flex-1 overflow-hidden"
         >
-          <div className="flex-1 overflow-y-auto space-y-4 px-1">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
             {/* 현재 비밀번호 */}
             <div className="space-y-2">
               <Label htmlFor="currentPassword">현재 비밀번호</Label>
@@ -175,7 +175,7 @@ export function ChangePasswordModal({
             )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
+          <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
             <Button
               type="button"
               variant="outline"
@@ -187,9 +187,9 @@ export function ChangePasswordModal({
             <Button type="submit" disabled={!isValid || isPending}>
               {isPending ? "변경 중..." : "변경"}
             </Button>
-          </DialogFooter>
+          </ResponsiveModalFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

@@ -5,13 +5,13 @@ import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { MapPin, FileText } from "lucide-react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+  ResponsiveModalDescription,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import {
@@ -89,19 +89,19 @@ export function TemplateApplyModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange} mobileVariant="sheet">
+      <ResponsiveModalContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle className="flex items-center gap-2">
             <FileText className="size-5" />
             템플릿 적용
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             템플릿을 선택하여 해당 날짜에 근무기록을 일괄 생성합니다.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-4 px-1">
+        <div className="flex-1 overflow-y-auto space-y-4 py-4 px-4 sm:px-1">
           {/* 적용 날짜 */}
           <div className="space-y-2">
             <Label>적용 날짜</Label>
@@ -192,7 +192,7 @@ export function TemplateApplyModal({
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
+        <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
           <Button
             type="button"
             variant="outline"
@@ -208,8 +208,8 @@ export function TemplateApplyModal({
           >
             {applyMutation.isPending ? "적용 중..." : "적용"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

@@ -8,12 +8,12 @@ import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { Plus, X, MapPin, Save } from "lucide-react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -297,19 +297,19 @@ export function WorkRecordModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="fullscreen">
+      <ResponsiveModalContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>
             {isEditMode ? "근무기록 수정" : "근무기록 추가"}
-          </DialogTitle>
-        </DialogHeader>
+          </ResponsiveModalTitle>
+        </ResponsiveModalHeader>
 
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
           className="flex flex-col flex-1 overflow-hidden"
         >
-          <div className="flex-1 overflow-y-auto space-y-4 px-1">
+          <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
           {/* 방문 일자 (읽기 전용) */}
           <div className="space-y-2">
             <Label>방문 일자</Label>
@@ -638,7 +638,7 @@ export function WorkRecordModal({
           </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
+          <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
             <Button
               type="button"
               variant="outline"
@@ -650,9 +650,9 @@ export function WorkRecordModal({
             <Button type="submit" disabled={isLoading || !isValid}>
               {isLoading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
             </Button>
-          </DialogFooter>
+          </ResponsiveModalFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

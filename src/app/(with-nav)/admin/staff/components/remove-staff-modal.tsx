@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+} from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -39,24 +39,26 @@ export function RemoveStaffModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>직원 삭제</DialogTitle>
-          <DialogDescription>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange} mobileVariant="sheet">
+      <ResponsiveModalContent className="sm:max-w-sm">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>직원 삭제</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
             <strong>{memberName}</strong>님을 삭제하시겠습니까? 삭제된 직원은 더
             이상 로그인할 수 없습니다.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-        <Input
-          value={confirmName}
-          onChange={(e) => setConfirmName(e.target.value)}
-          placeholder={`"${memberName}" 을(를) 입력하세요`}
-          disabled={isLoading}
-        />
+        <div className="px-4 sm:px-0">
+          <Input
+            value={confirmName}
+            onChange={(e) => setConfirmName(e.target.value)}
+            placeholder={`"${memberName}" 을(를) 입력하세요`}
+            disabled={isLoading}
+          />
+        </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <ResponsiveModalFooter className="gap-2 sm:gap-2">
           <Button
             variant="outline"
             onClick={() => handleOpenChange(false)}
@@ -71,8 +73,8 @@ export function RemoveStaffModal({
           >
             {isLoading ? "삭제 중..." : "삭제"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

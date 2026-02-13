@@ -6,13 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Copy, Check } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+  ResponsiveModalFooter,
+  ResponsiveModalDescription,
+} from "@/components/ui/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,18 +89,18 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
   const isPending = createInviteMutation.isPending;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange} mobileVariant="fullscreen">
+      <ResponsiveModalContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>
             {result ? "초대 링크 생성 완료" : "직원 초대"}
-          </DialogTitle>
+          </ResponsiveModalTitle>
           {!result && (
-            <DialogDescription>
+            <ResponsiveModalDescription>
               초대할 직원의 이름을 입력하세요
-            </DialogDescription>
+            </ResponsiveModalDescription>
           )}
-        </DialogHeader>
+        </ResponsiveModalHeader>
 
         {/* 1단계: 이름 입력 폼 */}
         {!result ? (
@@ -108,7 +108,7 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col flex-1 overflow-hidden"
           >
-            <div className="flex-1 overflow-y-auto space-y-4 px-1">
+            <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
               <div className="space-y-2">
                 <Label htmlFor="invite-name">이름</Label>
                 <Input
@@ -130,7 +130,7 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-2 pt-4  border-gray-200">
+            <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4  border-gray-200">
               <Button
                 type="button"
                 variant="outline"
@@ -142,11 +142,11 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
               <Button type="submit" disabled={!isValid || isPending}>
                 {isPending ? "생성 중..." : "초대 링크 생성"}
               </Button>
-            </DialogFooter>
+            </ResponsiveModalFooter>
           </form>
         ) : (
           /* 2단계: 초대 결과 표시 */
-          <div className="space-y-4">
+          <div className="space-y-4 px-4 sm:px-0">
             <div className="rounded-md bg-blue-50 p-4 space-y-3">
               <p className="text-sm font-medium text-blue-900">
                 {result.name}님의 초대 링크가 생성되었습니다
@@ -181,12 +181,12 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
               </p>
             </div>
 
-            <DialogFooter className="pt-4  border-gray-200">
+            <ResponsiveModalFooter className="pt-4  border-gray-200">
               <Button onClick={() => handleOpenChange(false)}>확인</Button>
-            </DialogFooter>
+            </ResponsiveModalFooter>
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   );
 }
