@@ -298,7 +298,10 @@ export function WorkRecordModal({
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="fullscreen">
-      <ResponsiveModalContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <ResponsiveModalContent
+        className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
             {isEditMode ? "근무기록 수정" : "근무기록 추가"}
