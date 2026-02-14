@@ -238,7 +238,7 @@ function RegisterFormWithCode({ code }: { code: string }) {
                     <FormControl>
                       <Input
                         type="password"
-                        placeholder="비밀번호를 입력하세요. (영문+숫자+특수문자 포함 8자리 이상)"
+                        placeholder="영문+숫자+특수문자 포함 8자리 이상"
                         disabled={isSubmitting}
                         {...field}
                         onChange={(e) => {
