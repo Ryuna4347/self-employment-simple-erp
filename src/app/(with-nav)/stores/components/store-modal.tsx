@@ -26,6 +26,7 @@ import { ItemAutocomplete } from "@/components/common"
 import { useIndexedDropdownState } from "@/hooks/use-dropdown-state"
 import type { Store, StoreInput } from "../hooks/use-stores"
 import { useSaleItems } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
+import { format } from "date-fns"
 
 // 품목 스키마
 const storeItemSchema = z.object({
@@ -40,6 +41,8 @@ const storeSchema = z.object({
   address: z.string().min(1, "주소를 입력해주세요"),
   PaymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
   managerName: z.string().optional(),
+  visitCycleWeeks: z.enum(["1", "2", "4"]),
+  firstVisitDate: z.string().min(1, "첫 방문일을 입력해주세요"),
   items: z.array(storeItemSchema).optional(),
 })
 
@@ -89,6 +92,8 @@ export function StoreModal({
       address: "",
       PaymentType: "ACCOUNT",
       managerName: "",
+      visitCycleWeeks: "1" as const,
+      firstVisitDate: "",
       items: [],
     },
   })
@@ -118,6 +123,8 @@ export function StoreModal({
           address: editStore.address,
           PaymentType: editStore.PaymentType,
           managerName: editStore.managerName ?? "",
+          visitCycleWeeks: editStore.visitCycleWeeks.toString() as "1" | "2" | "4",
+          firstVisitDate: format(new Date(editStore.firstVisitDate), "yyyy-MM-dd"),
           items: editStore.storeItems.map((item) => ({
             name: item.name,
             unitPrice: item.unitPrice,
@@ -130,6 +137,8 @@ export function StoreModal({
           address: "",
           PaymentType: "ACCOUNT",
           managerName: "",
+          visitCycleWeeks: "1" as const,
+          firstVisitDate: "",
           items: [],
         })
       }
@@ -143,6 +152,8 @@ export function StoreModal({
       address: data.address,
       PaymentType: data.PaymentType,
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
+      visitCycleWeeks: parseInt(data.visitCycleWeeks),
+      firstVisitDate: data.firstVisitDate,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
     }
     onSubmit(submitData)
@@ -243,6 +254,43 @@ export function StoreModal({
               />
             </div>
           )}
+
+          {/* 방문 주기 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="visitCycleWeeks">방문 주기</Label>
+              <Select
+                value={watch("visitCycleWeeks")}
+                onValueChange={(value) =>
+                  setValue("visitCycleWeeks", value as "1" | "2" | "4", { shouldValidate: true })
+                }
+              >
+                <SelectTrigger id="visitCycleWeeks">
+                  <SelectValue placeholder="주기 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">매주 (1주)</SelectItem>
+                  <SelectItem value="2">격주 (2주)</SelectItem>
+                  <SelectItem value="4">월 1회 (4주)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="firstVisitDate">
+                첫 방문일 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="firstVisitDate"
+                type="date"
+                {...register("firstVisitDate")}
+                aria-invalid={!!errors.firstVisitDate}
+              />
+              {errors.firstVisitDate && (
+                <p className="text-sm text-red-500">{errors.firstVisitDate.message}</p>
+              )}
+            </div>
+          </div>
 
           {/* 품목 섹션 */}
           <div className="border-t border-gray-200 pt-4">

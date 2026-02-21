@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { parseISO, startOfDay } from "date-fns"
 
 // 매장 생성 스키마
 const createStoreSchema = z.object({
@@ -12,6 +13,8 @@ const createStoreSchema = z.object({
   kakaoPlaceId: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  visitCycleWeeks: z.union([z.literal(1), z.literal(2), z.literal(4)]),
+  firstVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
   items: z
     .array(
       z.object({
@@ -81,12 +84,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { items, ...storeData } = parseResult.data
+    const { items, firstVisitDate, ...storeData } = parseResult.data
 
     // 트랜잭션으로 매장과 품목 함께 생성
     const store = await prisma.$transaction(async (tx) => {
       const newStore = await tx.store.create({
-        data: storeData,
+        data: {
+          ...storeData,
+          firstVisitDate: startOfDay(parseISO(firstVisitDate)),
+        },
       })
 
       // 품목이 있으면 함께 생성

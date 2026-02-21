@@ -32,6 +32,8 @@ model Store {
   kakaoPlaceId    String?               @unique
   latitude        Float?
   longitude       Float?
+  visitCycleWeeks Int               @default(1)     // 방문 주기 (주): 1, 2, 4
+  firstVisitDate  DateTime          @default(now()) // 첫 방문일 (주기 기준일)
   storeItems      StoreItem[]
   templateMembers StoreTemplateMember[]
   workRecords     WorkRecord[]

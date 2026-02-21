@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
-import { parseISO, startOfDay } from "date-fns"
+import { parseISO, startOfDay, differenceInCalendarDays } from "date-fns"
 
 // 적용 요청 스키마
 const applySchema = z.object({
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 id: true,
                 name: true,
                 PaymentType: true,
+                visitCycleWeeks: true,
+                firstVisitDate: true,
                 storeItems: {
                   select: {
                     name: true,
@@ -86,16 +88,46 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const existingStoreIds = new Set(existingRecords.map((r) => r.storeId))
 
-    // 중복되지 않는 매장만 WorkRecord 생성
-    const membersToCreate = template.members.filter(
+    // 1. 중복되지 않는 매장 필터
+    const afterDuplicateFilter = template.members.filter(
       (m) => !existingStoreIds.has(m.storeId)
     )
 
+    // 2. 방문 주기 필터링
+    const cycleSkippedStoreIds = new Set<string>()
+    const membersToCreate = afterDuplicateFilter.filter((m) => {
+      const { visitCycleWeeks, firstVisitDate } = m.store
+      const firstVisit = startOfDay(new Date(firstVisitDate))
+      const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
+
+      // 첫 방문일이 미래이면 제외
+      if (daysDiff < 0) {
+        cycleSkippedStoreIds.add(m.storeId)
+        return false
+      }
+
+      // 주기에 맞는 날인지 확인
+      const isVisitDay = daysDiff % (visitCycleWeeks * 7) === 0
+      if (!isVisitDay) {
+        cycleSkippedStoreIds.add(m.storeId)
+      }
+      return isVisitDay
+    })
+
     if (membersToCreate.length === 0) {
+      const messages: string[] = []
+      if (existingStoreIds.size > 0) {
+        messages.push(`${existingStoreIds.size}개 매장은 이미 기록이 존재합니다`)
+      }
+      if (cycleSkippedStoreIds.size > 0) {
+        messages.push(`${cycleSkippedStoreIds.size}개 매장은 방문 주기에 해당하지 않습니다`)
+      }
       return NextResponse.json(
         {
           success: false,
-          message: "해당 날짜에 이미 모든 매장의 근무 기록이 존재합니다",
+          message: messages.length > 0
+            ? messages.join(", ")
+            : "해당 날짜에 생성할 근무 기록이 없습니다",
         },
         { status: 400 }
       )
@@ -136,6 +168,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: {
         created: workRecords.length,
         skipped: existingStoreIds.size,
+        cycleSkipped: cycleSkippedStoreIds.size,
         workRecords,
       },
     })

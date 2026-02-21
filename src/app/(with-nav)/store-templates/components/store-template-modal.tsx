@@ -199,6 +199,8 @@ export function StoreTemplateModal({
             kakaoPlaceId: null,
             latitude: null,
             longitude: null,
+            visitCycleWeeks: 1,
+            firstVisitDate: new Date().toISOString(),
             storeItems: [],
           } as Store,
           order: member.order,

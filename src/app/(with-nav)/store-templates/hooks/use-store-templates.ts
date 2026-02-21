@@ -41,6 +41,7 @@ export interface StoreTemplateInput {
 export interface ApplyTemplateResult {
   created: number
   skipped: number
+  cycleSkipped: number
   workRecords: Array<{
     id: string
     storeId: string

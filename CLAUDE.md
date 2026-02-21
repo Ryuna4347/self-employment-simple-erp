@@ -19,16 +19,21 @@ pnpm prisma studio    # DB GUI
 - **Auth**: Auth.js v5 (Credentials + JWT + Refresh Token)
 - **Forms**: react-hook-form + zod
 - **Data Fetching**: TanStack Query (react-query) - 401 전역 처리
+- **DnD**: @dnd-kit (드래그앤드롭 정렬)
 
 ## 라우트 구조
 
 ```
 src/app/
+├── (auth)/           # 인증 관련 문서 그룹
 ├── (with-nav)/       # 네비게이션 포함 (Header + BottomNav)
 │   ├── layout.tsx    # 세션 검증 + 공통 레이아웃
 │   ├── work-records/
 │   ├── stores/
 │   ├── store-templates/
+│   ├── sale-items/
+│   ├── expenses/
+│   ├── profile/
 │   └── admin/
 ├── register/         # 회원가입
 ├── api/              # API 라우트
@@ -43,6 +48,9 @@ src/app/
 | 매장 | `/stores` | 매장 정보 관리 |
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹 관리 |
+| 판매품목 | `/sale-items` | 품목 마스터 관리 |
+| 경비 | `/expenses` | 경비 기록 관리 |
+| 프로필 | `/profile` | 비밀번호 변경 |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금 |
 
 ## 인증 시스템

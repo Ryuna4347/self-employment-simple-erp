@@ -64,14 +64,15 @@ export function TemplateApplyModal({
           onOpenChange(false)
           setSelectedTemplateId("")
 
-          // 결과 알림 (토스트 대신 alert 사용 - 추후 토스트로 교체 가능)
+          // 결과 알림
+          const messages = [`${result.created}개 기록이 생성되었습니다.`]
           if (result.skipped > 0) {
-            alert(
-              `${result.created}개 기록이 생성되었습니다.\n(${result.skipped}개 매장은 이미 기록이 있어 건너뛰었습니다.)`
-            )
-          } else {
-            alert(`${result.created}개 기록이 생성되었습니다.`)
+            messages.push(`${result.skipped}개 매장은 이미 기록이 있어 건너뛰었습니다.`)
           }
+          if (result.cycleSkipped > 0) {
+            messages.push(`${result.cycleSkipped}개 매장은 방문 주기에 해당하지 않아 건너뛰었습니다.`)
+          }
+          alert(messages.join("\n"))
         },
         onError: () => {
           alert("템플릿 적용에 실패했습니다.")

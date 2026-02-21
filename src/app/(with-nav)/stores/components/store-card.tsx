@@ -2,9 +2,16 @@
 
 import { useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2 } from "lucide-react"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Store } from "../hooks/use-stores"
+
+const visitCycleLabels: Record<number, string> = {
+  1: "매주",
+  2: "격주",
+  4: "월 1회",
+}
 
 interface StoreCardProps {
   store: Store
@@ -112,6 +119,18 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                   </p>
                 </div>
               )}
+              <div>
+                <span className="text-gray-600">방문 주기</span>
+                <p className="font-medium text-gray-900 mt-0.5">
+                  {visitCycleLabels[store.visitCycleWeeks] ?? `${store.visitCycleWeeks}주`}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-600">첫 방문일</span>
+                <p className="font-medium text-gray-900 mt-0.5">
+                  {format(new Date(store.firstVisitDate), "yyyy. M. d")}
+                </p>
+              </div>
             </div>
 
             {/* 품목 테이블 */}
