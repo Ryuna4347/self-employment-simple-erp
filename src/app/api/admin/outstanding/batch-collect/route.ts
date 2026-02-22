@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+import { prisma } from "@/lib/prisma"
+import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+
+const batchCollectSchema = z.object({
+  ids: z.array(z.string()).min(1, "최소 1개의 레코드가 필요합니다"),
+  isCollected: z.boolean(),
+})
+
+/**
+ * 미수금 일괄 수금 처리
+ *
+ * 여러 근무기록의 수금 상태를 한 번에 변경한다.
+ */
+export async function POST(request: NextRequest) {
+  const authResult = await requireAdmin()
+  if (isErrorResponse(authResult)) return authResult
+
+  try {
+    const body = await request.json()
+    const parseResult = batchCollectSchema.safeParse(body)
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { success: false, message: parseResult.error.issues[0].message },
+        { status: 400 },
+      )
+    }
+
+    const { ids, isCollected } = parseResult.data
+
+    const result = await prisma.workRecord.updateMany({
+      where: { id: { in: ids } },
+      data: { isCollected },
+    })
+
+    return NextResponse.json({
+      success: true,
+      data: { updatedCount: result.count },
+    })
+  } catch (error) {
+    console.error("일괄 수금 처리 오류:", error)
+    return NextResponse.json(
+      { success: false, message: "일괄 수금 처리 중 오류가 발생했습니다" },
+      { status: 500 },
+    )
+  }
+}
