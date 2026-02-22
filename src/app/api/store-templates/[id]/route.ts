@@ -45,6 +45,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 id: true,
                 name: true,
                 address: true,
+                visitCycleWeeks: true,
+                firstVisitDate: true,
               },
             },
           },

@@ -59,6 +59,15 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     return { totalVisits, totalSales, collectedSales, uncollectedSales }
   }, [workRecords])
 
+  // 이미 기록이 있는 매장 ID 집합 (템플릿 적용 모달에서 사용)
+  const existingStoreIds = useMemo(() => {
+    return new Set(
+      workRecords
+        .map((r) => r.storeId)
+        .filter((id): id is string => id !== null)
+    )
+  }, [workRecords])
+
   // 근무기록 추가 모달 열기
   const handleAddRecord = () => {
     setEditingRecord(null)
@@ -127,6 +136,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
+        existingStoreIds={existingStoreIds}
       />
     </div>
   )

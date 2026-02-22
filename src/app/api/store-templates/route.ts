@@ -39,6 +39,8 @@ export async function GET() {
                 id: true,
                 name: true,
                 address: true,
+                visitCycleWeeks: true,
+                firstVisitDate: true,
               },
             },
           },

@@ -6,6 +6,8 @@ interface MemberStore {
   id: string
   name: string
   address: string
+  visitCycleWeeks: number
+  firstVisitDate: string
 }
 
 // 템플릿 멤버 타입
