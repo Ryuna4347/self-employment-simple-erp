@@ -122,35 +122,43 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // WorkRecord 일괄 생성 (매장 수가 많을 경우 기본 5초 초과 방지)
+    // WorkRecord + RecordItem 벌크 생성 (2회 INSERT로 최적화)
     const workRecords = await prisma.$transaction(async (tx) => {
-      const created = await Promise.all(
-        membersToCreate.map((member) =>
-          tx.workRecord.create({
-            data: {
-              date: targetDate,
-              storeId: member.storeId,
-              userId: user.id,
-              collectionStatus: "UNCOLLECTED",
-              paymentTypeSnapshot: member.store.PaymentType,
-              items: {
-                create: member.store.storeItems.map((item) => ({
-                  name: item.name,
-                  amount: item.amount,
-                  quantity: item.quantity,
-                })),
-              },
-            },
-            include: {
-              store: {
-                select: { id: true, name: true, address: true },
-              },
-            },
-          })
-        )
+      // 1. WorkRecord 벌크 생성
+      const createdRecords = await tx.workRecord.createManyAndReturn({
+        data: membersToCreate.map((member) => ({
+          date: targetDate,
+          storeId: member.storeId,
+          userId: user.id,
+          collectionStatus: "UNCOLLECTED" as const,
+          paymentTypeSnapshot: member.store.PaymentType,
+        })),
+      })
+
+      // 2. storeId → workRecordId 매핑 후 RecordItem 벌크 생성
+      const storeToRecordId = new Map(
+        createdRecords.map((r) => [r.storeId, r.id])
       )
-      return created
-    }, { timeout: 30000 })
+      const allItems = membersToCreate.flatMap((member) =>
+        member.store.storeItems.map((item) => ({
+          workRecordId: storeToRecordId.get(member.storeId)!,
+          name: item.name,
+          amount: item.amount,
+          quantity: item.quantity,
+        }))
+      )
+      if (allItems.length > 0) {
+        await tx.recordItem.createMany({ data: allItems })
+      }
+
+      // 3. 응답용 관계 데이터 조회
+      return tx.workRecord.findMany({
+        where: { id: { in: createdRecords.map((r) => r.id) } },
+        include: {
+          store: { select: { id: true, name: true, address: true } },
+        },
+      })
+    })
 
     return apiSuccess({
       created: workRecords.length,
