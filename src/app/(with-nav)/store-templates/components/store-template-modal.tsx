@@ -269,11 +269,6 @@ export function StoreTemplateModal({
 
   // 폼 제출 핸들러
   const handleFormSubmit = (data: TemplateFormData) => {
-    if (selectedStores.length === 0) {
-      alert("최소 1개 이상의 매장을 선택해주세요")
-      return
-    }
-
     const submitData: StoreTemplateInput = {
       name: data.name,
       description: data.description,
@@ -405,7 +400,7 @@ export function StoreTemplateModal({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || !isValid || selectedStores.length === 0}
+              disabled={isLoading || !isValid}
             >
               {isLoading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
             </Button>

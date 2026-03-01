@@ -15,7 +15,7 @@ const createTemplateSchema = z.object({
         order: z.number().int().min(0, "순서는 0 이상이어야 합니다"),
       })
     )
-    .min(1, "최소 1개 이상의 매장을 선택해주세요"),
+    .default([]),
 })
 
 /**
@@ -95,13 +95,15 @@ export async function POST(request: NextRequest) {
       })
 
       // 멤버 생성
-      await tx.storeTemplateMember.createMany({
-        data: members.map((member) => ({
-          templateId: newTemplate.id,
-          storeId: member.storeId,
-          order: member.order,
-        })),
-      })
+      if (members.length > 0) {
+        await tx.storeTemplateMember.createMany({
+          data: members.map((member) => ({
+            templateId: newTemplate.id,
+            storeId: member.storeId,
+            order: member.order,
+          })),
+        })
+      }
 
       // 멤버 포함하여 반환
       return tx.storeTemplate.findUnique({
