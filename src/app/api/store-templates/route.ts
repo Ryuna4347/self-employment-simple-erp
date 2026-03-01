@@ -46,7 +46,7 @@ export async function GET() {
           },
         },
       },
-      orderBy: { name: "asc" },
+      orderBy: { createdAt: "desc" },
     })
 
     // memberCount 추가

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       where: search
         ? { name: { contains: search, mode: "insensitive" } }
         : undefined,
-      orderBy: { name: "asc" },
+      orderBy: { createdAt: "desc" },
     })
 
     return NextResponse.json({ success: true, data: saleItems })
