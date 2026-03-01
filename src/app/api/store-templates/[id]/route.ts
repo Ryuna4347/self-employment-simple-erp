@@ -30,7 +30,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
-  const { user } = authResult
   const { id } = await params
 
   try {
@@ -58,11 +57,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
-    // 본인 코스만 조회 가능
-    if (template.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 코스입니다")
-    }
-
     return apiSuccess({
       ...template,
       memberCount: template.members.length,
@@ -75,13 +69,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PUT /api/store-templates/[id]
- * 코스 수정 (owner만)
+ * 코스 수정
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
-  const { user } = authResult
   const { id } = await params
 
   try {
@@ -92,10 +85,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (!existingTemplate) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
-    }
-
-    if (existingTemplate.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     const body = await request.json()
@@ -161,13 +150,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 /**
  * DELETE /api/store-templates/[id]
- * 코스 삭제 (owner만)
+ * 코스 삭제
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
-  const { user } = authResult
   const { id } = await params
 
   try {
@@ -178,10 +166,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     if (!existingTemplate) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
-    }
-
-    if (existingTemplate.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     // 삭제 (cascade로 멤버도 함께 삭제됨)

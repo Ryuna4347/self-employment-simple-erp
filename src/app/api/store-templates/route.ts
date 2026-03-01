@@ -20,17 +20,14 @@ const createTemplateSchema = z.object({
 
 /**
  * GET /api/store-templates
- * 본인 코스 목록 조회
+ * 코스 목록 조회
  */
 export async function GET() {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
-  const { user } = authResult
-
   try {
     const templates = await prisma.storeTemplate.findMany({
-      where: { userId: user.id },
       include: {
         members: {
           orderBy: { order: "asc" },

@@ -58,10 +58,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
-    if (template.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 코스입니다")
-    }
-
     const body = await request.json()
 
     // 입력 검증
