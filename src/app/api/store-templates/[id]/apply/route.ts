@@ -131,7 +131,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               date: targetDate,
               storeId: member.storeId,
               userId: user.id,
-              isCollected: false,
+              collectionStatus: "UNCOLLECTED",
               paymentTypeSnapshot: member.store.PaymentType,
               items: {
                 create: member.store.storeItems.map((item) => ({

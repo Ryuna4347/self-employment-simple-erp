@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
-import { Plus, X, MapPin, Save } from "lucide-react"
+import { Plus, X, MapPin, Save, ImagePlus, Trash2 } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -34,6 +34,7 @@ import {
   useUpdateWorkRecord,
   useSaveStoreFromWorkRecord,
   type WorkRecordResponse,
+  type CollectionStatus,
 } from "../hooks/use-work-records"
 
 // 품목 스키마
@@ -50,10 +51,16 @@ const workRecordFormSchema = z.object({
   storeAddress: z.string().min(1, "매장 주소를 입력해주세요"),
   paymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
   managerName: z.string().optional(),
-  isCollected: z.boolean(),
+  collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
   note: z.string().optional(),
-  items: z.array(recordItemSchema).min(1, "최소 1개 품목이 필요합니다"),
-})
+  items: z.array(recordItemSchema),
+}).refine(
+  (data) => {
+    if (data.collectionStatus === "CLOSED") return true
+    return data.items.length >= 1
+  },
+  { message: "최소 1개 품목이 필요합니다", path: ["items"] }
+)
 
 type WorkRecordFormData = z.infer<typeof workRecordFormSchema>
 
@@ -83,6 +90,12 @@ export function WorkRecordModal({
   // 수정 모드 확인 (애니메이션 중 라벨 변경 방지)
   const [internalEditRecord, setInternalEditRecord] = useState<WorkRecordResponse | null>(null)
   const isEditMode = !!internalEditRecord
+
+  // 이미지 업로드 상태
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 매장 검색 상태 (공용 Hook 사용)
   const storeDropdown = useDropdownState()
@@ -126,7 +139,7 @@ export function WorkRecordModal({
       storeAddress: "",
       paymentType: "CASH",
       managerName: "",
-      isCollected: false,
+      collectionStatus: "UNCOLLECTED",
       note: "",
       items: [],
     },
@@ -137,9 +150,10 @@ export function WorkRecordModal({
     name: "items",
   })
 
-  const isCollected = watch("isCollected")
+  const collectionStatus = watch("collectionStatus")
   const paymentType = watch("paymentType")
   const storeId = watch("storeId")
+  const isClosed = collectionStatus === "CLOSED"
 
   // useWatch는 값 변경 시 리렌더링을 트리거
   const watchedItems = useWatch({ control, name: "items" })
@@ -149,6 +163,7 @@ export function WorkRecordModal({
     if (open) {
       setInternalEditRecord(editRecord ?? null)
       storeDropdown.reset()
+      setImageFile(null)
 
       if (editRecord) {
         // 수정 모드: 기존 데이터로 초기화
@@ -158,7 +173,7 @@ export function WorkRecordModal({
           storeAddress: editRecord.storeAddressSnapshot ?? editRecord.store?.address ?? "",
           paymentType: editRecord.paymentTypeSnapshot,
           managerName: editRecord.managerNameSnapshot ?? editRecord.store?.managerName ?? "",
-          isCollected: editRecord.isCollected,
+          collectionStatus: editRecord.collectionStatus,
           note: editRecord.note ?? "",
           items: editRecord.items.map((item) => ({
             name: item.name,
@@ -166,6 +181,7 @@ export function WorkRecordModal({
             quantity: item.quantity,
           })),
         })
+        setImagePreview(editRecord.imageUrl ?? null)
       } else {
         // 추가 모드: 빈 값으로 초기화
         reset({
@@ -174,14 +190,29 @@ export function WorkRecordModal({
           storeAddress: "",
           paymentType: "CASH",
           managerName: "",
-          isCollected: false,
+          collectionStatus: "UNCOLLECTED",
           note: "",
           items: [],
         })
+        setImagePreview(null)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dropdown reset은 open 변경 시에만 필요
   }, [open, editRecord, reset])
+
+  // 휴업&폐업 선택 시 품목 초기화, 해제 시 이미지 초기화
+  useEffect(() => {
+    if (isClosed && fields.length > 0) {
+      setValue("items", [], { shouldValidate: true })
+    }
+    if (!isClosed) {
+      setImageFile(null)
+      setImagePreview(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
+  }, [isClosed, fields.length, setValue])
 
   // 매장 선택 핸들러
   const handleStoreSelect = (store: Store) => {
@@ -194,8 +225,8 @@ export function WorkRecordModal({
     storeDropdown.setSearchTerm(store.name)
     storeDropdown.setShowDropdown(false)
 
-    // 매장 기본 품목 로드 (추가 모드에서만)
-    if (!isEditMode && store.storeItems.length > 0) {
+    // 매장 기본 품목 로드 (추가 모드에서만, 휴업&폐업이 아닐 때)
+    if (!isEditMode && !isClosed && store.storeItems.length > 0) {
       const newItems = store.storeItems.map((item) => ({
         name: item.name,
         amount: item.amount,
@@ -236,35 +267,104 @@ export function WorkRecordModal({
     saveStoreMutation.mutate(internalEditRecord.id)
   }
 
+  // 이미지 선택 핸들러
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 5MB 제한
+    if (file.size > 5 * 1024 * 1024) {
+      alert("파일 크기는 5MB 이하여야 합니다")
+      return
+    }
+
+    // 타입 제한
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      alert("JPEG, PNG, WebP 이미지만 업로드할 수 있습니다")
+      return
+    }
+
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  // 이미지 삭제 핸들러
+  const handleImageRemove = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  // 이미지 업로드
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imageFile) return null
+
+    const formData = new FormData()
+    formData.append("file", imageFile)
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error("이미지 업로드에 실패했습니다")
+    }
+
+    const data = await response.json()
+    return data.data.url
+  }
+
   // 폼 제출 핸들러
-  const handleFormSubmit = (data: WorkRecordFormData) => {
+  const handleFormSubmit = async (data: WorkRecordFormData) => {
     const dateStr = format(selectedDate, "yyyy-MM-dd")
 
-    if (isEditMode && internalEditRecord) {
-      updateMutation.mutate(
-        {
-          id: internalEditRecord.id,
-          isCollected: data.isCollected,
-          note: data.note,
-          items: data.items,
-        },
-        { onSuccess: () => onOpenChange(false) }
-      )
-    } else {
-      createMutation.mutate(
-        {
-          date: dateStr,
-          storeId: data.storeId || undefined,
-          storeName: data.storeName,
-          storeAddress: data.storeAddress,
-          paymentType: data.paymentType,
-          managerName: data.managerName,
-          isCollected: data.isCollected,
-          note: data.note,
-          items: data.items,
-        },
-        { onSuccess: () => onOpenChange(false) }
-      )
+    try {
+      setIsUploading(true)
+
+      // 이미지 업로드
+      let imageUrl: string | null | undefined
+      if (imageFile) {
+        imageUrl = await uploadImage()
+      } else if (imagePreview === null && internalEditRecord?.imageUrl) {
+        // 기존 이미지 삭제
+        imageUrl = null
+      }
+
+      if (isEditMode && internalEditRecord) {
+        updateMutation.mutate(
+          {
+            id: internalEditRecord.id,
+            collectionStatus: data.collectionStatus as CollectionStatus,
+            note: data.note,
+            items: isClosed ? [] : data.items,
+            ...(imageUrl !== undefined && { imageUrl }),
+          },
+          { onSuccess: () => onOpenChange(false) }
+        )
+      } else {
+        createMutation.mutate(
+          {
+            date: dateStr,
+            storeId: data.storeId || undefined,
+            storeName: data.storeName,
+            storeAddress: data.storeAddress,
+            paymentType: data.paymentType,
+            managerName: data.managerName,
+            collectionStatus: data.collectionStatus as CollectionStatus,
+            note: data.note,
+            items: isClosed ? [] : data.items,
+            ...(imageUrl && { imageUrl }),
+          },
+          { onSuccess: () => onOpenChange(false) }
+        )
+      }
+    } catch {
+      alert("이미지 업로드에 실패했습니다")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -456,136 +556,192 @@ export function WorkRecordModal({
           <div className="space-y-2">
             <Label>수금 상태</Label>
             <RadioGroup
-              value={isCollected ? "collected" : "uncollected"}
+              value={collectionStatus}
               onValueChange={(value) =>
-                setValue("isCollected", value === "collected", { shouldValidate: true })
+                setValue("collectionStatus", value as CollectionStatus, { shouldValidate: true })
               }
-              className="flex gap-4"
+              className="grid grid-cols-3 gap-2"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="collected" id="collected" />
+                <RadioGroupItem value="UNCOLLECTED" id="uncollected" />
+                <Label htmlFor="uncollected" className="font-normal cursor-pointer">
+                  미수
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="COLLECTED" id="collected" />
                 <Label htmlFor="collected" className="font-normal cursor-pointer">
                   수금 완료
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="uncollected" id="uncollected" />
-                <Label htmlFor="uncollected" className="font-normal cursor-pointer">
-                  미수
+                <RadioGroupItem value="CLOSED" id="closed" />
+                <Label htmlFor="closed" className="font-normal cursor-pointer">
+                  휴업&폐업
                 </Label>
               </div>
             </RadioGroup>
           </div>
 
-          {/* 품목 섹션 */}
-          <div className="border-t border-gray-200 pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <Label>거래 품목</Label>
-              <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
-                <Plus className="size-4" />
-                품목 추가
-              </Button>
+          {/* 품목 섹션 (휴업&폐업이 아닐 때만) */}
+          {isClosed ? (
+            <div className="border-t border-gray-200 pt-4">
+              <div className="text-center py-6 text-gray-400 text-sm bg-gray-50 rounded-lg">
+                휴업&폐업 상태에서는 거래 품목이 없습니다
+              </div>
             </div>
+          ) : (
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <Label>거래 품목</Label>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
+                  <Plus className="size-4" />
+                  품목 추가
+                </Button>
+              </div>
 
-            {errors.items?.root && (
-              <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>
-            )}
+              {errors.items?.root && (
+                <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>
+              )}
 
-            <div className="space-y-3">
-              {fields.map((field, index) => (
-                <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
-                  <div className="grid grid-cols-12 gap-2 items-start">
-                    {/* 품명 */}
-                    <div className="col-span-5">
-                      <Label className="text-xs text-gray-600">품명</Label>
-                      <Input
-                        placeholder="품목명 입력"
-                        {...register(`items.${index}.name`)}
-                        className="mt-1"
-                        aria-invalid={!!errors.items?.[index]?.name}
-                      />
-                      {errors.items?.[index]?.name && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.name?.message}
-                        </p>
-                      )}
-                    </div>
+              <div className="space-y-3">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
+                    <div className="grid grid-cols-12 gap-2 items-start">
+                      {/* 품명 */}
+                      <div className="col-span-5">
+                        <Label className="text-xs text-gray-600">품명</Label>
+                        <Input
+                          placeholder="품목명 입력"
+                          {...register(`items.${index}.name`)}
+                          className="mt-1"
+                          aria-invalid={!!errors.items?.[index]?.name}
+                        />
+                        {errors.items?.[index]?.name && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.items[index]?.name?.message}
+                          </p>
+                        )}
+                      </div>
 
-                    {/* 수량 */}
-                    <div className="col-span-3">
-                      <Label className="text-xs text-gray-600">수량</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="1"
-                        {...register(`items.${index}.quantity`, {
-                          valueAsNumber: true,
-                        })}
-                        className="mt-1"
-                        aria-invalid={!!errors.items?.[index]?.quantity}
-                      />
-                      {errors.items?.[index]?.quantity && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.quantity?.message}
-                        </p>
-                      )}
-                    </div>
+                      {/* 수량 */}
+                      <div className="col-span-3">
+                        <Label className="text-xs text-gray-600">수량</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="1"
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: true,
+                          })}
+                          className="mt-1"
+                          aria-invalid={!!errors.items?.[index]?.quantity}
+                        />
+                        {errors.items?.[index]?.quantity && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.items[index]?.quantity?.message}
+                          </p>
+                        )}
+                      </div>
 
-                    {/* 금액 */}
-                    <div className="col-span-3">
-                      <Label className="text-xs text-gray-600">금액</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...register(`items.${index}.amount`, {
-                          valueAsNumber: true,
-                        })}
-                        className="mt-1"
-                        aria-invalid={!!errors.items?.[index]?.amount}
-                      />
-                      {errors.items?.[index]?.amount && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.amount?.message}
-                        </p>
-                      )}
-                    </div>
+                      {/* 금액 */}
+                      <div className="col-span-3">
+                        <Label className="text-xs text-gray-600">금액</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          {...register(`items.${index}.amount`, {
+                            valueAsNumber: true,
+                          })}
+                          className="mt-1"
+                          aria-invalid={!!errors.items?.[index]?.amount}
+                        />
+                        {errors.items?.[index]?.amount && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.items[index]?.amount?.message}
+                          </p>
+                        )}
+                      </div>
 
-                    {/* 삭제 버튼 */}
-                    <div className="col-span-1 flex items-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => handleRemoveItem(index)}
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
-                      >
-                        <X className="size-4" />
-                      </Button>
+                      {/* 삭제 버튼 */}
+                      <div className="col-span-1 flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemoveItem(index)}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {fields.length === 0 && (
-                <div className="text-center py-6 text-gray-400 text-sm">
-                  품목을 추가해주세요
+                {fields.length === 0 && (
+                  <div className="text-center py-6 text-gray-400 text-sm">
+                    품목을 추가해주세요
+                  </div>
+                )}
+              </div>
+
+              {/* 총 금액 */}
+              {fields.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-blue-900">총 금액</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {totalAmount.toLocaleString()}원
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
+          )}
 
-            {/* 총 금액 */}
-            {fields.length > 0 && (
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-blue-900">총 금액</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    {totalAmount.toLocaleString()}원
-                  </span>
+          {/* 이미지 업로드 (휴업&폐업일 때만) */}
+          {isClosed && (
+            <div className="space-y-2">
+              <Label>이미지 첨부</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="첨부 이미지"
+                    className="w-full max-h-48 object-contain rounded-lg border border-gray-200"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon-sm"
+                    onClick={handleImageRemove}
+                    className="absolute top-2 right-2"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
+                >
+                  <ImagePlus className="size-8 mx-auto text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">클릭하여 이미지 첨부</p>
+                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP / 최대 5MB</p>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* 메모 */}
           <div className="space-y-2">
@@ -604,12 +760,12 @@ export function WorkRecordModal({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              disabled={isLoading}
+              disabled={isLoading || isUploading}
             >
               취소
             </Button>
-            <Button type="submit" disabled={isLoading || !isValid}>
-              {isLoading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
+            <Button type="submit" disabled={isLoading || isUploading || !isValid}>
+              {isLoading || isUploading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
             </Button>
           </ResponsiveModalFooter>
         </form>

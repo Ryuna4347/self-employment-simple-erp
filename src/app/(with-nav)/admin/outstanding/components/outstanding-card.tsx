@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import type { PaymentType } from "@/generated/prisma/client"
+import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 import { Button } from "@/components/ui/button"
 
 // 지불방식 한글 라벨
@@ -18,14 +19,14 @@ export interface OutstandingRecord {
   storeAddressSnapshot: string | null
   managerNameSnapshot: string | null
   paymentTypeSnapshot: PaymentType
-  isCollected: boolean
+  collectionStatus: CollectionStatus
   totalAmount: number
   userName: string
 }
 
 interface OutstandingCardProps {
   record: OutstandingRecord
-  onToggle: (id: string, newIsCollected: boolean) => void
+  onToggle: (id: string, newCollectionStatus: CollectionStatus) => void
   isToggling: boolean
 }
 
@@ -36,7 +37,7 @@ interface OutstandingCardProps {
  * 수금 완료/미수 상태에 따라 좌측 색상 바와 배경색이 변경된다.
  */
 export function OutstandingCard({ record, onToggle, isToggling }: OutstandingCardProps) {
-  const isCollected = record.isCollected
+  const isCollected = record.collectionStatus === "COLLECTED"
 
   return (
     <div
@@ -91,7 +92,7 @@ export function OutstandingCard({ record, onToggle, isToggling }: OutstandingCar
               ? "border-blue-300 text-blue-600 hover:bg-blue-100"
               : ""
           }
-          onClick={() => onToggle(record.id, !isCollected)}
+          onClick={() => onToggle(record.id, isCollected ? "UNCOLLECTED" : "COLLECTED")}
         >
           {isToggling && <Loader2 className="size-4 animate-spin" />}
           {isCollected ? "미수 처리" : "수금완료"}

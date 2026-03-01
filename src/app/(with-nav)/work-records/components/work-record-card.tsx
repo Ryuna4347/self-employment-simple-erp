@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck } from "lucide-react";
+import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { WorkRecordResponse, WorkRecordItem } from "../hooks/use-work-records";
+import type { WorkRecordResponse, WorkRecordItem, CollectionStatus } from "../hooks/use-work-records";
 import type { PaymentType } from "@/generated/prisma/client";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,13 @@ function formatPaymentType(type: PaymentType): string {
   return typeMap[type];
 }
 
+// 수금 상태별 설정
+const COLLECTION_STATUS_CONFIG: Record<CollectionStatus, { color: string; barColor: string; label: string }> = {
+  COLLECTED: { color: "text-blue-600", barColor: "bg-blue-500", label: "수금 완료" },
+  UNCOLLECTED: { color: "text-red-600", barColor: "bg-red-500", label: "미수금" },
+  CLOSED: { color: "text-gray-600", barColor: "bg-gray-400", label: "휴업&폐업" },
+};
+
 /**
  * 근무 기록 카드 컴포넌트 (Accordion)
  *
@@ -47,8 +54,9 @@ function formatPaymentType(type: PaymentType): string {
 export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
-  // 수금완료 기록은 관리자만 수정/삭제 가능
-  const canModify = !record.isCollected || userRole === "ADMIN";
+  const statusConfig = COLLECTION_STATUS_CONFIG[record.collectionStatus];
+  // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능
+  const canModify = record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN";
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -76,11 +84,8 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
     >
       {/* 수금 상태 컬러 바 - 전체 높이 */}
       <div
-        className={cn(
-          "w-1.5 flex-shrink-0",
-          record.isCollected ? "bg-blue-500" : "bg-red-500"
-        )}
-        aria-label={record.isCollected ? "수금 완료" : "미수금"}
+        className={cn("w-1.5 flex-shrink-0", statusConfig.barColor)}
+        aria-label={statusConfig.label}
       />
 
       {/* 카드 콘텐츠 영역 */}
@@ -150,15 +155,10 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                 <div>
                   <span className="text-gray-600">수금상태</span>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <p
-                      className={cn(
-                        "font-medium",
-                        record.isCollected ? "text-blue-600" : "text-red-600"
-                      )}
-                    >
-                      {record.isCollected ? "수금 완료" : "미수금"}
+                    <p className={cn("font-medium", statusConfig.color)}>
+                      {statusConfig.label}
                     </p>
-                    {!record.isCollected && (
+                    {record.collectionStatus === "UNCOLLECTED" && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -182,52 +182,75 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
               </div>
 
               {/* 품목 리스트 */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-2">거래 품목</h4>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-gray-700 font-medium">
-                          품명
-                        </th>
-                        <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          수량
-                        </th>
-                        <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          금액
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {record.items.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-900">{item.name}</td>
-                          <td className="px-3 py-2 text-right text-gray-700">
-                            {item.quantity}
+              {record.collectionStatus === "CLOSED" ? (
+                <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  휴업&폐업 상태에서는 거래 품목이 없습니다
+                </div>
+              ) : (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">거래 품목</h4>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-gray-700 font-medium">
+                            품명
+                          </th>
+                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
+                            수량
+                          </th>
+                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
+                            금액
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {record.items.map((item) => (
+                          <tr key={item.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-gray-900">{item.name}</td>
+                            <td className="px-3 py-2 text-right text-gray-700">
+                              {item.quantity}
+                            </td>
+                            <td className="px-3 py-2 text-right font-medium text-gray-900">
+                              {item.amount.toLocaleString()}원
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                        <tr>
+                          <td
+                            colSpan={2}
+                            className="px-3 py-2 text-right font-semibold text-gray-900"
+                          >
+                            합계
                           </td>
-                          <td className="px-3 py-2 text-right font-medium text-gray-900">
-                            {item.amount.toLocaleString()}원
+                          <td className="px-3 py-2 text-right font-bold text-gray-900">
+                            {totalAmount.toLocaleString()}원
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                      <tr>
-                        <td
-                          colSpan={2}
-                          className="px-3 py-2 text-right font-semibold text-gray-900"
-                        >
-                          합계
-                        </td>
-                        <td className="px-3 py-2 text-right font-bold text-gray-900">
-                          {totalAmount.toLocaleString()}원
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* 첨부 이미지 (휴업&폐업일 때만) */}
+              {record.collectionStatus === "CLOSED" && record.imageUrl && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-1">
+                    <ImageIcon className="size-4" />
+                    첨부 이미지
+                  </h4>
+                  <a href={record.imageUrl} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={record.imageUrl}
+                      alt="첨부 이미지"
+                      className="rounded-lg border border-gray-200 max-h-48 object-contain"
+                    />
+                  </a>
+                </div>
+              )}
 
               {/* 메모 */}
               {record.note && (
@@ -263,7 +286,7 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                 </div>
               ) : (
                 <p className="text-sm text-gray-400 text-center pt-2">
-                  수금완료된 기록은 관리자만 수정할 수 있습니다
+                  미수 상태가 아닌 기록은 관리자만 수정할 수 있습니다
                 </p>
               )}
             </div>

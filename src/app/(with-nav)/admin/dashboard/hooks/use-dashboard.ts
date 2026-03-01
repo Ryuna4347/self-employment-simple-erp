@@ -33,6 +33,7 @@ interface RecentOutstanding {
 interface CollectionStatus {
   collected: number
   uncollected: number
+  closed: number
 }
 
 // 대시보드 데이터

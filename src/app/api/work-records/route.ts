@@ -18,7 +18,8 @@ const createWorkRecordSchema = z.object({
   storeAddress: z.string().optional(), // 주소 (선택)
   paymentType: z.enum(["CASH", "ACCOUNT", "CARD"]), // 결제방식 (필수)
   managerName: z.string().optional(), // 담당자 (선택)
-  isCollected: z.boolean(),
+  collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
+  imageUrl: z.string().url().optional(),
   note: z.string().optional(),
   items: z
     .array(
@@ -27,9 +28,17 @@ const createWorkRecordSchema = z.object({
         amount: z.number().int().min(0, "금액은 0 이상이어야 합니다"),
         quantity: z.number().int().min(1, "수량은 1 이상이어야 합니다"),
       })
-    )
-    .min(1, "최소 1개 이상의 품목이 필요합니다"),
-})
+    ),
+}).refine(
+  (data) => {
+    // 휴업&폐업이면 빈 배열 허용, 아니면 최소 1개 필요
+    if (data.collectionStatus === "CLOSED") {
+      return true
+    }
+    return data.items.length >= 1
+  },
+  { message: "최소 1개 이상의 품목이 필요합니다", path: ["items"] }
+)
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
@@ -93,7 +102,7 @@ export async function GET(request: NextRequest) {
     const outstandingRecords = await prisma.workRecord.findMany({
       where: {
         storeId: { in: storeIds },
-        isCollected: false,
+        collectionStatus: "UNCOLLECTED",
         NOT: { date: { gte: dateStart, lte: dateEnd } },
       },
       select: {
@@ -143,7 +152,7 @@ export async function POST(request: NextRequest) {
     ])
   }
 
-  const { date, storeId, storeName, storeAddress, paymentType, managerName, isCollected, note, items } = parseResult.data
+  const { date, storeId, storeName, storeAddress, paymentType, managerName, collectionStatus, imageUrl, note, items } = parseResult.data
 
   // storeId가 있으면 매장 존재 여부 확인
   if (storeId) {
@@ -157,6 +166,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // 휴업&폐업 시 items 강제 비움
+  const isClosed = collectionStatus === "CLOSED"
+  const finalItems = isClosed ? [] : items
+
   // 트랜잭션으로 WorkRecord + RecordItem 생성
   const workRecord = await prisma.workRecord.create({
     data: {
@@ -164,20 +177,23 @@ export async function POST(request: NextRequest) {
       // storeId가 있으면 store connect, 없으면 관계 생략
       ...(storeId ? { store: { connect: { id: storeId } } } : {}),
       user: { connect: { id: user.id } },
-      isCollected,
+      collectionStatus,
+      imageUrl: imageUrl || null,
       note: note || null,
       // 스냅샷 필드 (항상 요청값 사용)
       storeNameSnapshot: storeName,
       storeAddressSnapshot: storeAddress || null,
       managerNameSnapshot: managerName || null,
       paymentTypeSnapshot: paymentType,
-      items: {
-        create: items.map((item) => ({
-          name: item.name,
-          amount: item.amount,
-          quantity: item.quantity,
-        })),
-      },
+      ...(finalItems.length > 0 && {
+        items: {
+          create: finalItems.map((item) => ({
+            name: item.name,
+            amount: item.amount,
+            quantity: item.quantity,
+          })),
+        },
+      }),
     },
     include: {
       store: { select: { id: true, name: true, address: true, managerName: true } },

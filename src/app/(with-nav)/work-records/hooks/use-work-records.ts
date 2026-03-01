@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType } from "@/generated/prisma/client"
 
+export type CollectionStatus = "UNCOLLECTED" | "COLLECTED" | "CLOSED"
+
 // 근무기록 생성 입력 타입
 export interface WorkRecordInput {
   date: string // YYYY-MM-DD
@@ -10,7 +12,8 @@ export interface WorkRecordInput {
   storeAddress?: string // 주소 (선택)
   paymentType: PaymentType // 결제방식 (필수)
   managerName?: string // 담당자 (선택)
-  isCollected: boolean
+  collectionStatus: CollectionStatus
+  imageUrl?: string
   note?: string
   items: {
     name: string
@@ -21,7 +24,8 @@ export interface WorkRecordInput {
 
 // 근무기록 수정 입력 타입
 export interface WorkRecordUpdateInput {
-  isCollected?: boolean
+  collectionStatus?: CollectionStatus
+  imageUrl?: string | null
   note?: string
   items?: {
     name: string
@@ -59,7 +63,8 @@ export interface WorkRecordResponse {
   date: string
   storeId: string | null // nullable (직접 입력 시 null)
   userId: string
-  isCollected: boolean
+  collectionStatus: CollectionStatus
+  imageUrl: string | null
   note: string | null
   // 스냅샷 필드
   storeNameSnapshot: string | null

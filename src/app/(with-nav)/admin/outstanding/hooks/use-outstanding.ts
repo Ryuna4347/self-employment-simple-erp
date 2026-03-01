@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType } from "@/generated/prisma/client"
+import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 
 // 미수금 레코드 타입
 export interface OutstandingRecord {
@@ -10,7 +11,7 @@ export interface OutstandingRecord {
   storeAddressSnapshot: string | null
   managerNameSnapshot: string | null
   paymentTypeSnapshot: PaymentType
-  isCollected: boolean
+  collectionStatus: CollectionStatus
   totalAmount: number
   userName: string
 }
@@ -104,12 +105,12 @@ export function useToggleCollection() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, isCollected }: { id: string; isCollected: boolean }) => {
+    mutationFn: async ({ id, collectionStatus }: { id: string; collectionStatus: CollectionStatus }) => {
       const response = await apiClient<{ data: unknown }>(
         `/api/work-records/${id}`,
         {
           method: "PUT",
-          json: { isCollected },
+          json: { collectionStatus },
         }
       )
       return response.data
@@ -131,12 +132,12 @@ export function useBatchToggleCollection() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ ids, isCollected }: { ids: string[]; isCollected: boolean }) => {
+    mutationFn: async ({ ids, collectionStatus }: { ids: string[]; collectionStatus: CollectionStatus }) => {
       const response = await apiClient<{ data: { updatedCount: number } }>(
         `/api/admin/outstanding/batch-collect`,
         {
           method: "POST",
-          json: { ids, isCollected },
+          json: { ids, collectionStatus },
         }
       )
       return response.data

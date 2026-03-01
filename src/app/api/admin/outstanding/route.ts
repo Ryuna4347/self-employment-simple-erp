@@ -77,7 +77,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const dateEnd = endOfMonth(targetDate)
 
   const where: Prisma.WorkRecordWhereInput = {
-    isCollected: false,
+    collectionStatus: "UNCOLLECTED",
     date: { gte: dateStart, lte: dateEnd },
   }
 
@@ -112,7 +112,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,
     paymentTypeSnapshot: record.paymentTypeSnapshot,
-    isCollected: record.isCollected,
+    collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
   }))
@@ -146,7 +146,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
 
   // 매장 검색 조건
   const where: Prisma.WorkRecordWhereInput = {
-    isCollected: false,
+    collectionStatus: "UNCOLLECTED",
     storeNameSnapshot: storeName
       ? { contains: storeName, mode: "insensitive" }
       : { not: null },
@@ -185,7 +185,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const pageRecords = pageStoreNames.length > 0
     ? await prisma.workRecord.findMany({
         where: {
-          isCollected: false,
+          collectionStatus: "UNCOLLECTED",
           storeNameSnapshot: { in: pageStoreNames },
         },
         include: {
@@ -206,7 +206,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,
     paymentTypeSnapshot: record.paymentTypeSnapshot,
-    isCollected: record.isCollected,
+    collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
   }))

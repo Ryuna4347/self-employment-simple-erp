@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 import {
   useOutstanding,
   useToggleCollection,
@@ -82,7 +83,7 @@ export function OutstandingContent() {
   }, [year, month, view, searchStoreName, page, router])
 
   // 낙관적 업데이트용 토글 상태 맵
-  const [toggledItems, setToggledItems] = useState<Map<string, boolean>>(new Map())
+  const [toggledItems, setToggledItems] = useState<Map<string, CollectionStatus>>(new Map())
 
   // 낙관적 요약 보정 (페이지 간 누적)
   const [toggleAdjustments, setToggleAdjustments] = useState({
@@ -119,9 +120,9 @@ export function OutstandingContent() {
     if (!data?.records) return []
     return data.records.map((record) => ({
       ...record,
-      isCollected: toggledItems.has(record.id)
+      collectionStatus: toggledItems.has(record.id)
         ? toggledItems.get(record.id)!
-        : record.isCollected,
+        : record.collectionStatus,
     }))
   }, [data, toggledItems])
 
@@ -159,14 +160,14 @@ export function OutstandingContent() {
         id: record.id,
         date: record.date,
         totalAmount: record.totalAmount,
-        isCollected: record.isCollected,
+        collectionStatus: record.collectionStatus,
       })
     }
 
     // 미수금 합계 계산
     for (const group of groupMap.values()) {
       group.totalAmount = group.records
-        .filter((r) => !r.isCollected)
+        .filter((r) => r.collectionStatus === "UNCOLLECTED")
         .reduce((sum, r) => sum + r.totalAmount, 0)
     }
 
@@ -184,24 +185,25 @@ export function OutstandingContent() {
 
   // 수금 상태 토글 핸들러 (낙관적 업데이트)
   const handleToggle = useCallback(
-    (id: string, newIsCollected: boolean) => {
+    (id: string, newCollectionStatus: CollectionStatus) => {
       setTogglingId(id)
 
       // 낙관적 업데이트
-      setToggledItems((prev) => new Map(prev).set(id, newIsCollected))
+      setToggledItems((prev) => new Map(prev).set(id, newCollectionStatus))
 
       // 요약 보정: 수금 완료 → 금액/건수 감소, 미수 처리 → 증가
       const record = data?.records.find((r) => r.id === id)
+      const isCollecting = newCollectionStatus === "COLLECTED"
       if (record) {
         const amount = record.totalAmount
         setToggleAdjustments((prev) => ({
-          amountDelta: prev.amountDelta + (newIsCollected ? -amount : amount),
-          countDelta: prev.countDelta + (newIsCollected ? -1 : 1),
+          amountDelta: prev.amountDelta + (isCollecting ? -amount : amount),
+          countDelta: prev.countDelta + (isCollecting ? -1 : 1),
         }))
       }
 
       toggleMutation.mutate(
-        { id, isCollected: newIsCollected },
+        { id, collectionStatus: newCollectionStatus },
         {
           onError: () => {
             // 실패 시 롤백
@@ -214,8 +216,8 @@ export function OutstandingContent() {
             if (record) {
               const amount = record.totalAmount
               setToggleAdjustments((prev) => ({
-                amountDelta: prev.amountDelta + (newIsCollected ? amount : -amount),
-                countDelta: prev.countDelta + (newIsCollected ? 1 : -1),
+                amountDelta: prev.amountDelta + (isCollecting ? amount : -amount),
+                countDelta: prev.countDelta + (isCollecting ? 1 : -1),
               }))
             }
           },
@@ -238,7 +240,7 @@ export function OutstandingContent() {
       setToggledItems((prev) => {
         const next = new Map(prev)
         for (const id of ids) {
-          next.set(id, true)
+          next.set(id, "COLLECTED")
         }
         return next
       })
@@ -254,7 +256,7 @@ export function OutstandingContent() {
       }))
 
       batchMutation.mutate(
-        { ids, isCollected: true },
+        { ids, collectionStatus: "COLLECTED" },
         {
           onError: () => {
             // 실패 시 롤백

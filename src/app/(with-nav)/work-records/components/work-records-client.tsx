@@ -51,11 +51,12 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     workRecords.forEach((record) => {
       const amount = record.items.reduce((sum, item) => sum + item.amount, 0)
       totalSales += amount
-      if (record.isCollected) {
+      if (record.collectionStatus === "COLLECTED") {
         collectedSales += amount
-      } else {
+      } else if (record.collectionStatus === "UNCOLLECTED") {
         uncollectedSales += amount
       }
+      // CLOSED: items가 없으므로 amount = 0
     })
 
     return { totalVisits, totalSales, collectedSales, uncollectedSales }
@@ -87,16 +88,14 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     setWorkRecordModalOpen(true)
   }
 
-  // 근무기록 삭제
+  // 근무기록 삭제 (확인 창은 work-record-card에서 처리)
   const handleDeleteRecord = (id: string) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
-      deleteMutation.mutate(id)
-    }
+    deleteMutation.mutate(id)
   }
 
   // 수금처리
   const handleCollectRecord = (id: string) => {
-    updateMutation.mutate({ id, isCollected: true })
+    updateMutation.mutate({ id, collectionStatus: "COLLECTED" })
   }
 
   return (

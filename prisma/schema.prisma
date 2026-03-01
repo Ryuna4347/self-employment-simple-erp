@@ -75,11 +75,12 @@ model StoreTemplateMember {
 }
 
 model WorkRecord {
-  id                   String       @id @default(cuid())
-  date                 DateTime     @default(now())
-  storeId              String?      // nullable로 변경 (직접 입력 시 null)
+  id                   String           @id @default(cuid())
+  date                 DateTime         @default(now())
+  storeId              String?          // nullable로 변경 (직접 입력 시 null)
   userId               String
-  isCollected          Boolean      @default(false)
+  collectionStatus     CollectionStatus @default(UNCOLLECTED)
+  imageUrl             String?          // 이미지 URL (Supabase Storage)
   note                 String?
   // 스냅샷 필드 (거래 시점의 매장 정보)
   storeNameSnapshot    String?      // 매장명 스냅샷
@@ -142,4 +143,10 @@ enum ReceiptType {
   NONE
   SIMPLE_RECEIPT
   TRANSACTION_STATEMENT
+}
+
+enum CollectionStatus {
+  UNCOLLECTED  // 미수
+  COLLECTED    // 수금완료
+  CLOSED       // 휴업&폐업
 }

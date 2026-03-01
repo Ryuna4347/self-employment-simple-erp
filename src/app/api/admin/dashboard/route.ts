@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       )
       totalRevenue += recordTotal
 
-      if (!record.isCollected) {
+      if (record.collectionStatus === "UNCOLLECTED") {
         outstandingAmount += recordTotal
       }
 
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
 
     // === recentOutstanding: 최근 미수금 5건 ===
     const outstandingRecords = workRecords
-      .filter((r) => !r.isCollected)
+      .filter((r) => r.collectionStatus === "UNCOLLECTED")
       .sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       )
@@ -177,8 +177,9 @@ export async function GET(request: NextRequest) {
     }))
 
     // === 수금 현황 (파이 차트용) ===
-    const collectedCount = workRecords.filter((r) => r.isCollected).length
-    const uncollectedCount = workRecords.filter((r) => !r.isCollected).length
+    const collectedCount = workRecords.filter((r) => r.collectionStatus === "COLLECTED").length
+    const uncollectedCount = workRecords.filter((r) => r.collectionStatus === "UNCOLLECTED").length
+    const closedCount = workRecords.filter((r) => r.collectionStatus === "CLOSED").length
 
     return NextResponse.json({
       success: true,
@@ -190,6 +191,7 @@ export async function GET(request: NextRequest) {
         collectionStatus: {
           collected: collectedCount,
           uncollected: uncollectedCount,
+          closed: closedCount,
         },
       },
     })

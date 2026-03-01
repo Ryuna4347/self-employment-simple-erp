@@ -6,7 +6,7 @@ import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 const batchCollectSchema = z.object({
   ids: z.array(z.string()).min(1, "최소 1개의 레코드가 필요합니다"),
-  isCollected: z.boolean(),
+  collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
 })
 
 /**
@@ -26,11 +26,11 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
-    const { ids, isCollected } = parseResult.data
+    const { ids, collectionStatus } = parseResult.data
 
     const result = await prisma.workRecord.updateMany({
       where: { id: { in: ids } },
-      data: { isCollected },
+      data: { collectionStatus },
     })
 
     return apiSuccess({ updatedCount: result.count })

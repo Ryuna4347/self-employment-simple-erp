@@ -6,7 +6,8 @@ import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 근무기록 수정 스키마
 const updateWorkRecordSchema = z.object({
-  isCollected: z.boolean().optional(),
+  collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]).optional(),
+  imageUrl: z.string().url().nullable().optional(),
   note: z.string().optional(),
   items: z
     .array(
@@ -16,9 +17,24 @@ const updateWorkRecordSchema = z.object({
         quantity: z.number().int().min(1, "수량은 1 이상이어야 합니다"),
       })
     )
-    .min(1, "최소 1개 이상의 품목이 필요합니다")
     .optional(),
-})
+}).refine(
+  (data) => {
+    // collectionStatus와 items가 동시에 있을 때만 검증
+    if (data.collectionStatus && data.items !== undefined) {
+      if (data.collectionStatus === "CLOSED") {
+        return true // 휴업&폐업이면 빈 배열 허용
+      }
+      return data.items.length >= 1
+    }
+    // items만 있을 때
+    if (data.items !== undefined) {
+      return data.items.length >= 1
+    }
+    return true
+  },
+  { message: "최소 1개 이상의 품목이 필요합니다", path: ["items"] }
+)
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -35,7 +51,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   // 근무기록 존재 여부 확인
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
-    select: { id: true, userId: true, isCollected: true },
+    select: { id: true, userId: true, collectionStatus: true },
   })
 
   if (!workRecord) {
@@ -47,9 +63,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return ApiErrors.forbidden("이 근무기록을 수정할 권한이 없습니다")
   }
 
-  // 수금완료 기록은 관리자만 수정 가능
-  if (workRecord.isCollected && user.role !== "ADMIN") {
-    return ApiErrors.forbidden("수금완료된 근무기록은 관리자만 수정할 수 있습니다")
+  // 미수 상태가 아닌 기록은 관리자만 수정 가능
+  if (workRecord.collectionStatus !== "UNCOLLECTED" && user.role !== "ADMIN") {
+    return ApiErrors.forbidden("미수 상태가 아닌 근무기록은 관리자만 수정할 수 있습니다")
   }
 
   let body: unknown
@@ -67,12 +83,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     ])
   }
 
-  const { isCollected, note, items } = parseResult.data
+  const { collectionStatus, imageUrl, note, items } = parseResult.data
+
+  // 휴업&폐업으로 변경 시 items 강제 삭제
+  const isClosed = collectionStatus === "CLOSED"
 
   // 트랜잭션으로 업데이트
   const updatedRecord = await prisma.$transaction(async (tx) => {
-    // items가 있으면 기존 품목 삭제 후 새로 생성
-    if (items) {
+    // 휴업/폐업 변경 시 기존 품목 삭제
+    if (isClosed) {
+      await tx.recordItem.deleteMany({
+        where: { workRecordId: id },
+      })
+    } else if (items) {
+      // items가 있으면 기존 품목 삭제 후 새로 생성
       await tx.recordItem.deleteMany({
         where: { workRecordId: id },
       })
@@ -81,9 +105,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return tx.workRecord.update({
       where: { id },
       data: {
-        ...(isCollected !== undefined && { isCollected }),
+        ...(collectionStatus !== undefined && { collectionStatus }),
+        ...(imageUrl !== undefined && { imageUrl }),
         ...(note !== undefined && { note: note || null }),
-        ...(items && {
+        ...(!isClosed && items && {
           items: {
             create: items.map((item) => ({
               name: item.name,
@@ -115,7 +140,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // 근무기록 존재 여부 확인
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
-    select: { id: true, userId: true, isCollected: true },
+    select: { id: true, userId: true, collectionStatus: true },
   })
 
   if (!workRecord) {
@@ -127,9 +152,9 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return ApiErrors.forbidden("이 근무기록을 삭제할 권한이 없습니다")
   }
 
-  // 수금완료 기록은 관리자만 삭제 가능
-  if (workRecord.isCollected && user.role !== "ADMIN") {
-    return ApiErrors.forbidden("수금완료된 근무기록은 관리자만 삭제할 수 있습니다")
+  // 미수 상태가 아닌 기록은 관리자만 삭제 가능
+  if (workRecord.collectionStatus !== "UNCOLLECTED" && user.role !== "ADMIN") {
+    return ApiErrors.forbidden("미수 상태가 아닌 근무기록은 관리자만 삭제할 수 있습니다")
   }
 
   // Cascade로 RecordItem도 자동 삭제
