@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Store, StoreInput } from "../hooks/use-stores"
+import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { format } from "date-fns"
 
 // 품목 스키마
@@ -66,6 +67,8 @@ export function StoreModal({
   // 닫힘 애니메이션 중 라벨 변경 방지
   const [internalEditStore, setInternalEditStore] = useState<Store | null>(null)
   const isEditMode = !!internalEditStore
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  const { data: templates = [] } = useStoreTemplates()
 
   const {
     register,
@@ -100,6 +103,7 @@ export function StoreModal({
   useEffect(() => {
     if (open) {
       setInternalEditStore(editStore ?? null)
+      setSelectedTemplateId("")
 
       if (editStore) {
         reset({
@@ -139,6 +143,7 @@ export function StoreModal({
       visitCycleWeeks: parseInt(data.visitCycleWeeks),
       firstVisitDate: data.firstVisitDate,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
+      templateId: selectedTemplateId || null,
     }
     onSubmit(submitData)
   }
@@ -265,6 +270,43 @@ export function StoreModal({
               )}
             </div>
           </div>
+
+          {/* 코스 선택 (생성 모드에서만) */}
+          {!isEditMode && templates.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="templateId">코스 추가</Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Select
+                    value={selectedTemplateId}
+                    onValueChange={setSelectedTemplateId}
+                  >
+                    <SelectTrigger id="templateId">
+                      <SelectValue placeholder="코스를 선택하세요 (선택사항)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name} ({template.memberCount}개 매장)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {selectedTemplateId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setSelectedTemplateId("")}
+                    className="text-gray-400 hover:text-gray-600 shrink-0"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* 품목 섹션 */}
           <div className="border-t border-gray-200 pt-4">

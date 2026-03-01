@@ -42,6 +42,7 @@ export interface StoreInput {
     amount: number
     quantity: number
   }[]
+  templateId?: string | null
 }
 
 // API 응답 타입
@@ -57,6 +58,7 @@ interface StoreResponse {
 
 // 쿼리 키
 const STORES_KEY = ["stores"] as const
+const STORE_TEMPLATES_KEY = ["store-templates"] as const
 
 /**
  * 매장 목록 조회 훅
@@ -86,8 +88,12 @@ export function useCreateStore() {
       })
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      // 코스에 매장이 추가되었으면 코스 캐시도 갱신
+      if (variables.templateId) {
+        queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      }
     },
   })
 }

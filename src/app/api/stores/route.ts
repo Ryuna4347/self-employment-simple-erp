@@ -25,6 +25,7 @@ const createStoreSchema = z.object({
       })
     )
     .optional(),
+  templateId: z.string().optional(),
 })
 
 /**
@@ -69,6 +70,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
+  const { user } = authResult
 
   try {
     const body = await request.json()
@@ -79,7 +81,21 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
-    const { items, firstVisitDate, ...storeData } = parseResult.data
+    const { items, firstVisitDate, templateId, ...storeData } = parseResult.data
+
+    // 코스 소유권 검증
+    if (templateId) {
+      const template = await prisma.storeTemplate.findUnique({
+        where: { id: templateId },
+        select: { userId: true },
+      })
+      if (!template) {
+        return ApiErrors.notFound("코스를 찾을 수 없습니다")
+      }
+      if (template.userId !== user.id) {
+        return ApiErrors.forbidden("다른 사용자의 코스입니다")
+      }
+    }
 
     // 트랜잭션으로 매장과 품목 함께 생성
     const store = await prisma.$transaction(async (tx) => {
@@ -99,6 +115,24 @@ export async function POST(request: NextRequest) {
             amount: item.amount,
             quantity: item.quantity,
           })),
+        })
+      }
+
+      // 코스에 매장 추가 (선택된 경우)
+      if (templateId) {
+        const lastMember = await tx.storeTemplateMember.findFirst({
+          where: { templateId },
+          orderBy: { order: "desc" },
+          select: { order: true },
+        })
+        const nextOrder = (lastMember?.order ?? -1) + 1
+
+        await tx.storeTemplateMember.create({
+          data: {
+            templateId,
+            storeId: newStore.id,
+            order: nextOrder,
+          },
         })
       }
 
