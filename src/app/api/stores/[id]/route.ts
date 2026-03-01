@@ -149,7 +149,11 @@ export async function DELETE(
       return ApiErrors.notFound("매장을 찾을 수 없습니다")
     }
 
-    await prisma.store.delete({ where: { id } })
+    await prisma.$transaction([
+      // 순회 코스 멤버에서 해당 매장 제거
+      prisma.storeTemplateMember.deleteMany({ where: { storeId: id } }),
+      prisma.store.delete({ where: { id } }),
+    ])
 
     return apiSuccess({ deleted: true })
   } catch (error) {
