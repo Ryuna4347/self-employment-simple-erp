@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Plus, Search, LayoutTemplate } from "lucide-react"
+import { Plus, Search, LayoutTemplate, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { StoreTemplateCard, StoreTemplateModal } from "./components"
 import {
@@ -22,7 +22,7 @@ export default function StoreTemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<StoreTemplate | null>(null)
 
   // react-query 훅
-  const { data: templates = [], isLoading } = useStoreTemplates()
+  const { data: templates = [], isLoading, refetch, isFetching } = useStoreTemplates()
   const createMutation = useCreateStoreTemplate()
   const updateMutation = useUpdateStoreTemplate()
   const deleteMutation = useDeleteStoreTemplate()
@@ -132,6 +132,16 @@ export default function StoreTemplatesPage() {
           ))
         )}
       </div>
+
+      {/* 새로고침 버튼 */}
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        aria-label="새로고침"
+      >
+        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
+      </button>
 
       {/* FAB (Floating Action Button) */}
       <button

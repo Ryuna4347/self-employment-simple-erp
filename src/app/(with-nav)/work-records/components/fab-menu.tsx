@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, PenLine, FileText } from "lucide-react";
+import { Plus, PenLine, FileText, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FabMenuProps {
   onAddRecord: () => void;
   onApplyTemplate: () => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface FabMenuProps {
  * - 근무 기록 추가
  * - 코스 적용
  */
-export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
+export function FabMenu({ onAddRecord, onApplyTemplate, onRefresh, isRefreshing }: FabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleToggle = () => {
@@ -63,6 +65,18 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
             <span className="pr-2 font-medium">근무 기록 추가</span>
           </button>
         </div>
+      )}
+
+      {/* 새로고침 버튼 */}
+      {!isOpen && (
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          aria-label="새로고침"
+        >
+          <RefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} />
+        </button>
       )}
 
       {/* FAB 버튼 (하단 네비 위에 배치: bottom-nav 높이 ~5rem + 여백 0.75rem) */}

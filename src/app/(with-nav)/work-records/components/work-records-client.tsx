@@ -34,7 +34,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
 
-  const { data: workRecords = [], isLoading, error } = useWorkRecords(
+  const { data: workRecords = [], isLoading, error, refetch, isFetching } = useWorkRecords(
     dateString,
     isAdmin ? selectedUserId : undefined
   )
@@ -127,7 +127,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} />
         )}
 
-        <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} />
+        <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} onRefresh={() => refetch()} isRefreshing={isFetching} />
       </div>
 
       {/* 근무기록 추가/수정 모달 */}
