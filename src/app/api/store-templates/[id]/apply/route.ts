@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
-import { ApiErrors } from "@/lib/api-response"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { parseISO, startOfDay, differenceInCalendarDays } from "date-fns"
 
 // 적용 요청 스키마
@@ -67,10 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // 입력 검증
     const parseResult = applySchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 }
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { date } = parseResult.data
@@ -122,14 +119,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (cycleSkippedStoreIds.size > 0) {
         messages.push(`${cycleSkippedStoreIds.size}개 매장은 방문 주기에 해당하지 않습니다`)
       }
-      return NextResponse.json(
-        {
-          success: false,
-          message: messages.length > 0
-            ? messages.join(", ")
-            : "해당 날짜에 생성할 근무 기록이 없습니다",
-        },
-        { status: 400 }
+      return ApiErrors.validationError(
+        messages.length > 0
+          ? messages.join(", ")
+          : "해당 날짜에 생성할 근무 기록이 없습니다"
       )
     }
 
@@ -163,20 +156,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return created
     })
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        created: workRecords.length,
-        skipped: existingStoreIds.size,
-        cycleSkipped: cycleSkippedStoreIds.size,
-        workRecords,
-      },
+    return apiSuccess({
+      created: workRecords.length,
+      skipped: existingStoreIds.size,
+      cycleSkipped: cycleSkippedStoreIds.size,
+      workRecords,
     })
   } catch (error) {
     console.error("코스 적용 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 적용 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 적용 중 오류가 발생했습니다")
   }
 }

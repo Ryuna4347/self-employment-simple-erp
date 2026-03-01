@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 코스 생성/수정 스키마
 const createTemplateSchema = z.object({
@@ -55,13 +56,10 @@ export async function GET() {
       memberCount: template.members.length,
     }))
 
-    return NextResponse.json({ success: true, data: templatesWithCount })
+    return apiSuccess(templatesWithCount)
   } catch (error) {
     console.error("코스 목록 조회 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 목록 조회 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 목록 조회 중 오류가 발생했습니다")
   }
 }
 
@@ -81,10 +79,7 @@ export async function POST(request: NextRequest) {
     // 입력 검증
     const parseResult = createTemplateSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 }
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { name, description, members } = parseResult.data
@@ -128,21 +123,15 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    return NextResponse.json(
+    return apiSuccess(
       {
-        success: true,
-        data: {
-          ...template,
-          memberCount: template?.members.length ?? 0,
-        },
+        ...template,
+        memberCount: template?.members.length ?? 0,
       },
-      { status: 201 }
+      201
     )
   } catch (error) {
     console.error("코스 생성 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 생성 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 생성 중 오류가 발생했습니다")
   }
 }

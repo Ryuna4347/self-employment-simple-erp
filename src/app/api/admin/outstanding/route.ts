@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { ApiErrors } from "@/lib/api-response"
 import { startOfMonth, endOfMonth, format } from "date-fns"
 import type { Prisma } from "@/generated/prisma/client"
 
@@ -50,10 +51,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 },
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const params = parseResult.data
@@ -65,10 +63,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("미수금 데이터 조회 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "미수금 데이터 조회 중 오류가 발생했습니다" },
-      { status: 500 },
-    )
+    return ApiErrors.internalError("미수금 데이터 조회 중 오류가 발생했습니다")
   }
 }
 

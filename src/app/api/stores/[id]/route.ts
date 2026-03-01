@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { parseISO, startOfDay } from "date-fns"
 
 // 매장 수정 스키마
@@ -46,19 +47,13 @@ export async function GET(
     })
 
     if (!store) {
-      return NextResponse.json(
-        { success: false, message: "매장을 찾을 수 없습니다" },
-        { status: 404 }
-      )
+      return ApiErrors.notFound("매장을 찾을 수 없습니다")
     }
 
-    return NextResponse.json({ success: true, data: store })
+    return apiSuccess(store)
   } catch (error) {
     console.error("매장 상세 조회 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "매장 조회 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("매장 조회 중 오류가 발생했습니다")
   }
 }
 
@@ -80,19 +75,13 @@ export async function PUT(
     // 입력 검증
     const parseResult = updateStoreSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 }
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     // 매장 존재 확인
     const existing = await prisma.store.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json(
-        { success: false, message: "매장을 찾을 수 없습니다" },
-        { status: 404 }
-      )
+      return ApiErrors.notFound("매장을 찾을 수 없습니다")
     }
 
     const { items, firstVisitDate, ...storeData } = parseResult.data
@@ -133,13 +122,10 @@ export async function PUT(
       })
     })
 
-    return NextResponse.json({ success: true, data: store })
+    return apiSuccess(store)
   } catch (error) {
     console.error("매장 수정 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "매장 수정 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("매장 수정 중 오류가 발생했습니다")
   }
 }
 
@@ -160,20 +146,14 @@ export async function DELETE(
     // 매장 존재 확인
     const existing = await prisma.store.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json(
-        { success: false, message: "매장을 찾을 수 없습니다" },
-        { status: 404 }
-      )
+      return ApiErrors.notFound("매장을 찾을 수 없습니다")
     }
 
     await prisma.store.delete({ where: { id } })
 
-    return NextResponse.json({ success: true, message: "삭제되었습니다" })
+    return apiSuccess({ deleted: true })
   } catch (error) {
     console.error("매장 삭제 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "매장 삭제 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("매장 삭제 중 오류가 발생했습니다")
   }
 }

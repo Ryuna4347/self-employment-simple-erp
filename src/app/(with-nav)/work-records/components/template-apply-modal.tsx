@@ -124,9 +124,6 @@ export function TemplateApplyModal({
           setSelectedTemplateId("")
           toast.success(`${result.created}개 기록이 생성되었습니다`)
         },
-        onError: () => {
-          toast.error("코스 적용에 실패했습니다")
-        },
       }
     )
   }

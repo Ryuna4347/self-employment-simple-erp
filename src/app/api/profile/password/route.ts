@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { passwordSchema } from "@/lib/validations"
 
 const changePasswordSchema = z.object({
@@ -22,10 +23,7 @@ export async function PATCH(request: NextRequest) {
     // 입력 검증
     const parseResult = changePasswordSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 },
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { currentPassword, newPassword } = parseResult.data
@@ -37,10 +35,7 @@ export async function PATCH(request: NextRequest) {
     })
 
     if (!dbUser || !dbUser.password) {
-      return NextResponse.json(
-        { success: false, message: "사용자를 찾을 수 없습니다" },
-        { status: 404 },
-      )
+      return ApiErrors.notFound("사용자를 찾을 수 없습니다")
     }
 
     // 현재 비밀번호 확인
@@ -49,10 +44,7 @@ export async function PATCH(request: NextRequest) {
       dbUser.password,
     )
     if (!isPasswordValid) {
-      return NextResponse.json(
-        { success: false, message: "현재 비밀번호가 올바르지 않습니다" },
-        { status: 400 },
-      )
+      return ApiErrors.validationError("현재 비밀번호가 올바르지 않습니다")
     }
 
     // 새 비밀번호 해시 및 저장
@@ -62,15 +54,9 @@ export async function PATCH(request: NextRequest) {
       data: { password: hashedPassword },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: "비밀번호가 변경되었습니다",
-    })
+    return apiSuccess(null, 200, "비밀번호가 변경되었습니다")
   } catch (error) {
     console.error("비밀번호 변경 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "비밀번호 변경 중 오류가 발생했습니다" },
-      { status: 500 },
-    )
+    return ApiErrors.internalError("비밀번호 변경 중 오류가 발생했습니다")
   }
 }

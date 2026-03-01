@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 const batchCollectSchema = z.object({
   ids: z.array(z.string()).min(1, "최소 1개의 레코드가 필요합니다"),
@@ -22,10 +23,7 @@ export async function POST(request: NextRequest) {
     const parseResult = batchCollectSchema.safeParse(body)
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 },
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { ids, isCollected } = parseResult.data
@@ -35,15 +33,9 @@ export async function POST(request: NextRequest) {
       data: { isCollected },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: { updatedCount: result.count },
-    })
+    return apiSuccess({ updatedCount: result.count })
   } catch (error) {
     console.error("일괄 수금 처리 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "일괄 수금 처리 중 오류가 발생했습니다" },
-      { status: 500 },
-    )
+    return ApiErrors.internalError("일괄 수금 처리 중 오류가 발생했습니다")
   }
 }

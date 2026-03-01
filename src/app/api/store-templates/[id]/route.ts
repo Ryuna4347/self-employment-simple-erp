@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
-import { ApiErrors } from "@/lib/api-response"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 코스 수정 스키마
 const updateTemplateSchema = z.object({
@@ -63,19 +63,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...template,
-        memberCount: template.members.length,
-      },
+    return apiSuccess({
+      ...template,
+      memberCount: template.members.length,
     })
   } catch (error) {
     console.error("코스 상세 조회 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 조회 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 조회 중 오류가 발생했습니다")
   }
 }
 
@@ -109,10 +103,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // 입력 검증
     const parseResult = updateTemplateSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 }
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { name, description, members } = parseResult.data
@@ -158,19 +149,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       })
     })
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...template,
-        memberCount: template?.members.length ?? 0,
-      },
+    return apiSuccess({
+      ...template,
+      memberCount: template?.members.length ?? 0,
     })
   } catch (error) {
     console.error("코스 수정 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 수정 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 수정 중 오류가 발생했습니다")
   }
 }
 
@@ -204,12 +189,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       where: { id },
     })
 
-    return NextResponse.json({ success: true, message: "코스이 삭제되었습니다" })
+    return apiSuccess({ deleted: true })
   } catch (error) {
     console.error("코스 삭제 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "코스 삭제 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("코스 삭제 중 오류가 발생했습니다")
   }
 }

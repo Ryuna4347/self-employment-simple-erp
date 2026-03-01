@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { parseISO, startOfDay } from "date-fns"
 
 // 매장 생성 스키마
@@ -54,13 +55,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     })
 
-    return NextResponse.json({ success: true, data: stores })
+    return apiSuccess(stores)
   } catch (error) {
     console.error("매장 목록 조회 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "매장 목록 조회 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("매장 목록 조회 중 오류가 발생했습니다")
   }
 }
 
@@ -78,10 +76,7 @@ export async function POST(request: NextRequest) {
     // 입력 검증
     const parseResult = createStoreSchema.safeParse(body)
     if (!parseResult.success) {
-      return NextResponse.json(
-        { success: false, message: parseResult.error.issues[0].message },
-        { status: 400 }
-      )
+      return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
     const { items, firstVisitDate, ...storeData } = parseResult.data
@@ -114,12 +109,9 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    return NextResponse.json({ success: true, data: store }, { status: 201 })
+    return apiSuccess(store, 201)
   } catch (error) {
     console.error("매장 추가 오류:", error)
-    return NextResponse.json(
-      { success: false, message: "매장 추가 중 오류가 발생했습니다" },
-      { status: 500 }
-    )
+    return ApiErrors.internalError("매장 추가 중 오류가 발생했습니다")
   }
 }

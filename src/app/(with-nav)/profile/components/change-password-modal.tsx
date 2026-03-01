@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -14,7 +14,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ApiError } from "@/lib/api-client"
 import { passwordSchema } from "@/lib/validations"
 import { koreanToEnglish } from "@/lib/korean-to-english"
 import { useChangePassword } from "../hooks/use-change-password"
@@ -42,7 +41,6 @@ export function ChangePasswordModal({
   open,
   onOpenChange,
 }: ChangePasswordModalProps) {
-  const [serverError, setServerError] = useState("")
   const changePasswordMutation = useChangePassword()
 
   const {
@@ -64,12 +62,10 @@ export function ChangePasswordModal({
   useEffect(() => {
     if (open) {
       reset({ currentPassword: "", newPassword: "", confirmPassword: "" })
-      setServerError("")
     }
   }, [open, reset])
 
   const onSubmit = (data: ChangePasswordFormData) => {
-    setServerError("")
     changePasswordMutation.mutate(
       {
         currentPassword: data.currentPassword,
@@ -78,13 +74,6 @@ export function ChangePasswordModal({
       {
         onSuccess: () => {
           onOpenChange(false)
-        },
-        onError: (error) => {
-          if (error instanceof ApiError) {
-            setServerError(error.message)
-          } else {
-            setServerError("비밀번호 변경 중 오류가 발생했습니다")
-          }
         },
       },
     )
@@ -167,12 +156,6 @@ export function ChangePasswordModal({
               )}
             </div>
 
-            {/* 서버 에러 */}
-            {serverError && (
-              <div className="rounded-md bg-red-50 p-3">
-                <p className="text-sm text-red-600">{serverError}</p>
-              </div>
-            )}
           </div>
 
           <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">

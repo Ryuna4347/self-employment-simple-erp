@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiError } from "@/lib/api-client";
 import { useCreateInvite, type InviteResult } from "../hooks/use-staff";
 
 // 초대 폼 스키마
@@ -34,7 +33,6 @@ interface InviteModalProps {
 export function InviteModal({ open, onOpenChange }: InviteModalProps) {
   const [result, setResult] = useState<InviteResult | null>(null);
   const [copied, setCopied] = useState(false);
-  const [serverError, setServerError] = useState("");
   const createInviteMutation = useCreateInvite();
 
   const {
@@ -54,23 +52,14 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
       reset({ name: "" });
       setResult(null);
       setCopied(false);
-      setServerError("");
     }
     onOpenChange(newOpen);
   };
 
   const onSubmit = (data: InviteFormData) => {
-    setServerError("");
     createInviteMutation.mutate(data, {
       onSuccess: (inviteResult) => {
         setResult(inviteResult);
-      },
-      onError: (error) => {
-        if (error instanceof ApiError) {
-          setServerError(error.message);
-        } else {
-          setServerError("초대 생성 중 오류가 발생했습니다");
-        }
       },
     });
   };
@@ -123,11 +112,6 @@ export function InviteModal({ open, onOpenChange }: InviteModalProps) {
                 )}
               </div>
 
-              {serverError && (
-                <div className="rounded-md bg-red-50 p-3">
-                  <p className="text-sm text-red-600">{serverError}</p>
-                </div>
-              )}
             </div>
 
             <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4  border-gray-200">

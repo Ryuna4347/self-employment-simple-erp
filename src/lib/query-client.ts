@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ApiError } from "./api-client";
 
 /**
@@ -9,6 +10,9 @@ import { ApiError } from "./api-client";
  * **401 전역 처리**:
  * - QueryCache.onError에서 401 에러 감지
  * - 로그인 페이지로 리다이렉트 (세션 만료 표시)
+ *
+ * **전역 에러 토스트**:
+ * - MutationCache.onError에서 401 외 에러 시 toast.error 표시
  *
  * **세션 처리 방식**:
  * - 서버 컴포넌트에서 세션 유효성 검사 (layout.tsx)
@@ -37,7 +41,12 @@ export function createQueryClient(): QueryClient {
       onError: (error) => {
         if (error instanceof ApiError && error.status === 401) {
           handle401();
+          return;
         }
+        // 401 외 모든 mutation 에러에 대해 토스트 표시
+        toast.error(
+          error instanceof ApiError ? error.message : "오류가 발생했습니다"
+        );
       },
     }),
     defaultOptions: {
