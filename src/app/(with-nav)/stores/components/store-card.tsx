@@ -147,10 +147,10 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                           품명
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          단가
+                          기본 수량
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          기본 수량
+                          단가
                         </th>
                       </tr>
                     </thead>
@@ -161,10 +161,10 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                             {item.name}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-700">
-                            {item.unitPrice.toLocaleString()}원
+                            {item.quantity}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-700">
-                            {item.quantity}
+                            {item.unitPrice.toLocaleString()}원
                           </td>
                         </tr>
                       ))}

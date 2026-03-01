@@ -333,25 +333,6 @@ export function StoreModal({
                       />
                     </div>
 
-                    {/* 단가 */}
-                    <div className="col-span-3">
-                      <Label className="text-xs text-gray-600">단가</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="0"
-                        {...register(`items.${index}.unitPrice`, {
-                          valueAsNumber: true,
-                        })}
-                        className="mt-1"
-                      />
-                      {errors.items?.[index]?.unitPrice && (
-                        <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.unitPrice?.message}
-                        </p>
-                      )}
-                    </div>
-
                     {/* 기본 수량 */}
                     <div className="col-span-3">
                       <Label className="text-xs text-gray-600">기본 수량</Label>
@@ -367,6 +348,25 @@ export function StoreModal({
                       {errors.items?.[index]?.quantity && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors.items[index]?.quantity?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 단가 */}
+                    <div className="col-span-3">
+                      <Label className="text-xs text-gray-600">단가</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="0"
+                        {...register(`items.${index}.unitPrice`, {
+                          valueAsNumber: true,
+                        })}
+                        className="mt-1"
+                      />
+                      {errors.items?.[index]?.unitPrice && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.unitPrice?.message}
                         </p>
                       )}
                     </div>

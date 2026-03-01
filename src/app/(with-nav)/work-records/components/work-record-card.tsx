@@ -162,10 +162,10 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
                           품명
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          단가
+                          수량
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          수량
+                          단가
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
                           소계
@@ -177,10 +177,10 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
                         <tr key={item.id} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-gray-900">{item.name}</td>
                           <td className="px-3 py-2 text-right text-gray-700">
-                            {item.unitPrice.toLocaleString()}원
+                            {item.quantity}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-700">
-                            {item.quantity}
+                            {item.unitPrice.toLocaleString()}원
                           </td>
                           <td className="px-3 py-2 text-right font-medium text-gray-900">
                             {(item.unitPrice * item.quantity).toLocaleString()}원

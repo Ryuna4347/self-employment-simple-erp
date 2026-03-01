@@ -547,26 +547,6 @@ export function WorkRecordModal({
                         />
                       </div>
 
-                      {/* 단가 */}
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">단가</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          {...register(`items.${index}.unitPrice`, {
-                            valueAsNumber: true,
-                          })}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.unitPrice}
-                        />
-                        {errors.items?.[index]?.unitPrice && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.unitPrice?.message}
-                          </p>
-                        )}
-                      </div>
-
                       {/* 수량 */}
                       <div className="col-span-3">
                         <Label className="text-xs text-gray-600">수량</Label>
@@ -583,6 +563,26 @@ export function WorkRecordModal({
                         {errors.items?.[index]?.quantity && (
                           <p className="text-xs text-red-500 mt-1">
                             {errors.items[index]?.quantity?.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* 단가 */}
+                      <div className="col-span-3">
+                        <Label className="text-xs text-gray-600">단가</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          {...register(`items.${index}.unitPrice`, {
+                            valueAsNumber: true,
+                          })}
+                          className="mt-1"
+                          aria-invalid={!!errors.items?.[index]?.unitPrice}
+                        />
+                        {errors.items?.[index]?.unitPrice && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.items[index]?.unitPrice?.message}
                           </p>
                         )}
                       </div>
