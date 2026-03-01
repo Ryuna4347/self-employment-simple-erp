@@ -122,7 +122,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // WorkRecord 일괄 생성
+    // WorkRecord 일괄 생성 (매장 수가 많을 경우 기본 5초 초과 방지)
     const workRecords = await prisma.$transaction(async (tx) => {
       const created = await Promise.all(
         membersToCreate.map((member) =>
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         )
       )
       return created
-    })
+    }, { timeout: 30000 })
 
     return apiSuccess({
       created: workRecords.length,
