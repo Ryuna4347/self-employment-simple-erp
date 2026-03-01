@@ -20,7 +20,7 @@ export interface StoreAggregation {
   storeName: string
   shortAddress: string // "시/구" 추출
   paymentType: PaymentType
-  totalAmount: number // SUM(unitPrice * quantity) across aggregated weeks
+  totalAmount: number // SUM(amount) across aggregated weeks
 }
 
 // 직원별 매장 목록 (시트 내 직원 블록)

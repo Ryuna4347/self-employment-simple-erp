@@ -24,7 +24,7 @@ const createWorkRecordSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1, "품명을 입력해주세요"),
-        unitPrice: z.number().int().min(0, "단가는 0 이상이어야 합니다"),
+        amount: z.number().int().min(0, "금액은 0 이상이어야 합니다"),
         quantity: z.number().int().min(1, "수량은 1 이상이어야 합니다"),
       })
     )
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     },
     include: {
       store: { select: { id: true, name: true, address: true, managerName: true } },
-      items: { select: { id: true, name: true, unitPrice: true, quantity: true } },
+      items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       },
       select: {
         storeId: true,
-        items: { select: { unitPrice: true, quantity: true } },
+        items: { select: { amount: true } },
       },
     })
 
@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     for (const record of outstandingRecords) {
       const existing = storeOutstandingMap.get(record.storeId!) || { count: 0, totalAmount: 0 }
       existing.count++
-      existing.totalAmount += record.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+      existing.totalAmount += record.items.reduce((sum, item) => sum + item.amount, 0)
       storeOutstandingMap.set(record.storeId!, existing)
     }
 
@@ -174,14 +174,14 @@ export async function POST(request: NextRequest) {
       items: {
         create: items.map((item) => ({
           name: item.name,
-          unitPrice: item.unitPrice,
+          amount: item.amount,
           quantity: item.quantity,
         })),
       },
     },
     include: {
       store: { select: { id: true, name: true, address: true, managerName: true } },
-      items: { select: { id: true, name: true, unitPrice: true, quantity: true } },
+      items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
     },
   })

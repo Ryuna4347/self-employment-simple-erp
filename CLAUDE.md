@@ -31,7 +31,6 @@ src/app/
 │   ├── work-records/
 │   ├── stores/
 │   ├── store-templates/
-│   ├── sale-items/
 │   ├── expenses/
 │   ├── profile/
 │   └── admin/
@@ -48,7 +47,6 @@ src/app/
 | 매장 | `/stores` | 매장 정보 관리 |
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹 관리 |
-| 판매품목 | `/sale-items` | 품목 마스터 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 |
 | 프로필 | `/profile` | 비밀번호 변경 |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금 |

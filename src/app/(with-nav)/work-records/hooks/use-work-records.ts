@@ -14,7 +14,7 @@ export interface WorkRecordInput {
   note?: string
   items: {
     name: string
-    unitPrice: number
+    amount: number
     quantity: number
   }[]
 }
@@ -25,7 +25,7 @@ export interface WorkRecordUpdateInput {
   note?: string
   items?: {
     name: string
-    unitPrice: number
+    amount: number
     quantity: number
   }[]
 }
@@ -33,7 +33,7 @@ export interface WorkRecordUpdateInput {
 export interface WorkRecordItem {
   id: string
   name: string
-  unitPrice: number
+  amount: number
   quantity: number
 }
 

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
     include: {
-      items: { select: { name: true, unitPrice: true, quantity: true } },
+      items: { select: { name: true, amount: true, quantity: true } },
     },
   })
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         storeItems: {
           create: workRecord.items.map((item) => ({
             name: item.name,
-            unitPrice: item.unitPrice,
+            amount: item.amount,
             quantity: item.quantity,
           })),
         },
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: { storeId: store.id },
       include: {
         store: { select: { id: true, name: true, address: true, managerName: true } },
-        items: { select: { id: true, name: true, unitPrice: true, quantity: true } },
+        items: { select: { id: true, name: true, amount: true, quantity: true } },
         user: { select: { id: true, name: true } },
       },
     })

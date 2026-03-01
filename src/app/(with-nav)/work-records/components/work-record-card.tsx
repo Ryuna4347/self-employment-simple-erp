@@ -16,7 +16,7 @@ interface WorkRecordCardProps {
 
 // 유틸리티 함수: 총 금액 계산
 function calculateTotalAmount(items: WorkRecordItem[]): number {
-  return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  return items.reduce((sum, item) => sum + item.amount, 0);
 }
 
 // 유틸리티 함수: 결제 방식 한글 변환
@@ -192,10 +192,7 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkReco
                           수량
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          단가
-                        </th>
-                        <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          소계
+                          금액
                         </th>
                       </tr>
                     </thead>
@@ -206,11 +203,8 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkReco
                           <td className="px-3 py-2 text-right text-gray-700">
                             {item.quantity}
                           </td>
-                          <td className="px-3 py-2 text-right text-gray-700">
-                            {item.unitPrice.toLocaleString()}원
-                          </td>
                           <td className="px-3 py-2 text-right font-medium text-gray-900">
-                            {(item.unitPrice * item.quantity).toLocaleString()}원
+                            {item.amount.toLocaleString()}원
                           </td>
                         </tr>
                       ))}
@@ -218,7 +212,7 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkReco
                     <tfoot className="bg-gray-50 border-t-2 border-gray-300">
                       <tr>
                         <td
-                          colSpan={3}
+                          colSpan={2}
                           className="px-3 py-2 text-right font-semibold text-gray-900"
                         >
                           합계

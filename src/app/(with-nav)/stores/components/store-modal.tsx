@@ -22,16 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ItemAutocomplete } from "@/components/common"
-import { useIndexedDropdownState } from "@/hooks/use-dropdown-state"
 import type { Store, StoreInput } from "../hooks/use-stores"
-import { useSaleItems } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
 import { format } from "date-fns"
 
 // 품목 스키마
 const storeItemSchema = z.object({
   name: z.string().min(1, "품명을 입력해주세요"),
-  unitPrice: z.number().int().min(1, "단가를 입력해주세요"),
+  amount: z.number().int().min(1, "금액을 입력해주세요"),
   quantity: z.number().int().min(1, "수량을 입력해주세요"),
 })
 
@@ -70,12 +67,6 @@ export function StoreModal({
   const [internalEditStore, setInternalEditStore] = useState<Store | null>(null)
   const isEditMode = !!internalEditStore
 
-  // 품목 자동완성 상태 (공용 Hook 사용)
-  const itemDropdown = useIndexedDropdownState()
-
-  // SaleItem 목록 조회 (모달이 열릴 때만)
-  const { data: saleItems = [] } = useSaleItems(undefined, { enabled: open })
-
   const {
     register,
     control,
@@ -109,15 +100,8 @@ export function StoreModal({
   useEffect(() => {
     if (open) {
       setInternalEditStore(editStore ?? null)
-      itemDropdown.reset()
 
       if (editStore) {
-        // 수정 모드: 기존 품목명을 검색어로 설정
-        const initialSearchTerms: Record<number, string> = {}
-        editStore.storeItems.forEach((item, index) => {
-          initialSearchTerms[index] = item.name
-        })
-        itemDropdown.reset(initialSearchTerms)
         reset({
           name: editStore.name,
           address: editStore.address,
@@ -127,7 +111,7 @@ export function StoreModal({
           firstVisitDate: format(new Date(editStore.firstVisitDate), "yyyy-MM-dd"),
           items: editStore.storeItems.map((item) => ({
             name: item.name,
-            unitPrice: item.unitPrice,
+            amount: item.amount,
             quantity: item.quantity,
           })),
         })
@@ -143,7 +127,7 @@ export function StoreModal({
         })
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dropdown reset은 open 변경 시에만 필요
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editStore, reset])
 
   const handleFormSubmit = (data: StoreFormData) => {
@@ -159,22 +143,12 @@ export function StoreModal({
     onSubmit(submitData)
   }
 
-  // SaleItem 선택 핸들러
-  const handleSaleItemSelect = (index: number, saleItem: { id: string; name: string; unitPrice: number }) => {
-    setValue(`items.${index}.name`, saleItem.name, { shouldValidate: true })
-    setValue(`items.${index}.unitPrice`, saleItem.unitPrice, { shouldValidate: true })
-    setValue(`items.${index}.quantity`, 1, { shouldValidate: true })
-    itemDropdown.setSearchTerm(index, saleItem.name)
-    itemDropdown.closeDropdown(index)
-  }
-
   const handleAddItem = () => {
-    append({ name: "", unitPrice: 0, quantity: 0 })
+    append({ name: "", amount: 0, quantity: 0 })
   }
 
   const handleRemoveItem = (index: number) => {
     remove(index)
-    itemDropdown.reindexAfterRemove(index)
   }
 
   return (
@@ -314,23 +288,20 @@ export function StoreModal({
                   className="bg-gray-50 rounded-lg p-3 space-y-3"
                 >
                   <div className="grid grid-cols-12 gap-2 items-start">
-                    {/* 품명 (Autocomplete) */}
+                    {/* 품명 */}
                     <div className="col-span-5">
-                      <ItemAutocomplete
-                        searchTerm={itemDropdown.getSearchTerm(index)}
-                        onSearchChange={(value) => {
-                          itemDropdown.handleSearchChange(index, value)
-                          setValue(`items.${index}.name`, value, { shouldValidate: true })
-                        }}
-                        showDropdown={itemDropdown.isDropdownOpen(index)}
-                        onFocus={() => itemDropdown.openDropdown(index)}
-                        onBlur={() => itemDropdown.handleBlur(index)}
-                        items={saleItems}
-                        onItemSelect={(item) => handleSaleItemSelect(index, item)}
-                        error={errors.items?.[index]?.name?.message}
-                        label="품명"
-                        placeholder="품목 검색..."
+                      <Label className="text-xs text-gray-600">품명</Label>
+                      <Input
+                        placeholder="품목명 입력"
+                        {...register(`items.${index}.name`)}
+                        className="mt-1"
+                        aria-invalid={!!errors.items?.[index]?.name}
                       />
+                      {errors.items?.[index]?.name && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.name?.message}
+                        </p>
+                      )}
                     </div>
 
                     {/* 기본 수량 */}
@@ -352,21 +323,21 @@ export function StoreModal({
                       )}
                     </div>
 
-                    {/* 단가 */}
+                    {/* 금액 */}
                     <div className="col-span-3">
-                      <Label className="text-xs text-gray-600">단가</Label>
+                      <Label className="text-xs text-gray-600">금액</Label>
                       <Input
                         type="number"
                         min={1}
                         placeholder="0"
-                        {...register(`items.${index}.unitPrice`, {
+                        {...register(`items.${index}.amount`, {
                           valueAsNumber: true,
                         })}
                         className="mt-1"
                       />
-                      {errors.items?.[index]?.unitPrice && (
+                      {errors.items?.[index]?.amount && (
                         <p className="text-xs text-red-500 mt-1">
-                          {errors.items[index]?.unitPrice?.message}
+                          {errors.items[index]?.amount?.message}
                         </p>
                       )}
                     </div>

@@ -29,7 +29,7 @@ async function fetchMonthlyData(year: number, month: number) {
         date: { gte: dateStart, lte: dateEnd },
       },
       include: {
-        items: { select: { unitPrice: true, quantity: true } },
+        items: { select: { amount: true } },
         user: { select: { id: true, name: true } },
         store: { select: { visitCycleWeeks: true } },
       },
@@ -75,7 +75,7 @@ function aggregateByWeekdayAndGroup(
 
     const { weekday, weekGroup } = classification
     const recordTotal = record.items.reduce(
-      (sum, item) => sum + item.unitPrice * item.quantity,
+      (sum, item) => sum + item.amount,
       0
     )
 
@@ -162,7 +162,7 @@ function calculateMonthlySummary(
     (sum, r) =>
       sum +
       r.items.reduce(
-        (itemSum, item) => itemSum + item.unitPrice * item.quantity,
+        (itemSum, item) => itemSum + item.amount,
         0
       ),
     0

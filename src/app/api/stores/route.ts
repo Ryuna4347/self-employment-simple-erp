@@ -20,7 +20,7 @@ const createStoreSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1, "품목명을 입력해주세요"),
-        unitPrice: z.number().int().min(0, "단가는 0 이상이어야 합니다"),
+        amount: z.number().int().min(0, "금액은 0 이상이어야 합니다"),
         quantity: z.number().int().min(0, "수량은 0 이상이어야 합니다"),
       })
     )
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           data: items.map((item) => ({
             storeId: newStore.id,
             name: item.name,
-            unitPrice: item.unitPrice,
+            amount: item.amount,
             quantity: item.quantity,
           })),
         })

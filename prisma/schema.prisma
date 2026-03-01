@@ -41,21 +41,13 @@ model Store {
   workRecords     WorkRecord[]
 }
 
-model SaleItem {
-  id        String   @id @default(cuid())
-  name      String
-  unitPrice Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 model StoreItem {
-  id        String @id @default(cuid())
-  storeId   String
-  name      String
-  unitPrice Int    @default(0)
-  quantity  Int    @default(0)
-  store     Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  storeId  String
+  name     String
+  amount   Int    @default(0)
+  quantity Int    @default(0)
+  store    Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }
 
 model StoreTemplate {
@@ -101,7 +93,7 @@ model RecordItem {
   id           String     @id @default(cuid())
   workRecordId String
   name         String
-  unitPrice    Int
+  amount       Int
   quantity     Int
   workRecord   WorkRecord @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
 }

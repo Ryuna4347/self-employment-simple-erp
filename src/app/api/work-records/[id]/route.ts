@@ -12,7 +12,7 @@ const updateWorkRecordSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1, "품명을 입력해주세요"),
-        unitPrice: z.number().int().min(0, "단가는 0 이상이어야 합니다"),
+        amount: z.number().int().min(0, "금액은 0 이상이어야 합니다"),
         quantity: z.number().int().min(1, "수량은 1 이상이어야 합니다"),
       })
     )
@@ -82,7 +82,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           items: {
             create: items.map((item) => ({
               name: item.name,
-              unitPrice: item.unitPrice,
+              amount: item.amount,
               quantity: item.quantity,
             })),
           },
@@ -90,7 +90,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       },
       include: {
         store: { select: { id: true, name: true, address: true, managerName: true } },
-        items: { select: { id: true, name: true, unitPrice: true, quantity: true } },
+        items: { select: { id: true, name: true, amount: true, quantity: true } },
         user: { select: { id: true, name: true } },
       },
     })

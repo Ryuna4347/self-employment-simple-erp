@@ -7,7 +7,7 @@ export interface StoreItem {
   id: string
   storeId: string
   name: string
-  unitPrice: number
+  amount: number
   quantity: number
 }
 
@@ -39,7 +39,7 @@ export interface StoreInput {
   firstVisitDate: string
   items?: {
     name: string
-    unitPrice: number
+    amount: number
     quantity: number
   }[]
 }

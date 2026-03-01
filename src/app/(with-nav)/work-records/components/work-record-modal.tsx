@@ -26,10 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { SearchableDropdown, ItemAutocomplete } from "@/components/common"
-import { useDropdownState, useIndexedDropdownState } from "@/hooks/use-dropdown-state"
+import { SearchableDropdown } from "@/components/common"
+import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
-import { useSaleItems } from "@/app/(with-nav)/sale-items/hooks/use-sale-items"
 import {
   useCreateWorkRecord,
   useUpdateWorkRecord,
@@ -40,7 +39,7 @@ import {
 // 품목 스키마
 const recordItemSchema = z.object({
   name: z.string().min(1, "품명을 입력해주세요"),
-  unitPrice: z.number().int().min(0, "단가를 입력해주세요"),
+  amount: z.number().int().min(0, "금액을 입력해주세요"),
   quantity: z.number().int().min(1, "수량을 입력해주세요"),
 })
 
@@ -88,12 +87,8 @@ export function WorkRecordModal({
   // 매장 검색 상태 (공용 Hook 사용)
   const storeDropdown = useDropdownState()
 
-  // 품목 자동완성 상태 (공용 Hook 사용)
-  const itemDropdown = useIndexedDropdownState()
-
   // 데이터 조회
   const { data: stores = [] } = useStores(undefined)
-  const { data: saleItems = [] } = useSaleItems(undefined, { enabled: open })
 
   // Mutations
   const createMutation = useCreateWorkRecord()
@@ -154,16 +149,9 @@ export function WorkRecordModal({
     if (open) {
       setInternalEditRecord(editRecord ?? null)
       storeDropdown.reset()
-      itemDropdown.reset()
 
       if (editRecord) {
         // 수정 모드: 기존 데이터로 초기화
-        const initialSearchTerms: Record<number, string> = {}
-        editRecord.items.forEach((item, index) => {
-          initialSearchTerms[index] = item.name
-        })
-        itemDropdown.reset(initialSearchTerms)
-
         reset({
           storeId: editRecord.storeId ?? "",
           storeName: editRecord.storeNameSnapshot ?? editRecord.store?.name ?? "",
@@ -174,7 +162,7 @@ export function WorkRecordModal({
           note: editRecord.note ?? "",
           items: editRecord.items.map((item) => ({
             name: item.name,
-            unitPrice: item.unitPrice,
+            amount: item.amount,
             quantity: item.quantity,
           })),
         })
@@ -210,17 +198,10 @@ export function WorkRecordModal({
     if (!isEditMode && store.storeItems.length > 0) {
       const newItems = store.storeItems.map((item) => ({
         name: item.name,
-        unitPrice: item.unitPrice,
+        amount: item.amount,
         quantity: item.quantity,
       }))
       setValue("items", newItems)
-
-      // 검색어 상태도 동기화
-      const newSearchTerms: Record<number, string> = {}
-      store.storeItems.forEach((item, index) => {
-        newSearchTerms[index] = item.name
-      })
-      itemDropdown.reset(newSearchTerms)
     }
 
     trigger()
@@ -234,28 +215,19 @@ export function WorkRecordModal({
     }
   }
 
-  // 품목 선택 핸들러
-  const handleSaleItemSelect = (index: number, saleItem: { id: string; name: string; unitPrice: number }) => {
-    setValue(`items.${index}.name`, saleItem.name, { shouldValidate: true })
-    setValue(`items.${index}.unitPrice`, saleItem.unitPrice, { shouldValidate: true })
-    itemDropdown.setSearchTerm(index, saleItem.name)
-    itemDropdown.closeDropdown(index)
-  }
-
   // 품목 추가 핸들러
   const handleAddItem = () => {
-    append({ name: "", unitPrice: 0, quantity: 1 })
+    append({ name: "", amount: 0, quantity: 1 })
   }
 
   // 품목 삭제 핸들러
   const handleRemoveItem = (index: number) => {
     remove(index)
-    itemDropdown.reindexAfterRemove(index)
   }
 
   // 총 금액 계산
   const totalAmount = (watchedItems ?? []).reduce((sum, item) => {
-    return sum + (item.unitPrice ?? 0) * (item.quantity ?? 0)
+    return sum + (item.amount ?? 0)
   }, 0)
 
   // 매장 저장 핸들러 (수정 모달에서 사용)
@@ -520,94 +492,80 @@ export function WorkRecordModal({
             )}
 
             <div className="space-y-3">
-              {fields.map((field, index) => {
-                const unitPrice = watch(`items.${index}.unitPrice`) ?? 0
-                const quantity = watch(`items.${index}.quantity`) ?? 0
-                const subtotal = unitPrice * quantity
-
-                return (
-                  <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
-                    <div className="grid grid-cols-12 gap-2 items-start">
-                      {/* 품명 (Autocomplete) */}
-                      <div className="col-span-5">
-                        <ItemAutocomplete
-                          searchTerm={itemDropdown.getSearchTerm(index)}
-                          onSearchChange={(value) => {
-                            itemDropdown.handleSearchChange(index, value)
-                            setValue(`items.${index}.name`, value, { shouldValidate: true })
-                          }}
-                          showDropdown={itemDropdown.isDropdownOpen(index)}
-                          onFocus={() => itemDropdown.openDropdown(index)}
-                          onBlur={() => itemDropdown.handleBlur(index)}
-                          items={saleItems}
-                          onItemSelect={(item) => handleSaleItemSelect(index, item)}
-                          error={errors.items?.[index]?.name?.message}
-                          label="품명"
-                          placeholder="품목 검색..."
-                        />
-                      </div>
-
-                      {/* 수량 */}
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">수량</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="1"
-                          {...register(`items.${index}.quantity`, {
-                            valueAsNumber: true,
-                          })}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.quantity}
-                        />
-                        {errors.items?.[index]?.quantity && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.quantity?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* 단가 */}
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">단가</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          {...register(`items.${index}.unitPrice`, {
-                            valueAsNumber: true,
-                          })}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.unitPrice}
-                        />
-                        {errors.items?.[index]?.unitPrice && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.unitPrice?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* 삭제 버튼 */}
-                      <div className="col-span-1 flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
+              {fields.map((field, index) => (
+                <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
+                  <div className="grid grid-cols-12 gap-2 items-start">
+                    {/* 품명 */}
+                    <div className="col-span-5">
+                      <Label className="text-xs text-gray-600">품명</Label>
+                      <Input
+                        placeholder="품목명 입력"
+                        {...register(`items.${index}.name`)}
+                        className="mt-1"
+                        aria-invalid={!!errors.items?.[index]?.name}
+                      />
+                      {errors.items?.[index]?.name && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.name?.message}
+                        </p>
+                      )}
                     </div>
 
-                    {/* 소계 */}
-                    <div className="text-right text-sm text-gray-600">
-                      소계: <span className="font-medium">{subtotal.toLocaleString()}</span>원
+                    {/* 수량 */}
+                    <div className="col-span-3">
+                      <Label className="text-xs text-gray-600">수량</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        placeholder="1"
+                        {...register(`items.${index}.quantity`, {
+                          valueAsNumber: true,
+                        })}
+                        className="mt-1"
+                        aria-invalid={!!errors.items?.[index]?.quantity}
+                      />
+                      {errors.items?.[index]?.quantity && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.quantity?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 금액 */}
+                    <div className="col-span-3">
+                      <Label className="text-xs text-gray-600">금액</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        {...register(`items.${index}.amount`, {
+                          valueAsNumber: true,
+                        })}
+                        className="mt-1"
+                        aria-invalid={!!errors.items?.[index]?.amount}
+                      />
+                      {errors.items?.[index]?.amount && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.items[index]?.amount?.message}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* 삭제 버튼 */}
+                    <div className="col-span-1 flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleRemoveItem(index)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
+                      >
+                        <X className="size-4" />
+                      </Button>
                     </div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
 
               {fields.length === 0 && (
                 <div className="text-center py-6 text-gray-400 text-sm">

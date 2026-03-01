@@ -29,8 +29,8 @@ const querySchema = z.discriminatedUnion("filter", [
 ])
 
 // 레코드 항목 합계 계산
-function calcTotalAmount(items: { unitPrice: number; quantity: number }[]) {
-  return items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+function calcTotalAmount(items: { amount: number }[]) {
+  return items.reduce((sum, item) => sum + item.amount, 0)
 }
 
 export async function GET(request: NextRequest) {
@@ -85,7 +85,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const [summaryRecords, pageRecords] = await Promise.all([
     prisma.workRecord.findMany({
       where,
-      select: { items: { select: { unitPrice: true, quantity: true } } },
+      select: { items: { select: { amount: true } } },
     }),
     prisma.workRecord.findMany({
       where,
@@ -163,7 +163,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     }),
     prisma.workRecord.findMany({
       where,
-      select: { items: { select: { unitPrice: true, quantity: true } } },
+      select: { items: { select: { amount: true } } },
     }),
   ])
 

@@ -6,7 +6,6 @@ import {
   Home,
   Store,
   Layers,
-  Package,
   LayoutDashboard,
   Users,
   CircleDollarSign,
@@ -20,7 +19,6 @@ import { cn } from "@/lib/utils";
  * - 근무 기록: 일별 방문/거래 관리 (메인 기능)
  * - 코스: 순회 코스 (매장 그룹)
  * - 매장: 매장 정보 관리
- * - 물품: 판매 품목 관리
  */
 const NAV_ITEMS = [
   {
@@ -37,11 +35,6 @@ const NAV_ITEMS = [
     href: "/stores",
     label: "매장",
     icon: Store,
-  },
-  {
-    href: "/sale-items",
-    label: "물품",
-    icon: Package,
   },
 ] as const;
 

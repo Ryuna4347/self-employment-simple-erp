@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     for (const record of workRecords) {
       const recordTotal = record.items.reduce(
-        (sum, item) => sum + item.unitPrice * item.quantity,
+        (sum, item) => sum + item.amount,
         0,
       )
       totalRevenue += recordTotal
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       for (const record of workRecords) {
         const label = format(record.date, "MM/dd")
         const recordTotal = record.items.reduce(
-          (sum, item) => sum + item.unitPrice * item.quantity,
+          (sum, item) => sum + item.amount,
           0,
         )
         chartMap.set(label, (chartMap.get(label) ?? 0) + recordTotal)
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       for (const record of workRecords) {
         const label = format(record.date, "M월")
         const recordTotal = record.items.reduce(
-          (sum, item) => sum + item.unitPrice * item.quantity,
+          (sum, item) => sum + item.amount,
           0,
         )
         chartMap.set(label, (chartMap.get(label) ?? 0) + recordTotal)
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
       const storeName = record.storeNameSnapshot ?? "알 수 없음"
       const key = record.storeId ?? storeName
       const recordTotal = record.items.reduce(
-        (sum, item) => sum + item.unitPrice * item.quantity,
+        (sum, item) => sum + item.amount,
         0,
       )
 
@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
       date: format(record.date, "yyyy-MM-dd"),
       storeName: record.storeNameSnapshot ?? "알 수 없음",
       totalAmount: record.items.reduce(
-        (sum, item) => sum + item.unitPrice * item.quantity,
+        (sum, item) => sum + item.amount,
         0,
       ),
     }))

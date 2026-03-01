@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 storeItems: {
                   select: {
                     name: true,
-                    unitPrice: true,
+                    amount: true,
                     quantity: true,
                   },
                 },
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               items: {
                 create: member.store.storeItems.map((item) => ({
                   name: item.name,
-                  unitPrice: item.unitPrice,
+                  amount: item.amount,
                   quantity: item.quantity,
                 })),
               },

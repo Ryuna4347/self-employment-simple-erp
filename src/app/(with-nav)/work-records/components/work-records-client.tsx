@@ -49,7 +49,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     let uncollectedSales = 0
 
     workRecords.forEach((record) => {
-      const amount = record.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+      const amount = record.items.reduce((sum, item) => sum + item.amount, 0)
       totalSales += amount
       if (record.isCollected) {
         collectedSales += amount

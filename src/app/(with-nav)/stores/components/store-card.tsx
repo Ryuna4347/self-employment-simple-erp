@@ -150,7 +150,7 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                           기본 수량
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                          단가
+                          금액
                         </th>
                       </tr>
                     </thead>
@@ -164,7 +164,7 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                             {item.quantity}
                           </td>
                           <td className="px-3 py-2 text-right text-gray-700">
-                            {item.unitPrice.toLocaleString()}원
+                            {item.amount.toLocaleString()}원
                           </td>
                         </tr>
                       ))}
