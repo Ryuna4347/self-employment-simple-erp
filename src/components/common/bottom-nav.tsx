@@ -18,8 +18,8 @@ import { cn } from "@/lib/utils";
  *
  * 각 항목은 자영업 ERP의 핵심 도메인에 대응:
  * - 근무 기록: 일별 방문/거래 관리 (메인 기능)
- * - 매장: 매장 정보 관리
  * - 코스: 순회 코스 (매장 그룹)
+ * - 매장: 매장 정보 관리
  * - 물품: 판매 품목 관리
  */
 const NAV_ITEMS = [
@@ -29,14 +29,14 @@ const NAV_ITEMS = [
     icon: Home,
   },
   {
-    href: "/stores",
-    label: "매장",
-    icon: Store,
-  },
-  {
     href: "/store-templates",
     label: "코스",
     icon: Layers,
+  },
+  {
+    href: "/stores",
+    label: "매장",
+    icon: Store,
   },
   {
     href: "/sale-items",
