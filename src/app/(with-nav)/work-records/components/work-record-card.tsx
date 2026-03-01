@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, ChevronDown, Pencil, Trash2 } from "lucide-react";
+import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { WorkRecordResponse, WorkRecordItem } from "../hooks/use-work-records";
 import type { PaymentType } from "@/generated/prisma/client";
@@ -11,6 +11,7 @@ interface WorkRecordCardProps {
   record: WorkRecordResponse;
   onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
+  onCollect?: (id: string) => void;
 }
 
 // 유틸리티 함수: 총 금액 계산
@@ -42,7 +43,7 @@ function formatPaymentType(type: PaymentType): string {
  * - 메모
  * - 수정/삭제 버튼
  */
-export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps) {
+export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
 
@@ -56,6 +57,11 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
     if (confirm("정말로 이 근무 기록을 삭제하시겠습니까?")) {
       onDelete?.(record.id);
     }
+  };
+
+  const handleCollect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onCollect?.(record.id);
   };
 
   return (
@@ -84,9 +90,17 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
           <div className="flex items-start justify-between gap-3">
             {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 text-base mb-1">
-                {record.storeNameSnapshot ?? record.store?.name ?? "알 수 없음"}
-              </h3>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-gray-900 text-base truncate">
+                  {record.storeNameSnapshot ?? record.store?.name ?? "알 수 없음"}
+                </h3>
+                {record.storeOutstanding && record.storeOutstanding.count > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0 whitespace-nowrap">
+                    <AlertTriangle className="size-3" />
+                    미수 {record.storeOutstanding.count}건 {record.storeOutstanding.totalAmount.toLocaleString()}원
+                  </span>
+                )}
+              </div>
               <div className="flex items-start gap-1.5 text-sm text-gray-600">
                 <MapPin className="size-4 flex-shrink-0 mt-0.5" />
                 <span className="line-clamp-1">
@@ -132,14 +146,27 @@ export function WorkRecordCard({ record, onEdit, onDelete }: WorkRecordCardProps
                 </div>
                 <div>
                   <span className="text-gray-600">수금상태</span>
-                  <p
-                    className={cn(
-                      "font-medium mt-0.5",
-                      record.isCollected ? "text-blue-600" : "text-red-600"
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p
+                      className={cn(
+                        "font-medium",
+                        record.isCollected ? "text-blue-600" : "text-red-600"
+                      )}
+                    >
+                      {record.isCollected ? "수금 완료" : "미수금"}
+                    </p>
+                    {!record.isCollected && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCollect}
+                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <CircleCheck className="size-3" />
+                        수금처리
+                      </Button>
                     )}
-                  >
-                    {record.isCollected ? "수금 완료" : "미수금"}
-                  </p>
+                  </div>
                 </div>
                 {(record.managerNameSnapshot ?? record.store?.managerName) && (
                   <div className="col-span-2">

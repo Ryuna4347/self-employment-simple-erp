@@ -12,6 +12,7 @@ import { TemplateApplyModal } from "./template-apply-modal"
 import {
   useWorkRecords,
   useDeleteWorkRecord,
+  useUpdateWorkRecord,
   type WorkRecordResponse,
 } from "../hooks/use-work-records"
 import type { DailySummary } from "../types"
@@ -39,6 +40,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   )
 
   const deleteMutation = useDeleteWorkRecord()
+  const updateMutation = useUpdateWorkRecord()
 
   const dailySummary = useMemo((): DailySummary => {
     const totalVisits = workRecords.length
@@ -92,6 +94,11 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     }
   }
 
+  // 수금처리
+  const handleCollectRecord = (id: string) => {
+    updateMutation.mutate({ id, isCollected: true })
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       <div className="max-w-4xl mx-auto px-4 py-6 pb-8">
@@ -117,7 +124,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} />
+          <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} />
         )}
 
         <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} />

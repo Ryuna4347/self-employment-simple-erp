@@ -84,6 +84,40 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "asc" },
   })
 
+  // 매장별 미수 집계 (현재 날짜 제외)
+  const storeIds = [...new Set(
+    workRecords.map(r => r.storeId).filter((id): id is string => id !== null)
+  )]
+
+  if (storeIds.length > 0) {
+    const outstandingRecords = await prisma.workRecord.findMany({
+      where: {
+        storeId: { in: storeIds },
+        isCollected: false,
+        NOT: { date: { gte: dateStart, lte: dateEnd } },
+      },
+      select: {
+        storeId: true,
+        items: { select: { unitPrice: true, quantity: true } },
+      },
+    })
+
+    const storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
+    for (const record of outstandingRecords) {
+      const existing = storeOutstandingMap.get(record.storeId!) || { count: 0, totalAmount: 0 }
+      existing.count++
+      existing.totalAmount += record.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+      storeOutstandingMap.set(record.storeId!, existing)
+    }
+
+    const enrichedRecords = workRecords.map(r => ({
+      ...r,
+      storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
+    }))
+
+    return apiSuccess(enrichedRecords)
+  }
+
   return apiSuccess(workRecords)
 }
 
