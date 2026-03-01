@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 코스 수정 스키마
@@ -72,7 +72,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * 코스 수정
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  const authResult = await requireAuth()
+  // 관리자만 코스 수정 가능
+  const authResult = await requireAdmin()
   if (isErrorResponse(authResult)) return authResult
 
   const { id } = await params
@@ -153,7 +154,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
  * 코스 삭제
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  const authResult = await requireAuth()
+  // 관리자만 코스 삭제 가능
+  const authResult = await requireAdmin()
   if (isErrorResponse(authResult)) return authResult
 
   const { id } = await params

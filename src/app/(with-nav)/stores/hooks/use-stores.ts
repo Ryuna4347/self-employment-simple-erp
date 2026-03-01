@@ -52,12 +52,10 @@ export interface StoreInput {
 
 // API 응답 타입
 interface StoresResponse {
-  success: boolean
   data: Store[]
 }
 
 interface StoreResponse {
-  success: boolean
   data: Store
 }
 

@@ -12,6 +12,7 @@ interface WorkRecordCardProps {
   onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
+  userRole: "ADMIN" | "USER";
 }
 
 // 유틸리티 함수: 총 금액 계산
@@ -43,9 +44,11 @@ function formatPaymentType(type: PaymentType): string {
  * - 메모
  * - 수정/삭제 버튼
  */
-export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkRecordCardProps) {
+export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
+  // 수금완료 기록은 관리자만 수정/삭제 가능
+  const canModify = !record.isCollected || userRole === "ADMIN";
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -237,26 +240,32 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect }: WorkReco
               )}
 
               {/* 액션 버튼 */}
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEdit}
-                  className="flex-1"
-                >
-                  <Pencil className="size-4" />
-                  수정
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDelete}
-                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="size-4" />
-                  삭제
-                </Button>
-              </div>
+              {canModify ? (
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEdit}
+                    className="flex-1"
+                  >
+                    <Pencil className="size-4" />
+                    수정
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDelete}
+                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="size-4" />
+                    삭제
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center pt-2">
+                  수금완료된 기록은 관리자만 수정할 수 있습니다
+                </p>
+              )}
             </div>
           </div>
         </div>

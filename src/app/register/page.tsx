@@ -27,17 +27,22 @@ type PageState = "loading" | "error" | "form" | "submitting" | "success";
 
 // API 응답 타입
 interface VerifyResponse {
-  success: boolean;
-  message?: string;
   data?: {
     name: string;
     userId: string;
   };
+  error?: {
+    code: string;
+    message: string;
+  };
 }
 
 interface CompleteResponse {
-  success: boolean;
-  message?: string;
+  data?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
 }
 
 // 폼 스키마
@@ -115,11 +120,11 @@ function RegisterFormWithCode({ code }: { code: string }) {
 
         if (!isMounted) return;
 
-        if (data.success && data.data) {
+        if (data.data) {
           setUsername(data.data.name);
           setPageState("form");
         } else {
-          setErrorMessage(data.message || "초대 코드 검증에 실패했습니다.");
+          setErrorMessage(data.error?.message || "초대 코드 검증에 실패했습니다.");
           setPageState("error");
         }
       } catch (error) {
@@ -161,14 +166,14 @@ function RegisterFormWithCode({ code }: { code: string }) {
 
       const data: CompleteResponse = await response.json();
 
-      if (data.success) {
+      if (data.data) {
         setPageState("success");
         // 2초 후 메인 페이지로 리다이렉트
         setTimeout(() => {
           router.push("/");
         }, 2000);
       } else {
-        setSubmitError(data.message || "회원가입 처리 중 오류가 발생했습니다.");
+        setSubmitError(data.error?.message || "회원가입 처리 중 오류가 발생했습니다.");
         setPageState("form");
       }
     } catch {

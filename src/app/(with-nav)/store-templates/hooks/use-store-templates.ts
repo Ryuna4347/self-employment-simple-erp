@@ -53,17 +53,14 @@ export interface ApplyTemplateResult {
 
 // API 응답 타입
 interface StoreTemplatesResponse {
-  success: boolean
   data: StoreTemplate[]
 }
 
 interface StoreTemplateResponse {
-  success: boolean
   data: StoreTemplate
 }
 
 interface ApplyTemplateResponse {
-  success: boolean
   data: ApplyTemplateResult
 }
 

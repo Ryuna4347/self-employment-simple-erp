@@ -7,8 +7,8 @@ interface ChangePasswordInput {
 }
 
 interface ChangePasswordResponse {
-  success: boolean
-  message: string
+  data: unknown
+  message?: string
 }
 
 export function useChangePassword() {

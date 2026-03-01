@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   // 근무기록 존재 여부 확인
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, isCollected: true },
   })
 
   if (!workRecord) {
@@ -45,6 +45,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   // 소유권 확인 (본인 또는 관리자만 수정 가능)
   if (workRecord.userId !== user.id && user.role !== "ADMIN") {
     return ApiErrors.forbidden("이 근무기록을 수정할 권한이 없습니다")
+  }
+
+  // 수금완료 기록은 관리자만 수정 가능
+  if (workRecord.isCollected && user.role !== "ADMIN") {
+    return ApiErrors.forbidden("수금완료된 근무기록은 관리자만 수정할 수 있습니다")
   }
 
   let body: unknown
@@ -110,7 +115,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // 근무기록 존재 여부 확인
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, isCollected: true },
   })
 
   if (!workRecord) {
@@ -120,6 +125,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // 소유권 확인 (본인 또는 관리자만 삭제 가능)
   if (workRecord.userId !== user.id && user.role !== "ADMIN") {
     return ApiErrors.forbidden("이 근무기록을 삭제할 권한이 없습니다")
+  }
+
+  // 수금완료 기록은 관리자만 삭제 가능
+  if (workRecord.isCollected && user.role !== "ADMIN") {
+    return ApiErrors.forbidden("수금완료된 근무기록은 관리자만 삭제할 수 있습니다")
   }
 
   // Cascade로 RecordItem도 자동 삭제

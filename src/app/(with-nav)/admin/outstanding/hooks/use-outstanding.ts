@@ -28,7 +28,6 @@ interface PaginationInfo {
 
 // API 응답 타입
 interface OutstandingResponse {
-  success: boolean
   data: {
     records: OutstandingRecord[]
     summary: {

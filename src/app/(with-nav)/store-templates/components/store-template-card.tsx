@@ -11,6 +11,7 @@ interface StoreTemplateCardProps {
   template: StoreTemplate
   onEdit: (template: StoreTemplate) => void
   onDelete: (id: string) => void
+  isAdmin: boolean
 }
 
 /**
@@ -28,6 +29,7 @@ export function StoreTemplateCard({
   template,
   onEdit,
   onDelete,
+  isAdmin,
 }: StoreTemplateCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -125,27 +127,29 @@ export function StoreTemplateCard({
               </div>
             </div>
 
-            {/* 액션 버튼 */}
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEdit}
-                className="flex-1"
-              >
-                <Pencil className="size-4" />
-                수정
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDelete}
-                className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="size-4" />
-                삭제
-              </Button>
-            </div>
+            {/* 액션 버튼 (관리자만) */}
+            {isAdmin && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="flex-1"
+                >
+                  <Pencil className="size-4" />
+                  수정
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="size-4" />
+                  삭제
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

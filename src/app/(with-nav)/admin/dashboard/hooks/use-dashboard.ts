@@ -46,7 +46,6 @@ export interface DashboardData {
 
 // API 응답 타입
 interface DashboardResponse {
-  success: boolean
   data: DashboardData
 }
 
