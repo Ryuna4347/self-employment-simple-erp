@@ -21,6 +21,7 @@ model User {
   RefreshToken   RefreshToken[]
   storeTemplates StoreTemplate[]
   workRecords    WorkRecord[]
+  assignedStores Store[]         @relation("assignedStores")
 }
 
 model Store {
@@ -32,10 +33,12 @@ model Store {
   kakaoPlaceId    String?               @unique
   latitude        Float?
   longitude       Float?
+  assignedUserId  String?
   visitCycleWeeks Int               @default(1)     // 방문 주기 (주): 1, 2, 4
   firstVisitDate  DateTime          @default(now()) // 첫 방문일 (주기 기준일)
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
+  assignedUser    User?                 @relation("assignedStores", fields: [assignedUserId], references: [id], onDelete: SetNull)
   storeItems      StoreItem[]
   templateMembers StoreTemplateMember[]
   workRecords     WorkRecord[]

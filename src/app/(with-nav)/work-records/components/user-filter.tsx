@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useUsers } from "../hooks/use-users"
+import { useUsers } from "@/hooks/use-users"
 import { Users } from "lucide-react"
 
 interface UserFilterProps {

@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import type { Store, StoreInput } from "../hooks/use-stores"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
+import { useUsers } from "@/hooks/use-users"
 import { format } from "date-fns"
 
 // 품목 스키마
@@ -41,6 +42,7 @@ const storeSchema = z.object({
   managerName: z.string().optional(),
   visitCycleWeeks: z.enum(["1", "2", "4"]),
   firstVisitDate: z.string().min(1, "첫 방문일을 입력해주세요"),
+  assignedUserId: z.string().optional(),
   items: z.array(storeItemSchema).optional(),
 })
 
@@ -69,6 +71,7 @@ export function StoreModal({
   const isEditMode = !!internalEditStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const { data: templates = [] } = useStoreTemplates()
+  const { data: users = [] } = useUsers()
 
   const {
     register,
@@ -86,6 +89,7 @@ export function StoreModal({
       address: "",
       PaymentType: "ACCOUNT",
       managerName: "",
+      assignedUserId: "",
       visitCycleWeeks: "1" as const,
       firstVisitDate: "",
       items: [],
@@ -111,6 +115,7 @@ export function StoreModal({
           address: editStore.address,
           PaymentType: editStore.PaymentType,
           managerName: editStore.managerName ?? "",
+          assignedUserId: editStore.assignedUserId ?? "",
           visitCycleWeeks: editStore.visitCycleWeeks.toString() as "1" | "2" | "4",
           firstVisitDate: format(new Date(editStore.firstVisitDate), "yyyy-MM-dd"),
           items: editStore.storeItems.map((item) => ({
@@ -125,6 +130,7 @@ export function StoreModal({
           address: "",
           PaymentType: "ACCOUNT",
           managerName: "",
+          assignedUserId: "",
           visitCycleWeeks: "1" as const,
           firstVisitDate: "",
           items: [],
@@ -142,6 +148,7 @@ export function StoreModal({
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       visitCycleWeeks: parseInt(data.visitCycleWeeks),
       firstVisitDate: data.firstVisitDate,
+      assignedUserId: data.assignedUserId || null,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
     }
@@ -222,10 +229,10 @@ export function StoreModal({
             </Select>
           </div>
 
-          {/* 담당자 (계좌일 때만) */}
+          {/* 입금자 (계좌일 때만) */}
           {paymentType === "ACCOUNT" && (
             <div className="space-y-2">
-              <Label htmlFor="managerName">담당자 (입금자)</Label>
+              <Label htmlFor="managerName">입금자</Label>
               <Input
                 id="managerName"
                 placeholder="예: 김철수"
@@ -267,6 +274,43 @@ export function StoreModal({
               />
               {errors.firstVisitDate && (
                 <p className="text-sm text-red-500">{errors.firstVisitDate.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* 담당직원 */}
+          <div className="space-y-2">
+            <Label htmlFor="assignedUserId">담당직원</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select
+                  value={watch("assignedUserId") || ""}
+                  onValueChange={(value) =>
+                    setValue("assignedUserId", value)
+                  }
+                >
+                  <SelectTrigger id="assignedUserId">
+                    <SelectValue placeholder="담당직원을 선택하세요 (선택사항)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {watch("assignedUserId") && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setValue("assignedUserId", "")}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                >
+                  <X className="size-4" />
+                </Button>
               )}
             </div>
           </div>

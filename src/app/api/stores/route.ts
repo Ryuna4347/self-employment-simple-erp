@@ -26,6 +26,7 @@ const createStoreSchema = z.object({
     )
     .optional(),
   templateId: z.string().optional(),
+  assignedUserId: z.string().nullish(),
 })
 
 /**
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
         : undefined,
       include: {
         storeItems: true,
+        assignedUser: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
     })
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
       return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
-    const { items, firstVisitDate, templateId, ...storeData } = parseResult.data
+    const { items, firstVisitDate, templateId, assignedUserId, ...storeData } = parseResult.data
 
     // 코스 소유권 검증
     if (templateId) {
@@ -102,6 +104,7 @@ export async function POST(request: NextRequest) {
       const newStore = await tx.store.create({
         data: {
           ...storeData,
+          assignedUserId: assignedUserId ?? null,
           firstVisitDate: startOfDay(parseISO(firstVisitDate)),
         },
       })
@@ -139,7 +142,10 @@ export async function POST(request: NextRequest) {
       // 품목 포함하여 반환
       return tx.store.findUnique({
         where: { id: newStore.id },
-        include: { storeItems: true },
+        include: {
+          storeItems: true,
+          assignedUser: { select: { id: true, name: true } },
+        },
       })
     })
 

@@ -25,6 +25,7 @@ const updateStoreSchema = z.object({
       })
     )
     .optional(),
+  assignedUserId: z.string().nullable().optional(),
 })
 
 /**
@@ -43,7 +44,10 @@ export async function GET(
 
     const store = await prisma.store.findUnique({
       where: { id },
-      include: { storeItems: true },
+      include: {
+        storeItems: true,
+        assignedUser: { select: { id: true, name: true } },
+      },
     })
 
     if (!store) {
@@ -118,7 +122,10 @@ export async function PUT(
       // 품목 포함하여 반환
       return tx.store.findUnique({
         where: { id },
-        include: { storeItems: true },
+        include: {
+        storeItems: true,
+        assignedUser: { select: { id: true, name: true } },
+      },
       })
     })
 

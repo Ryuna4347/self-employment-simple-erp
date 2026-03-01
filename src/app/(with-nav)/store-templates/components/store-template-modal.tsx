@@ -203,6 +203,8 @@ export function StoreTemplateModal({
             kakaoPlaceId: null,
             latitude: null,
             longitude: null,
+            assignedUserId: null,
+            assignedUser: null,
             visitCycleWeeks: member.store.visitCycleWeeks,
             firstVisitDate: member.store.firstVisitDate,
             storeItems: [],

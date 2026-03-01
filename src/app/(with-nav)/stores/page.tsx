@@ -35,7 +35,8 @@ export default function StoresPage() {
       (store) =>
         store.name.toLowerCase().includes(term) ||
         store.address.toLowerCase().includes(term) ||
-        (store.managerName?.toLowerCase().includes(term) ?? false)
+        (store.managerName?.toLowerCase().includes(term) ?? false) ||
+        (store.assignedUser?.name.toLowerCase().includes(term) ?? false)
     )
   }, [stores, searchTerm])
 
@@ -97,7 +98,7 @@ export default function StoresPage() {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="매장명, 주소, 담당자 검색..."
+            placeholder="매장명, 주소, 담당자, 담당직원 검색..."
             className="pl-10"
           />
         </div>
