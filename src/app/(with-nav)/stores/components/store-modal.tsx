@@ -29,7 +29,7 @@ import { format } from "date-fns"
 // 품목 스키마
 const storeItemSchema = z.object({
   name: z.string().min(1, "품명을 입력해주세요"),
-  amount: z.number().int().min(1, "금액을 입력해주세요"),
+  amount: z.number().int().min(0, "금액을 입력해주세요"),
   quantity: z.number().int().min(1, "수량을 입력해주세요"),
 })
 
@@ -370,7 +370,7 @@ export function StoreModal({
                       <Label className="text-xs text-gray-600">금액</Label>
                       <Input
                         type="number"
-                        min={1}
+                        min={0}
                         placeholder="0"
                         {...register(`items.${index}.amount`, {
                           valueAsNumber: true,
