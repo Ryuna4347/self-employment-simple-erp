@@ -25,6 +25,12 @@ const paymentTypeLabels: Record<string, string> = {
   CARD: "카드",
 }
 
+const receiptTypeLabels: Record<string, string> = {
+  NONE: "없음",
+  SIMPLE_RECEIPT: "간이 영수증",
+  TRANSACTION_STATEMENT: "거래명세서",
+}
+
 /**
  * 매장 카드 컴포넌트 (Accordion)
  *
@@ -132,6 +138,12 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                   </p>
                 </div>
               )}
+              <div>
+                <span className="text-gray-600">영수증 종류</span>
+                <p className="font-medium text-gray-900 mt-0.5">
+                  {receiptTypeLabels[store.receiptType] ?? "없음"}
+                </p>
+              </div>
               <div>
                 <span className="text-gray-600">방문 주기</span>
                 <p className="font-medium text-gray-900 mt-0.5">

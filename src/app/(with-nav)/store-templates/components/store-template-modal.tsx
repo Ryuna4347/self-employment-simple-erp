@@ -200,6 +200,7 @@ export function StoreTemplateModal({
             address: member.store.address,
             managerName: null,
             PaymentType: "ACCOUNT",
+            receiptType: "NONE",
             kakaoPlaceId: null,
             latitude: null,
             longitude: null,

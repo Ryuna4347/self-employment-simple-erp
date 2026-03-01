@@ -27,6 +27,7 @@ const createStoreSchema = z.object({
     .optional(),
   templateId: z.string().optional(),
   assignedUserId: z.string().nullish(),
+  receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
 })
 
 /**

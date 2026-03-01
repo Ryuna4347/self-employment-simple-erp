@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-import type { PaymentType } from "@/generated/prisma/client"
+import type { PaymentType, ReceiptType } from "@/generated/prisma/client"
 
 // 매장 품목 타입
 export interface StoreItem {
@@ -18,6 +18,7 @@ export interface Store {
   address: string
   managerName: string | null
   PaymentType: PaymentType
+  receiptType: ReceiptType
   kakaoPlaceId: string | null
   latitude: number | null
   longitude: number | null
@@ -34,6 +35,7 @@ export interface StoreInput {
   address: string
   managerName?: string | null
   PaymentType: PaymentType
+  receiptType?: ReceiptType
   kakaoPlaceId?: string | null
   latitude?: number | null
   longitude?: number | null

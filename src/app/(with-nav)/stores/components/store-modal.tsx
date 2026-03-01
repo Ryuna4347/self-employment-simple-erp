@@ -39,6 +39,7 @@ const storeSchema = z.object({
   name: z.string().min(1, "매장명을 입력해주세요"),
   address: z.string().min(1, "주소를 입력해주세요"),
   PaymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
+  receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]),
   managerName: z.string().optional(),
   visitCycleWeeks: z.enum(["1", "2", "4"]),
   firstVisitDate: z.string().min(1, "첫 방문일을 입력해주세요"),
@@ -88,6 +89,7 @@ export function StoreModal({
       name: "",
       address: "",
       PaymentType: "ACCOUNT",
+      receiptType: "NONE",
       managerName: "",
       assignedUserId: "",
       visitCycleWeeks: "1" as const,
@@ -114,6 +116,7 @@ export function StoreModal({
           name: editStore.name,
           address: editStore.address,
           PaymentType: editStore.PaymentType,
+          receiptType: editStore.receiptType ?? "NONE",
           managerName: editStore.managerName ?? "",
           assignedUserId: editStore.assignedUserId ?? "",
           visitCycleWeeks: editStore.visitCycleWeeks.toString() as "1" | "2" | "4",
@@ -129,6 +132,7 @@ export function StoreModal({
           name: "",
           address: "",
           PaymentType: "ACCOUNT",
+          receiptType: "NONE",
           managerName: "",
           assignedUserId: "",
           visitCycleWeeks: "1" as const,
@@ -145,6 +149,7 @@ export function StoreModal({
       name: data.name,
       address: data.address,
       PaymentType: data.PaymentType,
+      receiptType: data.receiptType,
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       visitCycleWeeks: parseInt(data.visitCycleWeeks),
       firstVisitDate: data.firstVisitDate,
@@ -209,24 +214,45 @@ export function StoreModal({
             )}
           </div>
 
-          {/* 결제방식 */}
-          <div className="space-y-2">
-            <Label htmlFor="PaymentType">결제방식</Label>
-            <Select
-              value={paymentType}
-              onValueChange={(value) =>
-                setValue("PaymentType", value as "CASH" | "ACCOUNT" | "CARD")
-              }
-            >
-              <SelectTrigger id="PaymentType">
-                <SelectValue placeholder="결제방식 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ACCOUNT">계좌</SelectItem>
-                <SelectItem value="CARD">카드</SelectItem>
-                <SelectItem value="CASH">현금</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* 결제방식 + 영수증 종류 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="PaymentType">결제방식</Label>
+              <Select
+                value={paymentType}
+                onValueChange={(value) =>
+                  setValue("PaymentType", value as "CASH" | "ACCOUNT" | "CARD")
+                }
+              >
+                <SelectTrigger id="PaymentType">
+                  <SelectValue placeholder="결제방식 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACCOUNT">계좌</SelectItem>
+                  <SelectItem value="CARD">카드</SelectItem>
+                  <SelectItem value="CASH">현금</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="receiptType">영수증 종류</Label>
+              <Select
+                value={watch("receiptType")}
+                onValueChange={(value) =>
+                  setValue("receiptType", value as "NONE" | "SIMPLE_RECEIPT" | "TRANSACTION_STATEMENT")
+                }
+              >
+                <SelectTrigger id="receiptType">
+                  <SelectValue placeholder="영수증 종류 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">없음</SelectItem>
+                  <SelectItem value="SIMPLE_RECEIPT">간이 영수증</SelectItem>
+                  <SelectItem value="TRANSACTION_STATEMENT">거래명세서</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* 입금자 (계좌일 때만) */}
