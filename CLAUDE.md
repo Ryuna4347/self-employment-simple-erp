@@ -20,6 +20,9 @@ pnpm prisma studio    # DB GUI
 - **Forms**: react-hook-form + zod
 - **Data Fetching**: TanStack Query (react-query) - 401 전역 처리
 - **DnD**: @dnd-kit (드래그앤드롭 정렬)
+- **Excel**: ExcelJS (엑셀 내보내기)
+- **Charts**: Recharts (차트)
+- **Toast**: Sonner (토스트 알림)
 
 ## 라우트 구조
 
@@ -47,7 +50,7 @@ src/app/
 | 매장 | `/stores` | 매장 정보 관리 |
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹 관리 |
-| 경비 | `/expenses` | 경비 기록 관리 |
+| 경비 | `/expenses` | 경비 기록 관리 (미구현) |
 | 프로필 | `/profile` | 비밀번호 변경 |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금 |
 
@@ -71,3 +74,4 @@ src/app/
 - 한글 주석 사용
 - shadcn/ui (new-york 스타일)
 - zod 유효성 검사
+- 작업할 때는 반드시 브랜치를 만들고 작업할 것

@@ -7,6 +7,7 @@
 ### 핵심 기능
 - 근무/방문 기록 CRUD
 - 거래 품목 스냅샷 저장 (RecordItem)
+- 매장 정보 스냅샷 저장 (거래 시점 보존)
 - 수금 상태 관리
 - 매장 템플릿 자동 로드
 
@@ -16,15 +17,18 @@
 
 ### WorkRecord (방문 기록)
 - `date`: 방문 날짜
-- `storeId`: 방문 매장
+- `storeId`: 방문 매장 (nullable - 직접 입력 시 null)
 - `userId`: 작성자
 - `isCollected`: 수금 완료 여부
 - `note`: 영업 메모
+- `storeNameSnapshot`: 매장명 스냅샷
+- `storeAddressSnapshot`: 주소 스냅샷
+- `managerNameSnapshot`: 담당자 스냅샷
 - `paymentTypeSnapshot`: 거래 당시 결제 방식
 
 ### RecordItem (거래 상세 - 스냅샷)
 - `name`: 품목명
-- `unitPrice`: 단가
+- `amount`: 금액
 - `quantity`: 수량
 
 ---
@@ -33,11 +37,12 @@
 
 ### 스냅샷 원칙
 - RecordItem은 저장 시점의 데이터를 독립 보관
+- 매장 정보도 스냅샷으로 보관 (storeNameSnapshot 등)
 - 원본 변경/삭제되어도 기록 유지
 
 ### 금액 계산
 - totalAmount는 DB 저장 안 함
-- `SUM(unitPrice * quantity)`로 실시간 계산
+- `SUM(amount)`로 실시간 계산
 
 ### 수금 관리
 - `isCollected: false` → 미수금

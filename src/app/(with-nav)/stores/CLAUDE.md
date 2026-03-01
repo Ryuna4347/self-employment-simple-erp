@@ -20,17 +20,19 @@
 - `PaymentType`: 결제 방식 (CASH / ACCOUNT / CARD)
 - `kakaoPlaceId`: 카카오맵 장소 ID
 - `latitude` / `longitude`: 좌표
+- `visitCycleWeeks`: 방문 주기 (1주/2주/4주)
+- `firstVisitDate`: 첫 방문일 (주기 기준일)
 
 ### StoreItem (매장별 템플릿)
 - `name`: 품명
-- `unitPrice`: 기본 단가
+- `amount`: 금액
 - `quantity`: 기본 수량
 
 ---
 
 ## 비즈니스 규칙
 
-- 매장 삭제 시 StoreItem, WorkRecord 함께 삭제 (Cascade)
+- 매장 삭제 시 StoreItem 삭제 (Cascade), WorkRecord의 storeId는 null 처리 (SetNull)
 - kakaoPlaceId는 unique (중복 등록 방지)
 - 근무기록 생성 시 StoreItem 자동 로드
 

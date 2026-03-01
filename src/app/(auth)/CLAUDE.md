@@ -16,6 +16,7 @@
 
 ### User
 - `loginId`: 로그인 아이디 (최소 4자)
+- `name`: 사용자 이름
 - `password`: 비밀번호 (null이면 초대 대기 상태)
 - `role`: 권한 (ADMIN / USER)
 - `inviteCode`: 초대 코드 (등록 완료 시 null)
