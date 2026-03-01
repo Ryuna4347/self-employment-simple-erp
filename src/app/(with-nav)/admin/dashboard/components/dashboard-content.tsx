@@ -13,7 +13,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { DollarSign, AlertCircle, TrendingUp, Users, Loader2 } from "lucide-react"
+import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -63,7 +63,31 @@ export function DashboardContent() {
     period === "daily" ? month : undefined
   )
 
+  const [isExporting, setIsExporting] = useState(false)
+
   const yearOptions = getYearOptions()
+
+  // 월간 엑셀 다운로드
+  const handleExportExcel = async () => {
+    setIsExporting(true)
+    try {
+      const res = await fetch(
+        `/api/admin/export/monthly?year=${year}&month=${month}`
+      )
+      if (!res.ok) throw new Error("다운로드 실패")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `근무기록_${year}년_${month}월.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert("엑셀 다운로드에 실패했습니다.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // 수금 현황 파이차트 데이터
   const collectionData = data
@@ -93,21 +117,19 @@ export function DashboardContent() {
           </SelectContent>
         </Select>
 
-        {/* 월 선택 (일별 모드에서만 표시) */}
-        {period === "daily" && (
-          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-            <SelectTrigger className="w-[90px]" size="sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTH_OPTIONS.map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  {m}월
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        {/* 월 선택 */}
+        <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+          <SelectTrigger className="w-[90px]" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_OPTIONS.map((m) => (
+              <SelectItem key={m} value={String(m)}>
+                {m}월
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* 기간 토글 버튼 */}
         <div className="flex gap-1 ml-auto">
@@ -126,6 +148,21 @@ export function DashboardContent() {
             월별
           </Button>
         </div>
+
+        {/* 엑셀 다운로드 버튼 */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          disabled={isExporting}
+        >
+          {isExporting ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Download className="size-4" />
+          )}
+          엑셀
+        </Button>
       </div>
 
       {/* 로딩 상태 */}
