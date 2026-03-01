@@ -60,13 +60,13 @@ export function TemplateApplyModal({
 }: TemplateApplyModalProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
 
-  // 템플릿 목록 조회
+  // 코스 목록 조회
   const { data: templates = [], isLoading: isLoadingTemplates } = useStoreTemplates()
 
-  // 템플릿 적용 mutation
+  // 코스 적용 mutation
   const applyMutation = useApplyStoreTemplate()
 
-  // 선택된 템플릿 정보
+  // 선택된 코스 정보
   const selectedTemplate = useMemo<StoreTemplate | undefined>(() => {
     return templates.find((t) => t.id === selectedTemplateId)
   }, [templates, selectedTemplateId])
@@ -111,7 +111,7 @@ export function TemplateApplyModal({
     ? selectedTemplate.memberCount - excludedStores.length
     : 0
 
-  // 템플릿 적용 핸들러
+  // 코스 적용 핸들러
   const handleApply = () => {
     if (!selectedTemplateId) return
 
@@ -125,7 +125,7 @@ export function TemplateApplyModal({
           toast.success(`${result.created}개 기록이 생성되었습니다`)
         },
         onError: () => {
-          toast.error("템플릿 적용에 실패했습니다")
+          toast.error("코스 적용에 실패했습니다")
         },
       }
     )
@@ -145,10 +145,10 @@ export function TemplateApplyModal({
         <ResponsiveModalHeader>
           <ResponsiveModalTitle className="flex items-center gap-2">
             <FileText className="size-5" />
-            템플릿 적용
+            코스 적용
           </ResponsiveModalTitle>
           <ResponsiveModalDescription>
-            템플릿을 선택하여 해당 날짜에 근무기록을 일괄 생성합니다.
+            코스을 선택하여 해당 날짜에 근무기록을 일괄 생성합니다.
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
@@ -161,16 +161,16 @@ export function TemplateApplyModal({
             </div>
           </div>
 
-          {/* 템플릿 선택 */}
+          {/* 코스 선택 */}
           <div className="space-y-2">
-            <Label htmlFor="template">템플릿 선택</Label>
+            <Label htmlFor="template">코스 선택</Label>
             <Select
               value={selectedTemplateId}
               onValueChange={setSelectedTemplateId}
               disabled={isLoadingTemplates}
             >
               <SelectTrigger id="template">
-                <SelectValue placeholder="템플릿을 선택하세요" />
+                <SelectValue placeholder="코스을 선택하세요" />
               </SelectTrigger>
               <SelectContent>
                 {templates.length > 0 ? (
@@ -186,14 +186,14 @@ export function TemplateApplyModal({
                   ))
                 ) : (
                   <div className="px-3 py-2 text-sm text-gray-400">
-                    등록된 템플릿이 없습니다
+                    등록된 코스이 없습니다
                   </div>
                 )}
               </SelectContent>
             </Select>
           </div>
 
-          {/* 선택된 템플릿 정보 */}
+          {/* 선택된 코스 정보 */}
           {selectedTemplate && (
             <>
               {/* 설명 */}

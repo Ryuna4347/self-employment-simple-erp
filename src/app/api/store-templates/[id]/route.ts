@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
 
-// 템플릿 수정 스키마
+// 코스 수정 스키마
 const updateTemplateSchema = z.object({
-  name: z.string().min(1, "템플릿 이름을 입력해주세요"),
+  name: z.string().min(1, "코스 이름을 입력해주세요"),
   description: z.string().optional(),
   members: z
     .array(
@@ -24,7 +24,7 @@ interface RouteParams {
 
 /**
  * GET /api/store-templates/[id]
- * 템플릿 상세 조회
+ * 코스 상세 조회
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
@@ -55,12 +55,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     })
 
     if (!template) {
-      return ApiErrors.notFound("템플릿을 찾을 수 없습니다")
+      return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
-    // 본인 템플릿만 조회 가능
+    // 본인 코스만 조회 가능
     if (template.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 템플릿입니다")
+      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     return NextResponse.json({
@@ -71,9 +71,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     })
   } catch (error) {
-    console.error("템플릿 상세 조회 오류:", error)
+    console.error("코스 상세 조회 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 조회 중 오류가 발생했습니다" },
+      { success: false, message: "코스 조회 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PUT /api/store-templates/[id]
- * 템플릿 수정 (owner만)
+ * 코스 수정 (owner만)
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
@@ -91,17 +91,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    // 기존 템플릿 확인
+    // 기존 코스 확인
     const existingTemplate = await prisma.storeTemplate.findUnique({
       where: { id },
     })
 
     if (!existingTemplate) {
-      return ApiErrors.notFound("템플릿을 찾을 수 없습니다")
+      return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
     if (existingTemplate.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 템플릿입니다")
+      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     const body = await request.json()
@@ -117,9 +117,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { name, description, members } = parseResult.data
 
-    // 트랜잭션으로 템플릿과 멤버 함께 수정
+    // 트랜잭션으로 코스과 멤버 함께 수정
     const template = await prisma.$transaction(async (tx) => {
-      // 템플릿 정보 수정
+      // 코스 정보 수정
       await tx.storeTemplate.update({
         where: { id },
         data: { name, description },
@@ -166,9 +166,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     })
   } catch (error) {
-    console.error("템플릿 수정 오류:", error)
+    console.error("코스 수정 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 수정 중 오류가 발생했습니다" },
+      { success: false, message: "코스 수정 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }
@@ -176,7 +176,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 /**
  * DELETE /api/store-templates/[id]
- * 템플릿 삭제 (owner만)
+ * 코스 삭제 (owner만)
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
@@ -186,17 +186,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    // 기존 템플릿 확인
+    // 기존 코스 확인
     const existingTemplate = await prisma.storeTemplate.findUnique({
       where: { id },
     })
 
     if (!existingTemplate) {
-      return ApiErrors.notFound("템플릿을 찾을 수 없습니다")
+      return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
     if (existingTemplate.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 템플릿입니다")
+      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     // 삭제 (cascade로 멤버도 함께 삭제됨)
@@ -204,11 +204,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       where: { id },
     })
 
-    return NextResponse.json({ success: true, message: "템플릿이 삭제되었습니다" })
+    return NextResponse.json({ success: true, message: "코스이 삭제되었습니다" })
   } catch (error) {
-    console.error("템플릿 삭제 오류:", error)
+    console.error("코스 삭제 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 삭제 중 오류가 발생했습니다" },
+      { success: false, message: "코스 삭제 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }

@@ -3,9 +3,9 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 
-// 템플릿 생성/수정 스키마
+// 코스 생성/수정 스키마
 const createTemplateSchema = z.object({
-  name: z.string().min(1, "템플릿 이름을 입력해주세요"),
+  name: z.string().min(1, "코스 이름을 입력해주세요"),
   description: z.string().optional(),
   members: z
     .array(
@@ -19,7 +19,7 @@ const createTemplateSchema = z.object({
 
 /**
  * GET /api/store-templates
- * 본인 템플릿 목록 조회
+ * 본인 코스 목록 조회
  */
 export async function GET() {
   const authResult = await requireAuth()
@@ -57,9 +57,9 @@ export async function GET() {
 
     return NextResponse.json({ success: true, data: templatesWithCount })
   } catch (error) {
-    console.error("템플릿 목록 조회 오류:", error)
+    console.error("코스 목록 조회 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 목록 조회 중 오류가 발생했습니다" },
+      { success: false, message: "코스 목록 조회 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }
@@ -67,7 +67,7 @@ export async function GET() {
 
 /**
  * POST /api/store-templates
- * 템플릿 생성
+ * 코스 생성
  */
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const { name, description, members } = parseResult.data
 
-    // 트랜잭션으로 템플릿과 멤버 함께 생성
+    // 트랜잭션으로 코스과 멤버 함께 생성
     const template = await prisma.$transaction(async (tx) => {
       const newTemplate = await tx.storeTemplate.create({
         data: {
@@ -139,9 +139,9 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error("템플릿 생성 오류:", error)
+    console.error("코스 생성 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 생성 중 오류가 발생했습니다" },
+      { success: false, message: "코스 생성 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }

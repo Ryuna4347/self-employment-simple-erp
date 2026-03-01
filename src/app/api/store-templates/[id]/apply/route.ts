@@ -16,7 +16,7 @@ interface RouteParams {
 
 /**
  * POST /api/store-templates/[id]/apply
- * 템플릿 적용 (WorkRecord 일괄 생성)
+ * 코스 적용 (WorkRecord 일괄 생성)
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const authResult = await requireAuth()
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    // 템플릿 조회
+    // 코스 조회
     const template = await prisma.storeTemplate.findUnique({
       where: { id },
       include: {
@@ -55,11 +55,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
     if (!template) {
-      return ApiErrors.notFound("템플릿을 찾을 수 없습니다")
+      return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
     if (template.userId !== user.id) {
-      return ApiErrors.forbidden("다른 사용자의 템플릿입니다")
+      return ApiErrors.forbidden("다른 사용자의 코스입니다")
     }
 
     const body = await request.json()
@@ -173,9 +173,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     })
   } catch (error) {
-    console.error("템플릿 적용 오류:", error)
+    console.error("코스 적용 오류:", error)
     return NextResponse.json(
-      { success: false, message: "템플릿 적용 중 오류가 발생했습니다" },
+      { success: false, message: "코스 적용 중 오류가 발생했습니다" },
       { status: 500 }
     )
   }

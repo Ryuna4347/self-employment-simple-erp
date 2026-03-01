@@ -14,10 +14,10 @@ interface StoreTemplateCardProps {
 }
 
 /**
- * 매장 템플릿 카드 컴포넌트 (Accordion)
+ * 매장 코스 카드 컴포넌트 (Accordion)
  *
  * 축약 모드 (기본):
- * - 템플릿명 + 매장 수 배지
+ * - 코스명 + 매장 수 배지
  * - 설명
  *
  * 상세 모드 (클릭 시 확장):
@@ -38,7 +38,7 @@ export function StoreTemplateCard({
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm("정말로 이 템플릿을 삭제하시겠습니까?")) {
+    if (confirm("정말로 이 코스을 삭제하시겠습니까?")) {
       onDelete(template.id)
     }
   }
@@ -56,7 +56,7 @@ export function StoreTemplateCard({
         className="w-full text-left focus:outline-none p-4"
       >
         <div className="flex items-start justify-between gap-3">
-          {/* 좌측: 템플릿 정보 */}
+          {/* 좌측: 코스 정보 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-gray-900 text-base">

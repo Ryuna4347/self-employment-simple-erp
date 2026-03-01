@@ -10,7 +10,7 @@ interface MemberStore {
   firstVisitDate: string
 }
 
-// 템플릿 멤버 타입
+// 코스 멤버 타입
 export interface StoreTemplateMember {
   id: string
   templateId: string
@@ -19,7 +19,7 @@ export interface StoreTemplateMember {
   store: MemberStore
 }
 
-// 템플릿 타입
+// 코스 타입
 export interface StoreTemplate {
   id: string
   name: string
@@ -29,7 +29,7 @@ export interface StoreTemplate {
   members: StoreTemplateMember[]
 }
 
-// 템플릿 생성/수정 입력 타입
+// 코스 생성/수정 입력 타입
 export interface StoreTemplateInput {
   name: string
   description?: string
@@ -39,7 +39,7 @@ export interface StoreTemplateInput {
   }[]
 }
 
-// 템플릿 적용 결과 타입
+// 코스 적용 결과 타입
 export interface ApplyTemplateResult {
   created: number
   skipped: number
@@ -72,7 +72,7 @@ const STORE_TEMPLATES_KEY = ["store-templates"] as const
 const WORK_RECORDS_KEY = ["work-records"] as const
 
 /**
- * 템플릿 목록 조회 훅
+ * 코스 목록 조회 훅
  */
 export function useStoreTemplates() {
   return useQuery({
@@ -85,7 +85,7 @@ export function useStoreTemplates() {
 }
 
 /**
- * 템플릿 생성 훅
+ * 코스 생성 훅
  */
 export function useCreateStoreTemplate() {
   const queryClient = useQueryClient()
@@ -105,7 +105,7 @@ export function useCreateStoreTemplate() {
 }
 
 /**
- * 템플릿 수정 훅
+ * 코스 수정 훅
  */
 export function useUpdateStoreTemplate() {
   const queryClient = useQueryClient()
@@ -125,7 +125,7 @@ export function useUpdateStoreTemplate() {
 }
 
 /**
- * 템플릿 삭제 훅
+ * 코스 삭제 훅
  */
 export function useDeleteStoreTemplate() {
   const queryClient = useQueryClient()
@@ -143,7 +143,7 @@ export function useDeleteStoreTemplate() {
 }
 
 /**
- * 템플릿 적용 훅 (WorkRecord 일괄 생성)
+ * 코스 적용 훅 (WorkRecord 일괄 생성)
  */
 export function useApplyStoreTemplate() {
   const queryClient = useQueryClient()

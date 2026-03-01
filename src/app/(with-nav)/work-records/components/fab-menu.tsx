@@ -12,7 +12,7 @@ interface FabMenuProps {
 /**
  * Floating Action Button 메뉴 컴포넌트
  * - 근무 기록 추가
- * - 템플릿 적용
+ * - 코스 적용
  */
 export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,13 +45,13 @@ export function FabMenu({ onAddRecord, onApplyTemplate }: FabMenuProps) {
       {/* 메뉴 아이템 (하단 네비 위에 표시) */}
       {isOpen && (
         <div className="fixed bottom-[10rem] right-6 z-50 flex flex-col gap-3">
-          {/* 템플릿 적용 */}
+          {/* 코스 적용 */}
           <button
             onClick={handleApplyTemplate}
             className="flex items-center gap-3 bg-white text-gray-700 px-4 py-3 rounded-full shadow-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
           >
             <FileText className="size-5" />
-            <span className="pr-2 font-medium">템플릿 적용</span>
+            <span className="pr-2 font-medium">코스 적용</span>
           </button>
 
           {/* 근무 기록 추가 */}

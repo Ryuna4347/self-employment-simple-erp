@@ -39,9 +39,9 @@ import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { StoreTemplate, StoreTemplateInput } from "../hooks/use-store-templates"
 import { getVisitDayAndCycle } from "../utils/visit-info"
 
-// 템플릿 스키마
+// 코스 스키마
 const templateSchema = z.object({
-  name: z.string().min(1, "템플릿 이름을 입력해주세요"),
+  name: z.string().min(1, "코스 이름을 입력해주세요"),
   description: z.string().optional(),
 })
 
@@ -134,7 +134,7 @@ function SortableStoreItem({
 }
 
 /**
- * 매장 템플릿 추가/수정 모달
+ * 매장 코스 추가/수정 모달
  */
 export function StoreTemplateModal({
   open,
@@ -290,7 +290,7 @@ export function StoreTemplateModal({
       <ResponsiveModalContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
-            {isEditMode ? "매장 템플릿 수정" : "매장 템플릿 추가"}
+            {isEditMode ? "매장 코스 수정" : "매장 코스 추가"}
           </ResponsiveModalTitle>
         </ResponsiveModalHeader>
 
@@ -299,9 +299,9 @@ export function StoreTemplateModal({
           className="flex flex-col flex-1 overflow-hidden"
         >
           <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
-          {/* 템플릿 이름 */}
+          {/* 코스 이름 */}
           <div className="space-y-2">
-            <Label htmlFor="name">템플릿 이름</Label>
+            <Label htmlFor="name">코스 이름</Label>
             <Input
               id="name"
               placeholder="예: 월요일 서초 코스"
@@ -318,7 +318,7 @@ export function StoreTemplateModal({
             <Label htmlFor="description">설명 (선택)</Label>
             <Input
               id="description"
-              placeholder="템플릿 설명을 입력하세요..."
+              placeholder="코스 설명을 입력하세요..."
               {...register("description")}
             />
           </div>

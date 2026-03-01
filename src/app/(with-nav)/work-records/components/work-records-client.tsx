@@ -59,7 +59,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     return { totalVisits, totalSales, collectedSales, uncollectedSales }
   }, [workRecords])
 
-  // 이미 기록이 있는 매장 ID 집합 (템플릿 적용 모달에서 사용)
+  // 이미 기록이 있는 매장 ID 집합 (코스 적용 모달에서 사용)
   const existingStoreIds = useMemo(() => {
     return new Set(
       workRecords
@@ -74,7 +74,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     setWorkRecordModalOpen(true)
   }
 
-  // 템플릿 적용 모달 열기
+  // 코스 적용 모달 열기
   const handleApplyTemplate = () => {
     setTemplateModalOpen(true)
   }
@@ -131,7 +131,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         editRecord={editingRecord}
       />
 
-      {/* 템플릿 적용 모달 */}
+      {/* 코스 적용 모달 */}
       <TemplateApplyModal
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
