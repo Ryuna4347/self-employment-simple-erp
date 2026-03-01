@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       items: { select: { id: true, name: true, unitPrice: true, quantity: true } },
       user: { select: { id: true, name: true } },
     },
-    orderBy: { date: "asc" },
+    orderBy: { createdAt: "asc" },
   })
 
   return apiSuccess(workRecords)

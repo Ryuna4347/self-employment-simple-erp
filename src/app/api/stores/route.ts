@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       include: {
         storeItems: true,
       },
-      orderBy: { name: "asc" },
+      orderBy: { createdAt: "desc" },
     })
 
     return NextResponse.json({ success: true, data: stores })

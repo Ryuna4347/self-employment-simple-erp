@@ -34,15 +34,19 @@ model Store {
   longitude       Float?
   visitCycleWeeks Int               @default(1)     // 방문 주기 (주): 1, 2, 4
   firstVisitDate  DateTime          @default(now()) // 첫 방문일 (주기 기준일)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   storeItems      StoreItem[]
   templateMembers StoreTemplateMember[]
   workRecords     WorkRecord[]
 }
 
 model SaleItem {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  unitPrice Int    @default(0)
+  unitPrice Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StoreItem {
@@ -58,6 +62,8 @@ model StoreTemplate {
   id          String                @id @default(cuid())
   name        String
   description String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
   userId      String
   creator     User                  @relation(fields: [userId], references: [id])
   members     StoreTemplateMember[]
@@ -84,6 +90,8 @@ model WorkRecord {
   storeAddressSnapshot String?      // 주소 스냅샷
   managerNameSnapshot  String?      // 담당자 스냅샷
   paymentTypeSnapshot  PaymentType  // 결제 방식 스냅샷
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
   items                RecordItem[]
   store                Store?       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
