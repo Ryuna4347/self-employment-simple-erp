@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { STORE_VISITS_KEY } from "./use-store-visits"
 import type { PaymentType } from "@/generated/prisma/client"
 
 export type CollectionStatus = "UNCOLLECTED" | "COLLECTED" | "CLOSED"
@@ -113,6 +114,7 @@ export function useCreateWorkRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
     },
   })
 }
@@ -132,6 +134,7 @@ export function useUpdateWorkRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
     },
   })
 }
@@ -147,6 +150,7 @@ export function useDeleteWorkRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
     },
   })
 }

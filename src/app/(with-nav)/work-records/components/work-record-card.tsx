@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck, ImageIcon } from "lucide-react";
+import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
 import type { WorkRecordResponse, WorkRecordItem, CollectionStatus } from "../hooks/use-work-records";
 import type { PaymentType } from "@/generated/prisma/client";
@@ -233,6 +234,15 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                     </table>
                   </div>
                 </div>
+              )}
+
+              {/* 방문 이력 (최근 6개월) */}
+              {record.storeId && (
+                <StoreVisitHistory
+                  storeId={record.storeId}
+                  currentDate={record.date}
+                  isExpanded={isExpanded}
+                />
               )}
 
               {/* 첨부 이미지 (휴업&폐업일 때만) */}
