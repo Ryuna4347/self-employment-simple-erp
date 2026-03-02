@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react"
 import { Plus, Search, LayoutTemplate, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { UserFilter } from "@/components/common/user-filter"
 import { StoreTemplateCard, StoreTemplateModal } from "./index"
 import {
   useStoreTemplates,
@@ -14,21 +15,23 @@ import {
 } from "../hooks/use-store-templates"
 
 interface StoreTemplatesClientProps {
+  userId: string
   userRole: "ADMIN" | "USER"
 }
 
 /**
  * 매장 코스 관리 클라이언트 컴포넌트
  */
-export function StoreTemplatesClient({ userRole }: StoreTemplatesClientProps) {
+export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<StoreTemplate | null>(null)
 
   const isAdmin = userRole === "ADMIN"
 
-  // react-query 훅
-  const { data: templates = [], isLoading, refetch, isFetching } = useStoreTemplates()
+  // react-query 훅 - selectedUserId로 필터링
+  const { data: templates = [], isLoading, refetch, isFetching } = useStoreTemplates(selectedUserId)
   const createMutation = useCreateStoreTemplate()
   const updateMutation = useUpdateStoreTemplate()
   const deleteMutation = useDeleteStoreTemplate()
@@ -93,6 +96,13 @@ export function StoreTemplatesClient({ userRole }: StoreTemplatesClientProps) {
           자주 방문하는 매장 그룹을 코스으로 저장하여 빠르게 근무를 등록하세요
         </p>
       </div>
+
+      {/* 사용자 필터 */}
+      <UserFilter
+        selectedUserId={selectedUserId}
+        onUserChange={setSelectedUserId}
+        currentUserId={userId}
+      />
 
       {/* 검색 */}
       <div className="mb-4">

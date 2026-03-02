@@ -9,5 +9,5 @@ export default async function StoreTemplatesPage() {
     redirect("/?sessionExpired=true")
   }
 
-  return <StoreTemplatesClient userRole={session.user.role} />
+  return <StoreTemplatesClient userId={session.user.id} userRole={session.user.role} />
 }

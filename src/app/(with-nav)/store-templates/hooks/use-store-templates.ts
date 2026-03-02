@@ -70,12 +70,19 @@ const WORK_RECORDS_KEY = ["work-records"] as const
 
 /**
  * 코스 목록 조회 훅
+ * @param userId - 필터할 사용자 ID (생략 시 서버에서 본인 기본)
  */
-export function useStoreTemplates() {
+export function useStoreTemplates(userId?: string) {
   return useQuery({
-    queryKey: STORE_TEMPLATES_KEY,
+    queryKey: [...STORE_TEMPLATES_KEY, { userId }],
     queryFn: async () => {
-      const response = await apiClient<StoreTemplatesResponse>("/api/store-templates")
+      const params = new URLSearchParams()
+      if (userId) params.set("userId", userId)
+      const queryString = params.toString()
+      const url = queryString
+        ? `/api/store-templates?${queryString}`
+        : "/api/store-templates"
+      const response = await apiClient<StoreTemplatesResponse>(url)
       return response.data
     },
   })

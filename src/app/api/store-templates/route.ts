@@ -22,12 +22,29 @@ const createTemplateSchema = z.object({
  * GET /api/store-templates
  * 코스 목록 조회
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
+  const { user } = authResult
+  const searchParams = request.nextUrl.searchParams
+  const requestedUserId = searchParams.get("userId") || undefined
+
+  // userId 필터 결정
+  let userIdFilter: string | undefined
+  if (!requestedUserId) {
+    userIdFilter = user.id
+  } else if (requestedUserId === "all") {
+    userIdFilter = undefined
+  } else {
+    userIdFilter = requestedUserId
+  }
+
   try {
     const templates = await prisma.storeTemplate.findMany({
+      where: {
+        ...(userIdFilter && { userId: userIdFilter }),
+      },
       include: {
         members: {
           orderBy: { order: "asc" },
