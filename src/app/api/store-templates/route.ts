@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         members: {
+          where: { store: { isDeleted: false } },
           orderBy: { order: "asc" },
           include: {
             store: {

@@ -11,9 +11,9 @@ const createStoreSchema = z.object({
   address: z.string().min(1, "주소를 입력해주세요"),
   managerName: z.string().nullish(),
   PaymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
-  kakaoPlaceId: z.string().optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  kakaoPlaceId: z.string().nullish(),
+  latitude: z.number().nullish(),
+  longitude: z.number().nullish(),
   visitCycleWeeks: z.union([z.literal(1), z.literal(2), z.literal(4)]),
   firstVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
   items: z
@@ -25,7 +25,7 @@ const createStoreSchema = z.object({
       })
     )
     .optional(),
-  templateId: z.string().optional(),
+  templateId: z.string().nullish(),
   assignedUserId: z.string().nullish(),
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
 })
@@ -43,15 +43,16 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")
 
     const stores = await prisma.store.findMany({
-      where: search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { address: { contains: search, mode: "insensitive" } },
-              { managerName: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : undefined,
+      where: {
+        isDeleted: false,
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { address: { contains: search, mode: "insensitive" } },
+            { managerName: { contains: search, mode: "insensitive" } },
+          ],
+        }),
+      },
       include: {
         storeItems: true,
         assignedUser: { select: { id: true, name: true } },

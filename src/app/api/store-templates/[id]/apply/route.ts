@@ -37,9 +37,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
               select: {
                 id: true,
                 name: true,
+                address: true,
+                managerName: true,
                 PaymentType: true,
                 visitCycleWeeks: true,
                 firstVisitDate: true,
+                isDeleted: true,
                 storeItems: {
                   select: {
                     name: true,
@@ -86,9 +89,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       (m) => !existingStoreIds.has(m.storeId)
     )
 
+    // 1-1. 삭제된 매장 제외
+    const deletedStoreIds = new Set(
+      afterDuplicateFilter.filter((m) => m.store.isDeleted).map((m) => m.storeId)
+    )
+    const afterDeleteFilter = afterDuplicateFilter.filter((m) => !m.store.isDeleted)
+
     // 2. 방문 주기 필터링
     const cycleSkippedStoreIds = new Set<string>()
-    const membersToCreate = afterDuplicateFilter.filter((m) => {
+    const membersToCreate = afterDeleteFilter.filter((m) => {
       const { visitCycleWeeks, firstVisitDate } = m.store
       const firstVisit = startOfDay(new Date(firstVisitDate))
       const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
@@ -112,6 +121,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (existingStoreIds.size > 0) {
         messages.push(`${existingStoreIds.size}개 매장은 이미 기록이 존재합니다`)
       }
+      if (deletedStoreIds.size > 0) {
+        messages.push(`${deletedStoreIds.size}개 매장은 삭제된 매장입니다`)
+      }
       if (cycleSkippedStoreIds.size > 0) {
         messages.push(`${cycleSkippedStoreIds.size}개 매장은 방문 주기에 해당하지 않습니다`)
       }
@@ -131,6 +143,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           storeId: member.storeId,
           userId: user.id,
           collectionStatus: "UNCOLLECTED" as const,
+          storeNameSnapshot: member.store.name,
+          storeAddressSnapshot: member.store.address,
+          managerNameSnapshot: member.store.managerName,
           paymentTypeSnapshot: member.store.PaymentType,
           sortOrder: member.order,
         })),

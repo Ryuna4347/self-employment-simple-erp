@@ -117,6 +117,9 @@ export function useUpdateStore() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      // 매장 정보 변경 시 스냅샷 연동으로 인한 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ["work-records"] })
+      queryClient.invalidateQueries({ queryKey: ["admin"] })
     },
   })
 }
@@ -135,6 +138,8 @@ export function useDeleteStore() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      // 삭제된 매장이 코스에서 사라지므로 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
     },
   })
 }

@@ -158,10 +158,10 @@ export async function POST(request: NextRequest) {
   if (storeId) {
     const store = await prisma.store.findUnique({
       where: { id: storeId },
-      select: { id: true },
+      select: { id: true, isDeleted: true },
     })
 
-    if (!store) {
+    if (!store || store.isDeleted) {
       return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
     }
 

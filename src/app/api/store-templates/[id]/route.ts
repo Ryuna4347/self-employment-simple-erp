@@ -37,6 +37,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       where: { id },
       include: {
         members: {
+          where: { store: { isDeleted: false } },
           orderBy: { order: "asc" },
           include: {
             store: {
