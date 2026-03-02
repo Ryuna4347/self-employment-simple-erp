@@ -19,7 +19,8 @@
 - `date`: 방문 날짜
 - `storeId`: 방문 매장 (nullable - 직접 입력 시 null)
 - `userId`: 작성자
-- `isCollected`: 수금 완료 여부
+- `collectionStatus`: 수금 상태 (UNCOLLECTED/COLLECTED/CLOSED)
+- `imageUrl`: 이미지 URL (Supabase Storage)
 - `note`: 영업 메모
 - `storeNameSnapshot`: 매장명 스냅샷
 - `storeAddressSnapshot`: 주소 스냅샷
@@ -45,8 +46,9 @@
 - `SUM(amount)`로 실시간 계산
 
 ### 수금 관리
-- `isCollected: false` → 미수금
-- 완납 시 true로 업데이트
+- `collectionStatus: UNCOLLECTED` → 미수금
+- `collectionStatus: COLLECTED` → 수금완료
+- `collectionStatus: CLOSED` → 휴업&폐업
 
 ---
 

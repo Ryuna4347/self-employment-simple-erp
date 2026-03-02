@@ -20,6 +20,8 @@
 - `PaymentType`: 결제 방식 (CASH / ACCOUNT / CARD)
 - `kakaoPlaceId`: 카카오맵 장소 ID
 - `latitude` / `longitude`: 좌표
+- `receiptType`: 영수증 발급 종류 (NONE / SIMPLE_RECEIPT / TRANSACTION_STATEMENT)
+- `assignedUserId`: 담당 사원 ID
 - `visitCycleWeeks`: 방문 주기 (1주/2주/4주)
 - `firstVisitDate`: 첫 방문일 (주기 기준일)
 

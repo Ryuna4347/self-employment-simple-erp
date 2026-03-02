@@ -16,7 +16,8 @@ pnpm prisma studio    # DB GUI
 - **Frontend**: React 19, TypeScript, Tailwind CSS 4, shadcn/ui
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL + Prisma 7
-- **Auth**: Auth.js v5 (Credentials + JWT + Refresh Token)
+- **Auth**: Auth.js v5 (Credentials + JWT)
+- **Storage**: Supabase Storage (이미지 업로드)
 - **Forms**: react-hook-form + zod
 - **Data Fetching**: TanStack Query (react-query) - 401 전역 처리
 - **DnD**: @dnd-kit (드래그앤드롭 정렬)
@@ -56,18 +57,18 @@ src/app/
 
 ## 인증 시스템
 
-- **로그인 상태 유지 (Remember Me)**
-  - 체크 시: 7일간 자동 로그인 (Refresh Token + iron-session 슬라이딩)
-  - 미체크 시: 브라우저 닫으면 로그아웃 (iron-session 세션 쿠키)
-- **Sliding Session**: Access Token 1시간 (30분 미만 남았을 때 자동 갱신)
-- **Token Rotation**: Refresh Token 사용 시마다 새 토큰 발급
-- **이중 쿠키 시스템**: Auth.js JWT 쿠키 + iron-session 세션 체크 쿠키
+- **JWT 세션**: Access Token 12시간 (Auth.js 기본 JWT 전략)
+- **세션 검증**: 미들웨어(auth 콜백) → layout.tsx(user.id 체크) 2단계
 
-### 세션 처리 흐름 (3단계)
+### 세션 처리 흐름 (2단계)
 
-1. **미들웨어**: `erp-session` 쿠키 체크 (브라우저 종료 감지)
-2. **auth.config.ts**: `auth?.user` 존재 여부 (비로그인 차단)
-3. **layout.tsx**: `session.error`, `user.id` 체크 (토큰 만료/무효화)
+1. **미들웨어 (auth.config.ts)**: `auth?.user` 존재 여부 (비로그인 차단)
+2. **layout.tsx**: `user.id` 체크 (무효 세션 차단)
+
+### 향후 구현 예정 (미구현)
+- 로그인 상태 유지 (Remember Me): Refresh Token + iron-session 이중 쿠키 시스템
+- Sliding Session: Access Token 자동 갱신
+- Token Rotation: Refresh Token 사용 시마다 새 토큰 발급
 
 ## 규칙
 
