@@ -53,6 +53,7 @@ export function CalendarHeader({ selectedDate, onDateChange }: CalendarHeaderPro
               mode="single"
               selected={selectedDate}
               onSelect={handleDateSelect}
+              defaultMonth={selectedDate}
               locale={ko}
               className="w-full"
             />

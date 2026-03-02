@@ -85,6 +85,9 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
     }
   }
 
+  // 삭제 진행 중인 코스 ID
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   return (
@@ -145,6 +148,7 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
               onEdit={handleEditTemplate}
               onDelete={handleDeleteTemplate}
               isAdmin={isAdmin}
+              isDeleting={deletingId === template.id}
             />
           ))
         )}

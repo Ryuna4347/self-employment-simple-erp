@@ -10,6 +10,8 @@ interface WorkRecordListProps {
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
   userRole: "ADMIN" | "USER";
+  deletingId?: string | null;
+  collectingId?: string | null;
 }
 
 /**
@@ -17,7 +19,7 @@ interface WorkRecordListProps {
  * - 카드 목록 렌더링
  * - 빈 상태 처리
  */
-export function WorkRecordList({ records, onEdit, onDelete, onCollect, userRole }: WorkRecordListProps) {
+export function WorkRecordList({ records, onEdit, onDelete, onCollect, userRole, deletingId, collectingId }: WorkRecordListProps) {
   if (records.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12 text-center">
@@ -42,6 +44,8 @@ export function WorkRecordList({ records, onEdit, onDelete, onCollect, userRole 
           onDelete={onDelete}
           onCollect={onCollect}
           userRole={userRole}
+          isDeleting={deletingId === record.id}
+          isCollecting={collectingId === record.id}
         />
       ))}
     </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, ChevronDown, Pencil, Trash2 } from "lucide-react"
+import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { StoreTemplate } from "../hooks/use-store-templates"
@@ -12,6 +12,7 @@ interface StoreTemplateCardProps {
   onEdit: (template: StoreTemplate) => void
   onDelete: (id: string) => void
   isAdmin: boolean
+  isDeleting?: boolean
 }
 
 /**
@@ -30,6 +31,7 @@ export function StoreTemplateCard({
   onEdit,
   onDelete,
   isAdmin,
+  isDeleting,
 }: StoreTemplateCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -134,6 +136,7 @@ export function StoreTemplateCard({
                   variant="outline"
                   size="sm"
                   onClick={handleEdit}
+                  disabled={isDeleting}
                   className="flex-1"
                 >
                   <Pencil className="size-4" />
@@ -143,10 +146,11 @@ export function StoreTemplateCard({
                   variant="outline"
                   size="sm"
                   onClick={handleDelete}
+                  disabled={isDeleting}
                   className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
-                  <Trash2 className="size-4" />
-                  삭제
+                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {isDeleting ? "삭제 중..." : "삭제"}
                 </Button>
               </div>
             )}

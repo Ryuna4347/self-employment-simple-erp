@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MapPin, ChevronDown, Pencil, Trash2 } from "lucide-react"
+import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,6 +17,7 @@ interface StoreCardProps {
   store: Store
   onEdit: (store: Store) => void
   onDelete: (id: string) => void
+  isDeleting?: boolean
 }
 
 const paymentTypeLabels: Record<string, string> = {
@@ -44,7 +45,7 @@ const receiptTypeLabels: Record<string, string> = {
  * - 품목 테이블
  * - 수정/삭제 버튼
  */
-export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
+export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -209,6 +210,7 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleEdit}
+                disabled={isDeleting}
                 className="flex-1"
               >
                 <Pencil className="size-4" />
@@ -218,10 +220,11 @@ export function StoreCard({ store, onEdit, onDelete }: StoreCardProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleDelete}
+                disabled={isDeleting}
                 className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
               >
-                <Trash2 className="size-4" />
-                삭제
+                {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                {isDeleting ? "삭제 중..." : "삭제"}
               </Button>
             </div>
           </div>

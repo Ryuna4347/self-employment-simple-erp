@@ -78,6 +78,9 @@ export default function StoresPage() {
     }
   }
 
+  // 삭제 진행 중인 매장 ID
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
+
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   return (
@@ -130,6 +133,7 @@ export default function StoresPage() {
               store={store}
               onEdit={handleEditStore}
               onDelete={handleDeleteStore}
+              isDeleting={deletingId === store.id}
             />
           ))
         )}

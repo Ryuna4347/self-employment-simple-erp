@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck, ImageIcon } from "lucide-react";
+import { MapPin, ChevronDown, Pencil, Trash2, AlertTriangle, CircleCheck, ImageIcon, Loader2 } from "lucide-react";
 import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
 import type { WorkRecordResponse, WorkRecordItem, CollectionStatus } from "../hooks/use-work-records";
@@ -14,6 +14,8 @@ interface WorkRecordCardProps {
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
   userRole: "ADMIN" | "USER";
+  isDeleting?: boolean;
+  isCollecting?: boolean;
 }
 
 // 유틸리티 함수: 총 금액 계산
@@ -52,12 +54,13 @@ const COLLECTION_STATUS_CONFIG: Record<CollectionStatus, { color: string; barCol
  * - 메모
  * - 수정/삭제 버튼
  */
-export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }: WorkRecordCardProps) {
+export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole, isDeleting, isCollecting }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
   const statusConfig = COLLECTION_STATUS_CONFIG[record.collectionStatus];
   // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능
   const canModify = record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN";
+  const isActionPending = isDeleting || isCollecting;
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -164,10 +167,11 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                         variant="outline"
                         size="sm"
                         onClick={handleCollect}
+                        disabled={isActionPending}
                         className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                       >
-                        <CircleCheck className="size-3" />
-                        수금처리
+                        {isCollecting ? <Loader2 className="size-3 animate-spin" /> : <CircleCheck className="size-3" />}
+                        {isCollecting ? "처리 중..." : "수금처리"}
                       </Button>
                     )}
                   </div>
@@ -279,6 +283,7 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                     variant="outline"
                     size="sm"
                     onClick={handleEdit}
+                    disabled={isActionPending}
                     className="flex-1"
                   >
                     <Pencil className="size-4" />
@@ -288,10 +293,11 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole }
                     variant="outline"
                     size="sm"
                     onClick={handleDelete}
+                    disabled={isActionPending}
                     className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    <Trash2 className="size-4" />
-                    삭제
+                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    {isDeleting ? "삭제 중..." : "삭제"}
                   </Button>
                 </div>
               ) : (

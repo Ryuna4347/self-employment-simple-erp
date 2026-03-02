@@ -42,6 +42,12 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()
 
+  // 삭제/수금처리 진행 중인 레코드 ID
+  const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
+  const collectingId = (updateMutation.isPending && updateMutation.variables?.collectionStatus === "COLLECTED")
+    ? updateMutation.variables.id
+    : null
+
   const dailySummary = useMemo((): DailySummary => {
     const totalVisits = workRecords.length
     let totalSales = 0
@@ -123,7 +129,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} />
+          <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
         )}
 
         <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} onRefresh={() => refetch()} isRefreshing={isFetching} />
