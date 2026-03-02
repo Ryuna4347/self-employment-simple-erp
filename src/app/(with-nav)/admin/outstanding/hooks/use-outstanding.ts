@@ -44,12 +44,14 @@ export type DateFilterParams = {
   filter: "date"
   year: number
   month: number
+  userId?: string
   page: number
 }
 
 export type StoreFilterParams = {
   filter: "store"
   storeName?: string
+  userId?: string
   page: number
 }
 
@@ -83,6 +85,10 @@ export function useOutstanding(params: OutstandingParams) {
         searchParams.set("month", String(params.month))
       } else if (params.storeName) {
         searchParams.set("storeName", params.storeName)
+      }
+
+      if (params.userId) {
+        searchParams.set("userId", params.userId)
       }
 
       const response = await apiClient<OutstandingResponse>(

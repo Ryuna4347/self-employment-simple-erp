@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Loader2, Search } from "lucide-react"
+import { Loader2, Search, Users } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useUsers } from "@/hooks/use-users"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 import {
   useOutstanding,
@@ -60,6 +61,7 @@ export function OutstandingContent() {
   const initialView = (searchParams.get("view") as ViewMode) || "date"
   const initialStoreName = searchParams.get("storeName") ?? ""
   const initialPage = Number(searchParams.get("page") ?? 1)
+  const initialUserId = searchParams.get("userId") ?? "all"
 
   const [year, setYear] = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
@@ -67,6 +69,10 @@ export function OutstandingContent() {
   const [storeName, setStoreName] = useState(initialStoreName)
   const [searchStoreName, setSearchStoreName] = useState(initialStoreName)
   const [page, setPage] = useState(initialPage)
+  const [selectedUserId, setSelectedUserId] = useState(initialUserId)
+
+  // 직원 목록 조회
+  const { data: users } = useUsers()
 
   // URL 동기화
   useEffect(() => {
@@ -78,9 +84,10 @@ export function OutstandingContent() {
     } else {
       if (searchStoreName) params.set("storeName", searchStoreName)
     }
+    if (selectedUserId !== "all") params.set("userId", selectedUserId)
     if (page > 1) params.set("page", String(page))
     router.replace(`/admin/outstanding?${params.toString()}`)
-  }, [year, month, view, searchStoreName, page, router])
+  }, [year, month, view, searchStoreName, selectedUserId, page, router])
 
   // 낙관적 업데이트용 토글 상태 맵
   const [toggledItems, setToggledItems] = useState<Map<string, CollectionStatus>>(new Map())
@@ -96,19 +103,21 @@ export function OutstandingContent() {
     setToggledItems(new Map())
     setToggleAdjustments({ amountDelta: 0, countDelta: 0 })
     setPage(1)
-  }, [year, month, view, searchStoreName])
+  }, [year, month, view, searchStoreName, selectedUserId])
 
   // 쿼리 파라미터 구성
   const queryParams: OutstandingParams = useMemo(() => {
+    const userId = selectedUserId !== "all" ? selectedUserId : undefined
     if (view === "date") {
-      return { filter: "date", year, month, page }
+      return { filter: "date", year, month, userId, page }
     }
     return {
       filter: "store",
       ...(searchStoreName ? { storeName: searchStoreName } : {}),
+      userId,
       page,
     }
-  }, [view, year, month, searchStoreName, page])
+  }, [view, year, month, searchStoreName, selectedUserId, page])
 
   // 데이터 조회
   const { data, isLoading, isError } = useOutstanding(queryParams)
@@ -298,6 +307,24 @@ export function OutstandingContent() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 pb-24">
+      {/* 직원 필터 */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Users className="size-4 text-gray-500" />
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="담당자 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체</SelectItem>
+              {users?.map((user) => (
+                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* 필터 컨트롤 */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {view === "date" ? (

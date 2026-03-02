@@ -11,6 +11,7 @@ const dateFilterSchema = z.object({
   filter: z.literal("date"),
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12),
+  userId: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -19,6 +20,7 @@ const dateFilterSchema = z.object({
 const storeFilterSchema = z.object({
   filter: z.literal("store"),
   storeName: z.string().min(1).max(100).optional(),
+  userId: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -46,6 +48,7 @@ export async function GET(request: NextRequest) {
       year: searchParams.get("year") ?? undefined,
       month: searchParams.get("month") ?? undefined,
       storeName: searchParams.get("storeName") ?? undefined,
+      userId: searchParams.get("userId") ?? undefined,
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
     })
@@ -71,7 +74,7 @@ export async function GET(request: NextRequest) {
  * 날짜별 필터: 레코드 단위 페이지네이션
  */
 async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
-  const { year, month, page, limit } = params
+  const { year, month, userId, page, limit } = params
   const targetDate = new Date(year, month - 1, 1)
   const dateStart = startOfMonth(targetDate)
   const dateEnd = endOfMonth(targetDate)
@@ -79,6 +82,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
     date: { gte: dateStart, lte: dateEnd },
+    ...(userId ? { store: { assignedUserId: userId } } : {}),
   }
 
   // 요약 쿼리 + 페이지 쿼리 병렬 실행
@@ -142,7 +146,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
  * 한 매장의 모든 레코드가 항상 같은 페이지에 표시된다.
  */
 async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
-  const { storeName, page, limit } = params
+  const { storeName, userId, page, limit } = params
 
   // 매장 검색 조건
   const where: Prisma.WorkRecordWhereInput = {
@@ -150,6 +154,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     storeNameSnapshot: storeName
       ? { contains: storeName, mode: "insensitive" }
       : { not: null },
+    ...(userId ? { store: { assignedUserId: userId } } : {}),
   }
 
   // 1. 매장명 목록 + 요약 + 상세 레코드를 병렬로 조회
