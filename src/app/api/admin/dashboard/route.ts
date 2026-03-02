@@ -158,9 +158,10 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5)
 
-    // === recentOutstanding: 최근 미수금 5건 ===
+    // === recentOutstanding: 최근 미수금 5건 (오늘 이전만) ===
+    const today = startOfDay(new Date())
     const outstandingRecords = workRecords
-      .filter((r) => r.collectionStatus === "UNCOLLECTED")
+      .filter((r) => r.collectionStatus === "UNCOLLECTED" && r.date < today)
       .sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       )

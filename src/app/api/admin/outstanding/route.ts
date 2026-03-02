@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
-import { startOfMonth, endOfMonth, format } from "date-fns"
+import { startOfMonth, endOfMonth, startOfDay, format } from "date-fns"
 import type { Prisma } from "@/generated/prisma/client"
 
 // 날짜별 필터 스키마
@@ -78,10 +78,11 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const targetDate = new Date(year, month - 1, 1)
   const dateStart = startOfMonth(targetDate)
   const dateEnd = endOfMonth(targetDate)
+  const today = startOfDay(new Date())
 
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
-    date: { gte: dateStart, lte: dateEnd },
+    date: { gte: dateStart, lte: dateEnd, lt: today },
     ...(userId ? { store: { assignedUserId: userId } } : {}),
   }
 
@@ -148,9 +149,11 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
 async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const { storeName, userId, page, limit } = params
 
-  // 매장 검색 조건
+  // 매장 검색 조건 (오늘 이전 레코드만)
+  const today = startOfDay(new Date())
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
+    date: { lt: today },
     storeNameSnapshot: storeName
       ? { contains: storeName, mode: "insensitive" }
       : { not: null },
@@ -191,6 +194,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     ? await prisma.workRecord.findMany({
         where: {
           collectionStatus: "UNCOLLECTED",
+          date: { lt: today },
           storeNameSnapshot: { in: pageStoreNames },
         },
         include: {

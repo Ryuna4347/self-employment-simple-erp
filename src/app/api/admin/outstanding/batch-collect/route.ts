@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
+import { startOfDay } from "date-fns"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
@@ -28,12 +29,41 @@ export async function POST(request: NextRequest) {
 
     const { ids, collectionStatus } = parseResult.data
 
-    const result = await prisma.workRecord.updateMany({
-      where: { id: { in: ids } },
-      data: { collectionStatus },
+    // 오늘 날짜의 레코드는 수금처리 대상에서 제외
+    const today = startOfDay(new Date())
+
+    const result = await prisma.$transaction(async (tx) => {
+      const targetRecords = await tx.workRecord.findMany({
+        where: {
+          id: { in: ids },
+          date: { lt: today },
+        },
+        select: { id: true },
+      })
+
+      const targetIds = targetRecords.map((r) => r.id)
+
+      if (targetIds.length === 0) {
+        return { updatedCount: 0 }
+      }
+
+      const updateResult = await tx.workRecord.updateMany({
+        where: { id: { in: targetIds } },
+        data: { collectionStatus },
+      })
+
+      // 수금 완료 시 품목 금액을 0으로 설정
+      if (collectionStatus === "COLLECTED") {
+        await tx.recordItem.updateMany({
+          where: { workRecordId: { in: targetIds } },
+          data: { amount: 0 },
+        })
+      }
+
+      return { updatedCount: updateResult.count }
     })
 
-    return apiSuccess({ updatedCount: result.count })
+    return apiSuccess(result)
   } catch (error) {
     console.error("일괄 수금 처리 오류:", error)
     return ApiErrors.internalError("일괄 수금 처리 중 오류가 발생했습니다")
