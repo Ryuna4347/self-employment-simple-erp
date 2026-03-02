@@ -33,6 +33,13 @@ function formatPaymentType(type: PaymentType): string {
   return typeMap[type];
 }
 
+// 결제 방식별 색상 설정
+export const PAYMENT_TYPE_CONFIG: Record<PaymentType, { color: string; label: string }> = {
+  CASH: { color: "text-green-600", label: "현금" },
+  ACCOUNT: { color: "text-violet-600", label: "계좌이체" },
+  CARD: { color: "text-orange-500", label: "카드" },
+};
+
 // 수금 상태별 설정
 const COLLECTION_STATUS_CONFIG: Record<CollectionStatus, { color: string; barColor: string; label: string }> = {
   COLLECTED: { color: "text-blue-600", barColor: "bg-blue-500", label: "수금 완료" },
@@ -125,7 +132,7 @@ export function WorkRecordCard({ record, onEdit, onDelete, onCollect, userRole, 
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="text-right">
                 <p className="text-sm text-gray-500">합계</p>
-                <p className="text-lg font-bold text-gray-900">
+                <p className={cn("text-lg font-bold", PAYMENT_TYPE_CONFIG[record.paymentTypeSnapshot].color)}>
                   {totalAmount.toLocaleString()}원
                 </p>
               </div>

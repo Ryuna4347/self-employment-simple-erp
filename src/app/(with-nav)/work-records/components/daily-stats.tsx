@@ -1,5 +1,7 @@
 "use client";
 
+import type { PaymentType } from "@/generated/prisma/client";
+import { PAYMENT_TYPE_CONFIG } from "./work-record-card";
 import { DailySummary } from "../types";
 
 interface DailyStatsProps {
@@ -39,6 +41,17 @@ export function DailyStats({ summary }: DailyStatsProps) {
             <p className="font-semibold">
               {summary.collectedSales.toLocaleString()}원
             </p>
+            {summary.collectedSales > 0 && (
+              <div className="mt-1.5 space-y-0.5 text-xs text-blue-100">
+                {(Object.entries(summary.collectedByPaymentType) as [PaymentType, number][])
+                  .filter(([, amount]) => amount > 0)
+                  .map(([type, amount]) => (
+                    <p key={type}>
+                      {PAYMENT_TYPE_CONFIG[type].label} {amount.toLocaleString()}원
+                    </p>
+                  ))}
+              </div>
+            )}
           </div>
           <div className="text-right">
             <p className="text-blue-100 mb-0.5">미수금</p>

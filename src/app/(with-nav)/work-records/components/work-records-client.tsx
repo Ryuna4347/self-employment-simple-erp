@@ -53,19 +53,21 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     let totalSales = 0
     let collectedSales = 0
     let uncollectedSales = 0
+    const collectedByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
 
     workRecords.forEach((record) => {
       const amount = record.items.reduce((sum, item) => sum + item.amount, 0)
       totalSales += amount
       if (record.collectionStatus === "COLLECTED") {
         collectedSales += amount
+        collectedByPaymentType[record.paymentTypeSnapshot] += amount
       } else if (record.collectionStatus === "UNCOLLECTED") {
         uncollectedSales += amount
       }
       // CLOSED: items가 없으므로 amount = 0
     })
 
-    return { totalVisits, totalSales, collectedSales, uncollectedSales }
+    return { totalVisits, totalSales, collectedSales, uncollectedSales, collectedByPaymentType }
   }, [workRecords])
 
   // 이미 기록이 있는 매장 ID 집합 (코스 적용 모달에서 사용)
