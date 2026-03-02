@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
 
   const { date, storeId, storeName, storeAddress, paymentType, managerName, collectionStatus, imageUrl, note, items } = parseResult.data
 
-  // storeId가 있으면 매장 존재 여부 확인
+  // storeId가 있으면 매장 존재 여부 확인 + 동일 날짜 중복 체크
   if (storeId) {
     const store = await prisma.store.findUnique({
       where: { id: storeId },
@@ -163,6 +163,21 @@ export async function POST(request: NextRequest) {
 
     if (!store) {
       return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
+    }
+
+    // 동일 날짜 + 동일 매장 중복 체크
+    const targetDate = parseISO(date)
+    const existing = await prisma.workRecord.findFirst({
+      where: {
+        userId: user.id,
+        storeId,
+        date: { gte: startOfDay(targetDate), lte: endOfDay(targetDate) },
+      },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return ApiErrors.alreadyExists("해당 날짜에 이미 등록된 매장입니다")
     }
   }
 
