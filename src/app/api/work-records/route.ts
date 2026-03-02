@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { sortOrder: "asc" }],
   })
 
   // 매장별 미수 집계 (현재 날짜 제외)

@@ -87,6 +87,7 @@ model WorkRecord {
   storeAddressSnapshot String?      // 주소 스냅샷
   managerNameSnapshot  String?      // 담당자 스냅샷
   paymentTypeSnapshot  PaymentType  // 결제 방식 스냅샷
+  sortOrder            Int          @default(0) // 코스 적용 시 정렬 순서
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
   items                RecordItem[]

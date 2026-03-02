@@ -132,6 +132,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           userId: user.id,
           collectionStatus: "UNCOLLECTED" as const,
           paymentTypeSnapshot: member.store.PaymentType,
+          sortOrder: member.order,
         })),
       })
 

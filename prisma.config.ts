@@ -9,6 +9,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // CLI(마이그레이션)는 세션 모드(DIRECT_URL), 없으면 DATABASE_URL 폴백
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });
