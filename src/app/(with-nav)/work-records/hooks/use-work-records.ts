@@ -75,6 +75,9 @@ export interface WorkRecordResponse {
   store: WorkRecordStore | null // nullable (직접 입력 시 null)
   items: WorkRecordItem[]
   user: WorkRecordUser
+  // 수금 추적 정보
+  collectedAt: string | null
+  collectedBy: WorkRecordUser | null
   // 해당 매장의 다른 날짜 미수 집계 (현재 날짜 제외)
   storeOutstanding?: StoreOutstanding | null
 }

@@ -17,6 +17,8 @@ export interface StoreGroupRecord {
   date: string
   totalAmount: number
   collectionStatus: CollectionStatus
+  collectedAt: string | null
+  collectedByName: string | null
 }
 
 export interface StoreGroup {
@@ -104,6 +106,11 @@ export function StoreOutstandingCard({
                 >
                   {record.totalAmount.toLocaleString()}원
                 </span>
+                {isCollected && record.collectedAt && (
+                  <span className="text-xs text-blue-400">
+                    ({record.collectedByName})
+                  </span>
+                )}
                 <button
                   type="button"
                   className={`text-xs px-1.5 py-0.5 rounded ${

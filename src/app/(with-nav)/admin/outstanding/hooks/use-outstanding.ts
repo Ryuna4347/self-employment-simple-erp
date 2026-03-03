@@ -14,6 +14,8 @@ export interface OutstandingRecord {
   collectionStatus: CollectionStatus
   totalAmount: number
   userName: string
+  collectedAt: string | null
+  collectedByName: string | null
 }
 
 // 페이지네이션 정보

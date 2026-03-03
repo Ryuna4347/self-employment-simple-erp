@@ -97,6 +97,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
       include: {
         items: true,
         user: { select: { name: true } },
+        collectedBy: { select: { name: true } },
       },
       orderBy: { date: "desc" },
       skip: (page - 1) * limit,
@@ -120,6 +121,8 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
     collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
+    collectedAt: record.collectedAt ? format(record.collectedAt, "yyyy-MM-dd HH:mm") : null,
+    collectedByName: record.collectedBy?.name ?? null,
   }))
 
   const totalPages = Math.ceil(totalCount / limit)
@@ -200,6 +203,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
         include: {
           items: true,
           user: { select: { name: true } },
+          collectedBy: { select: { name: true } },
         },
         orderBy: [
           { storeNameSnapshot: "asc" },
@@ -218,6 +222,8 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
+    collectedAt: record.collectedAt ? format(record.collectedAt, "yyyy-MM-dd HH:mm") : null,
+    collectedByName: record.collectedBy?.name ?? null,
   }))
 
   return NextResponse.json({

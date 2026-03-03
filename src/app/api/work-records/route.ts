@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
       store: { select: { id: true, name: true, address: true, managerName: true } },
       items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
+      collectedBy: { select: { id: true, name: true } },
     },
     orderBy: [{ createdAt: "asc" }, { sortOrder: "asc" }],
   })
@@ -193,6 +194,10 @@ export async function POST(request: NextRequest) {
       ...(storeId ? { store: { connect: { id: storeId } } } : {}),
       user: { connect: { id: user.id } },
       collectionStatus,
+      ...(collectionStatus === "COLLECTED" && {
+        collectedAt: new Date(),
+        collectedBy: { connect: { id: user.id } },
+      }),
       imageUrl: imageUrl || null,
       note: note || null,
       // 스냅샷 필드 (항상 요청값 사용)
@@ -214,6 +219,7 @@ export async function POST(request: NextRequest) {
       store: { select: { id: true, name: true, address: true, managerName: true } },
       items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
+      collectedBy: { select: { id: true, name: true } },
     },
   })
 

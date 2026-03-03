@@ -22,6 +22,8 @@ export interface OutstandingRecord {
   collectionStatus: CollectionStatus
   totalAmount: number
   userName: string
+  collectedAt: string | null
+  collectedByName: string | null
 }
 
 interface OutstandingCardProps {
@@ -72,17 +74,24 @@ export function OutstandingCard({ record, onToggle, isToggling }: OutstandingCar
         )}
       </div>
 
-      {/* Row 4: 금액 + 토글 버튼 */}
+      {/* Row 4: 금액 + 수금 정보 + 토글 버튼 */}
       <div className="flex items-center justify-between mt-3">
-        <span
-          className={
-            isCollected
-              ? "text-blue-600 font-semibold line-through"
-              : "text-red-600 font-semibold"
-          }
-        >
-          {record.totalAmount.toLocaleString()}원
-        </span>
+        <div>
+          <span
+            className={
+              isCollected
+                ? "text-blue-600 font-semibold line-through"
+                : "text-red-600 font-semibold"
+            }
+          >
+            {record.totalAmount.toLocaleString()}원
+          </span>
+          {isCollected && record.collectedAt && (
+            <p className="text-xs text-blue-500 mt-0.5">
+              {record.collectedByName ?? "알 수 없음"} · {record.collectedAt}
+            </p>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"

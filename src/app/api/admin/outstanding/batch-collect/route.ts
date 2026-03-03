@@ -18,6 +18,7 @@ const batchCollectSchema = z.object({
 export async function POST(request: NextRequest) {
   const authResult = await requireAdmin()
   if (isErrorResponse(authResult)) return authResult
+  const { user } = authResult
 
   try {
     const body = await request.json()
@@ -49,7 +50,12 @@ export async function POST(request: NextRequest) {
 
       const updateResult = await tx.workRecord.updateMany({
         where: { id: { in: targetIds } },
-        data: { collectionStatus },
+        data: {
+          collectionStatus,
+          ...(collectionStatus === "COLLECTED"
+            ? { collectedAt: new Date(), collectedByUserId: user.id }
+            : { collectedAt: null, collectedByUserId: null }),
+        },
       })
 
       // 수금 완료 시 품목 금액을 0으로 설정

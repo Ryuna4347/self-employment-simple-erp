@@ -85,6 +85,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { collectionStatus, imageUrl, note, items } = parseResult.data
 
+  // 수금 추적 필드 결정
+  let collectionTrackingData: { collectedAt: Date | null; collectedByUserId: string | null } | undefined
+
+  if (collectionStatus !== undefined) {
+    if (collectionStatus === "COLLECTED" && workRecord.collectionStatus !== "COLLECTED") {
+      // UNCOLLECTED/CLOSED → COLLECTED: 수금 시점 + 수금자 기록
+      collectionTrackingData = { collectedAt: new Date(), collectedByUserId: user.id }
+    } else if (collectionStatus !== "COLLECTED" && workRecord.collectionStatus === "COLLECTED") {
+      // COLLECTED → UNCOLLECTED/CLOSED: 초기화
+      collectionTrackingData = { collectedAt: null, collectedByUserId: null }
+    }
+  }
+
   // 휴업&폐업으로 변경 시 items 강제 삭제
   const isClosed = collectionStatus === "CLOSED"
 
@@ -106,6 +119,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       where: { id },
       data: {
         ...(collectionStatus !== undefined && { collectionStatus }),
+        ...(collectionTrackingData && collectionTrackingData),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(note !== undefined && { note: note || null }),
         ...(!isClosed && items && {
@@ -122,6 +136,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         store: { select: { id: true, name: true, address: true, managerName: true } },
         items: { select: { id: true, name: true, amount: true, quantity: true } },
         user: { select: { id: true, name: true } },
+        collectedBy: { select: { id: true, name: true } },
       },
     })
   })

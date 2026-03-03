@@ -20,8 +20,9 @@ model User {
   expenses       Expense[]
   RefreshToken   RefreshToken[]
   storeTemplates StoreTemplate[]
-  workRecords    WorkRecord[]
-  assignedStores Store[]         @relation("assignedStores")
+  workRecords           WorkRecord[]
+  collectedWorkRecords  WorkRecord[]  @relation("collectedByUser")
+  assignedStores        Store[]       @relation("assignedStores")
 }
 
 model Store {
@@ -91,9 +92,12 @@ model WorkRecord {
   sortOrder            Int          @default(0) // 코스 적용 시 정렬 순서
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+  collectedAt          DateTime?    // 수금완료 처리 시점
+  collectedByUserId    String?      // 수금완료 처리한 사용자
   items                RecordItem[]
   store                Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
   user                 User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  collectedBy          User?        @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
 }
 
 model RecordItem {

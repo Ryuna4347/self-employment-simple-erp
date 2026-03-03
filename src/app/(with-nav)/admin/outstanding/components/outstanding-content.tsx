@@ -170,6 +170,8 @@ export function OutstandingContent() {
         date: record.date,
         totalAmount: record.totalAmount,
         collectionStatus: record.collectionStatus,
+        collectedAt: record.collectedAt,
+        collectedByName: record.collectedByName,
       })
     }
 
