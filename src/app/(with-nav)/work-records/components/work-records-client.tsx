@@ -1,7 +1,10 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { format } from "date-fns"
+import { Search } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { CalendarHeader } from "./calendar-header"
 import { DailyStats } from "./daily-stats"
 import { WorkRecordList } from "./work-record-list"
@@ -15,7 +18,6 @@ import {
   useUpdateWorkRecord,
   type WorkRecordResponse,
 } from "../hooks/use-work-records"
-import type { DailySummary } from "../types"
 
 interface WorkRecordsClientProps {
   userId: string
@@ -25,6 +27,9 @@ interface WorkRecordsClientProps {
 export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
+  const [storeName, setStoreName] = useState("")
+  const [searchStoreName, setSearchStoreName] = useState("")
+  const [page, setPage] = useState(1)
 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
@@ -34,10 +39,21 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
 
-  const { data: workRecords = [], isLoading, error, refetch, isFetching } = useWorkRecords(
+  const { data, isLoading, error, refetch, isFetching } = useWorkRecords(
     dateString,
-    isAdmin ? selectedUserId : undefined
+    isAdmin ? selectedUserId : undefined,
+    page,
+    searchStoreName || undefined
   )
+
+  const records = data?.records ?? []
+  const summary = data?.summary
+  const pagination = data?.pagination
+
+  // 필터 변경 시 페이지 초기화
+  useEffect(() => {
+    setPage(1)
+  }, [selectedDate, selectedUserId, searchStoreName])
 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()
@@ -48,36 +64,21 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     ? updateMutation.variables.id
     : null
 
-  const dailySummary = useMemo((): DailySummary => {
-    const totalVisits = workRecords.length
-    let totalSales = 0
-    let collectedSales = 0
-    let uncollectedSales = 0
-    const collectedByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+  // DailyStats용 summary (서버에서 계산된 전체 날짜 기준)
+  const dailySummary = useMemo(() => {
+    if (!summary) return { totalVisits: 0, totalSales: 0, collectedSales: 0, uncollectedSales: 0, collectedByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 } }
+    return summary
+  }, [summary])
 
-    workRecords.forEach((record) => {
-      const amount = record.items.reduce((sum, item) => sum + item.amount, 0)
-      totalSales += amount
-      if (record.collectionStatus === "COLLECTED") {
-        collectedSales += amount
-        collectedByPaymentType[record.paymentTypeSnapshot] += amount
-      } else if (record.collectionStatus === "UNCOLLECTED") {
-        uncollectedSales += amount
-      }
-      // CLOSED: items가 없으므로 amount = 0
-    })
-
-    return { totalVisits, totalSales, collectedSales, uncollectedSales, collectedByPaymentType }
-  }, [workRecords])
-
-  // 이미 기록이 있는 매장 ID 집합 (코스 적용 모달에서 사용)
+  // 이미 기록이 있는 매장 ID 집합 (코스 적용 모달에서 사용, 서버에서 전체 기준)
   const existingStoreIds = useMemo(() => {
-    return new Set(
-      workRecords
-        .map((r) => r.storeId)
-        .filter((id): id is string => id !== null)
-    )
-  }, [workRecords])
+    return new Set(data?.existingStoreIds ?? [])
+  }, [data?.existingStoreIds])
+
+  // 매장명 검색 실행
+  const handleSearch = useCallback(() => {
+    setSearchStoreName(storeName.trim())
+  }, [storeName])
 
   // 근무기록 추가 모달 열기
   const handleAddRecord = () => {
@@ -126,12 +127,53 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
         <DailyStats summary={dailySummary} />
 
+        {/* 매장명 검색 */}
+        <div className="flex gap-1.5 mb-4">
+          <Input
+            className="h-8 text-sm"
+            placeholder="매장명 검색"
+            value={storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch()
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={handleSearch}>
+            <Search className="size-4" />
+          </Button>
+        </div>
+
         {isLoading ? (
           <div className="text-center py-8 text-gray-500">로딩 중...</div>
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={workRecords} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
+          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
+        )}
+
+        {/* 페이지네이션 */}
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasPrev}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              이전
+            </Button>
+            <span className="text-sm text-gray-600">
+              {pagination.page} / {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasNext}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              다음
+            </Button>
+          </div>
         )}
 
         <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} onRefresh={() => refetch()} isRefreshing={isFetching} />

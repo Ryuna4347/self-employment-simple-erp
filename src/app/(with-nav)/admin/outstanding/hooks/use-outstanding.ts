@@ -47,6 +47,7 @@ export type DateFilterParams = {
   year: number
   month: number
   userId?: string
+  search?: string
   page: number
 }
 
@@ -60,7 +61,7 @@ export type StoreFilterParams = {
 export type OutstandingParams = DateFilterParams | StoreFilterParams
 
 // 페이지당 항목 수
-export const OUTSTANDING_LIMIT = 20
+export const OUTSTANDING_LIMIT = 100
 
 // 쿼리 키
 export const OUTSTANDING_KEY = ["admin", "outstanding"] as const
@@ -85,6 +86,9 @@ export function useOutstanding(params: OutstandingParams) {
       if (params.filter === "date") {
         searchParams.set("year", String(params.year))
         searchParams.set("month", String(params.month))
+        if (params.search) {
+          searchParams.set("search", params.search)
+        }
       } else if (params.storeName) {
         searchParams.set("storeName", params.storeName)
       }

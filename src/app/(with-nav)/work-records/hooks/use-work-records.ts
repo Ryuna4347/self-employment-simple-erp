@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { STORE_VISITS_KEY } from "./use-store-visits"
 import type { PaymentType } from "@/generated/prisma/client"
@@ -82,23 +82,54 @@ export interface WorkRecordResponse {
   storeOutstanding?: StoreOutstanding | null
 }
 
-interface ApiResponse {
-  data: WorkRecordResponse[]
+// 일별 통계 (서버에서 계산)
+export interface WorkRecordsSummary {
+  totalVisits: number
+  totalSales: number
+  collectedSales: number
+  uncollectedSales: number
+  collectedByPaymentType: Record<PaymentType, number>
 }
 
-const WORK_RECORDS_KEY = ["work-records"] as const
+// 페이지네이션 정보
+interface PaginationInfo {
+  page: number
+  limit: number
+  totalCount: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+// API 응답 타입
+interface WorkRecordsApiResponse {
+  data: {
+    records: WorkRecordResponse[]
+    summary: WorkRecordsSummary
+    existingStoreIds: string[]
+    pagination: PaginationInfo
+  }
+}
+
+export const WORK_RECORDS_KEY = ["work-records"] as const
 const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
-export function useWorkRecords(date: string, userId?: string) {
+export const WORK_RECORDS_LIMIT = 100
+
+export function useWorkRecords(date: string, userId?: string, page: number = 1, search?: string) {
   return useQuery({
-    queryKey: [...WORK_RECORDS_KEY, { date, userId }],
+    queryKey: [...WORK_RECORDS_KEY, { date, userId, page, search }],
     queryFn: async () => {
       const params = new URLSearchParams({ date })
       if (userId) params.set("userId", userId)
-      const response = await apiClient<ApiResponse>(`/api/work-records?${params.toString()}`)
+      if (search) params.set("search", search)
+      params.set("page", String(page))
+      params.set("limit", String(WORK_RECORDS_LIMIT))
+      const response = await apiClient<WorkRecordsApiResponse>(`/api/work-records?${params.toString()}`)
       return response.data
     },
     enabled: !!date,
+    placeholderData: keepPreviousData,
   })
 }
 

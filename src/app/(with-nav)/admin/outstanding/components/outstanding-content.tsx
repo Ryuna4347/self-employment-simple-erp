@@ -1,43 +1,43 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Loader2, Search, Users } from "lucide-react"
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Loader2, Search, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useUsers } from "@/hooks/use-users"
-import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useUsers } from "@/hooks/use-users";
+import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records";
 import {
   useOutstanding,
   useToggleCollection,
   useBatchToggleCollection,
   type OutstandingParams,
-} from "../hooks/use-outstanding"
-import { OutstandingCard } from "./outstanding-card"
-import { StoreOutstandingCard } from "./store-outstanding-card"
-import type { StoreGroup } from "./store-outstanding-card"
+} from "../hooks/use-outstanding";
+import { OutstandingCard } from "./outstanding-card";
+import { StoreOutstandingCard } from "./store-outstanding-card";
+import type { StoreGroup } from "./store-outstanding-card";
 
-type ViewMode = "date" | "store"
+type ViewMode = "date" | "store";
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
-  const currentYear = new Date().getFullYear()
-  const years: number[] = []
+  const currentYear = new Date().getFullYear();
+  const years: number[] = [];
   for (let y = 2024; y <= currentYear; y++) {
-    years.push(y)
+    years.push(y);
   }
-  return years
+  return years;
 }
 
 // 월 옵션 (1~12)
-const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1)
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /**
  * 미수금 관리 메인 컨텐츠
@@ -47,111 +47,120 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1)
  * 매장별: 매장명 검색 텍스트필드, 매장 단위 페이지네이션
  */
 export function OutstandingContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const now = new Date()
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const now = new Date();
 
   // URL에서 초기값 읽기
   const initialYear = searchParams.get("year")
     ? Number(searchParams.get("year"))
-    : now.getFullYear()
+    : now.getFullYear();
   const initialMonth = searchParams.get("month")
     ? Number(searchParams.get("month"))
-    : now.getMonth() + 1
-  const initialView = (searchParams.get("view") as ViewMode) || "date"
-  const initialStoreName = searchParams.get("storeName") ?? ""
-  const initialPage = Number(searchParams.get("page") ?? 1)
-  const initialUserId = searchParams.get("userId") ?? "all"
+    : now.getMonth() + 1;
+  const initialView = (searchParams.get("view") as ViewMode) || "date";
+  const initialStoreName = searchParams.get("storeName") ?? "";
+  const initialPage = Number(searchParams.get("page") ?? 1);
+  const initialUserId = searchParams.get("userId") ?? "all";
 
-  const [year, setYear] = useState(initialYear)
-  const [month, setMonth] = useState(initialMonth)
-  const [view, setView] = useState<ViewMode>(initialView)
-  const [storeName, setStoreName] = useState(initialStoreName)
-  const [searchStoreName, setSearchStoreName] = useState(initialStoreName)
-  const [page, setPage] = useState(initialPage)
-  const [selectedUserId, setSelectedUserId] = useState(initialUserId)
+  const [year, setYear] = useState(initialYear);
+  const [month, setMonth] = useState(initialMonth);
+  const [view, setView] = useState<ViewMode>(initialView);
+  const [storeName, setStoreName] = useState(initialStoreName);
+  const [searchStoreName, setSearchStoreName] = useState(initialStoreName);
+  const [page, setPage] = useState(initialPage);
+  const [selectedUserId, setSelectedUserId] = useState(initialUserId);
 
   // 직원 목록 조회
-  const { data: users } = useUsers()
+  const { data: users } = useUsers();
 
   // URL 동기화
   useEffect(() => {
-    const params = new URLSearchParams()
-    params.set("view", view)
+    const params = new URLSearchParams();
+    params.set("view", view);
     if (view === "date") {
-      params.set("year", String(year))
-      params.set("month", String(month))
-    } else {
-      if (searchStoreName) params.set("storeName", searchStoreName)
+      params.set("year", String(year));
+      params.set("month", String(month));
     }
-    if (selectedUserId !== "all") params.set("userId", selectedUserId)
-    if (page > 1) params.set("page", String(page))
-    router.replace(`/admin/outstanding?${params.toString()}`)
-  }, [year, month, view, searchStoreName, selectedUserId, page, router])
+    if (searchStoreName) params.set("storeName", searchStoreName);
+    if (selectedUserId !== "all") params.set("userId", selectedUserId);
+    if (page > 1) params.set("page", String(page));
+    router.replace(`/admin/outstanding?${params.toString()}`);
+  }, [year, month, view, searchStoreName, selectedUserId, page, router]);
 
   // 낙관적 업데이트용 토글 상태 맵
-  const [toggledItems, setToggledItems] = useState<Map<string, CollectionStatus>>(new Map())
+  const [toggledItems, setToggledItems] = useState<
+    Map<string, CollectionStatus>
+  >(new Map());
 
   // 낙관적 요약 보정 (페이지 간 누적)
   const [toggleAdjustments, setToggleAdjustments] = useState({
     amountDelta: 0,
     countDelta: 0,
-  })
+  });
 
   // 필터 파라미터 변경 시 토글 상태 + 페이지 초기화
   useEffect(() => {
-    setToggledItems(new Map())
-    setToggleAdjustments({ amountDelta: 0, countDelta: 0 })
-    setPage(1)
-  }, [year, month, view, searchStoreName, selectedUserId])
+    setToggledItems(new Map());
+    setToggleAdjustments({ amountDelta: 0, countDelta: 0 });
+    setPage(1);
+  }, [year, month, view, searchStoreName, selectedUserId]);
 
   // 쿼리 파라미터 구성
   const queryParams: OutstandingParams = useMemo(() => {
-    const userId = selectedUserId !== "all" ? selectedUserId : undefined
+    const userId = selectedUserId !== "all" ? selectedUserId : undefined;
     if (view === "date") {
-      return { filter: "date", year, month, userId, page }
+      return {
+        filter: "date",
+        year,
+        month,
+        userId,
+        page,
+        ...(searchStoreName ? { search: searchStoreName } : {}),
+      };
     }
     return {
       filter: "store",
       ...(searchStoreName ? { storeName: searchStoreName } : {}),
       userId,
       page,
-    }
-  }, [view, year, month, searchStoreName, selectedUserId, page])
+    };
+  }, [view, year, month, searchStoreName, selectedUserId, page]);
 
   // 데이터 조회
-  const { data, isLoading, isError } = useOutstanding(queryParams)
-  const toggleMutation = useToggleCollection()
-  const batchMutation = useBatchToggleCollection()
+  const { data, isLoading, isError } = useOutstanding(queryParams);
+  const toggleMutation = useToggleCollection();
+  const batchMutation = useBatchToggleCollection();
 
   // 토글 상태가 반영된 레코드 목록
   const displayRecords = useMemo(() => {
-    if (!data?.records) return []
+    if (!data?.records) return [];
     return data.records.map((record) => ({
       ...record,
       collectionStatus: toggledItems.has(record.id)
         ? toggledItems.get(record.id)!
         : record.collectionStatus,
-    }))
-  }, [data, toggledItems])
+    }));
+  }, [data, toggledItems]);
 
   // 동적 요약 (서버 summary + 낙관적 보정)
   const dynamicSummary = useMemo(() => {
-    if (!data) return { totalOutstanding: 0, count: 0 }
+    if (!data) return { totalOutstanding: 0, count: 0 };
     return {
-      totalOutstanding: data.summary.totalOutstanding + toggleAdjustments.amountDelta,
+      totalOutstanding:
+        data.summary.totalOutstanding + toggleAdjustments.amountDelta,
       count: data.summary.count + toggleAdjustments.countDelta,
-    }
-  }, [data, toggleAdjustments])
+    };
+  }, [data, toggleAdjustments]);
 
   // 매장별 그룹핑 (store 모드에서만 사용)
   const storeGroups = useMemo((): StoreGroup[] => {
-    if (view !== "store" || !displayRecords.length) return []
+    if (view !== "store" || !displayRecords.length) return [];
 
-    const groupMap = new Map<string, StoreGroup>()
+    const groupMap = new Map<string, StoreGroup>();
 
     for (const record of displayRecords) {
-      const key = record.storeNameSnapshot ?? "-"
+      const key = record.storeNameSnapshot ?? "-";
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
@@ -161,10 +170,10 @@ export function OutstandingContent() {
           managerName: record.managerNameSnapshot,
           records: [],
           totalAmount: 0,
-        })
+        });
       }
 
-      const group = groupMap.get(key)!
+      const group = groupMap.get(key)!;
       group.records.push({
         id: record.id,
         date: record.date,
@@ -172,45 +181,47 @@ export function OutstandingContent() {
         collectionStatus: record.collectionStatus,
         collectedAt: record.collectedAt,
         collectedByName: record.collectedByName,
-      })
+      });
     }
 
     // 미수금 합계 계산
     for (const group of groupMap.values()) {
       group.totalAmount = group.records
         .filter((r) => r.collectionStatus === "UNCOLLECTED")
-        .reduce((sum, r) => sum + r.totalAmount, 0)
+        .reduce((sum, r) => sum + r.totalAmount, 0);
     }
 
     // 미수금 합계 내림차순 정렬
     return Array.from(groupMap.values()).sort(
-      (a, b) => b.totalAmount - a.totalAmount
-    )
-  }, [view, displayRecords])
+      (a, b) => b.totalAmount - a.totalAmount,
+    );
+  }, [view, displayRecords]);
 
   // 토글 중인 레코드 ID
-  const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // 일괄 수금 처리 중인 매장명
-  const [batchTogglingStore, setBatchTogglingStore] = useState<string | null>(null)
+  const [batchTogglingStore, setBatchTogglingStore] = useState<string | null>(
+    null,
+  );
 
   // 수금 상태 토글 핸들러 (낙관적 업데이트)
   const handleToggle = useCallback(
     (id: string, newCollectionStatus: CollectionStatus) => {
-      setTogglingId(id)
+      setTogglingId(id);
 
       // 낙관적 업데이트
-      setToggledItems((prev) => new Map(prev).set(id, newCollectionStatus))
+      setToggledItems((prev) => new Map(prev).set(id, newCollectionStatus));
 
       // 요약 보정: 수금 완료 → 금액/건수 감소, 미수 처리 → 증가
-      const record = data?.records.find((r) => r.id === id)
-      const isCollecting = newCollectionStatus === "COLLECTED"
+      const record = data?.records.find((r) => r.id === id);
+      const isCollecting = newCollectionStatus === "COLLECTED";
       if (record) {
-        const amount = record.totalAmount
+        const amount = record.totalAmount;
         setToggleAdjustments((prev) => ({
           amountDelta: prev.amountDelta + (isCollecting ? -amount : amount),
           countDelta: prev.countDelta + (isCollecting ? -1 : 1),
-        }))
+        }));
       }
 
       toggleMutation.mutate(
@@ -219,52 +230,55 @@ export function OutstandingContent() {
           onError: () => {
             // 실패 시 롤백
             setToggledItems((prev) => {
-              const next = new Map(prev)
-              next.delete(id)
-              return next
-            })
+              const next = new Map(prev);
+              next.delete(id);
+              return next;
+            });
             // 요약 보정 롤백
             if (record) {
-              const amount = record.totalAmount
+              const amount = record.totalAmount;
               setToggleAdjustments((prev) => ({
-                amountDelta: prev.amountDelta + (isCollecting ? amount : -amount),
+                amountDelta:
+                  prev.amountDelta + (isCollecting ? amount : -amount),
                 countDelta: prev.countDelta + (isCollecting ? 1 : -1),
-              }))
+              }));
             }
           },
           onSettled: () => {
-            setTogglingId(null)
+            setTogglingId(null);
           },
-        }
-      )
+        },
+      );
     },
-    [toggleMutation, data]
-  )
+    [toggleMutation, data],
+  );
 
   // 일괄 수금 처리 핸들러 (낙관적 업데이트)
   const handleBatchCollect = useCallback(
     (ids: string[]) => {
-      const storeName = displayRecords.find((r) => ids.includes(r.id))?.storeNameSnapshot
-      setBatchTogglingStore(storeName ?? null)
+      const storeName = displayRecords.find((r) =>
+        ids.includes(r.id),
+      )?.storeNameSnapshot;
+      setBatchTogglingStore(storeName ?? null);
 
       // 낙관적 업데이트: 모든 ID를 수금 완료로 설정
       setToggledItems((prev) => {
-        const next = new Map(prev)
+        const next = new Map(prev);
         for (const id of ids) {
-          next.set(id, "COLLECTED")
+          next.set(id, "COLLECTED");
         }
-        return next
-      })
+        return next;
+      });
 
       // 요약 보정
       const totalAmount = ids.reduce((sum, id) => {
-        const record = data?.records.find((r) => r.id === id)
-        return sum + (record?.totalAmount ?? 0)
-      }, 0)
+        const record = data?.records.find((r) => r.id === id);
+        return sum + (record?.totalAmount ?? 0);
+      }, 0);
       setToggleAdjustments((prev) => ({
         amountDelta: prev.amountDelta - totalAmount,
         countDelta: prev.countDelta - ids.length,
-      }))
+      }));
 
       batchMutation.mutate(
         { ids, collectionStatus: "COLLECTED" },
@@ -272,40 +286,40 @@ export function OutstandingContent() {
           onError: () => {
             // 실패 시 롤백
             setToggledItems((prev) => {
-              const next = new Map(prev)
+              const next = new Map(prev);
               for (const id of ids) {
-                next.delete(id)
+                next.delete(id);
               }
-              return next
-            })
+              return next;
+            });
             setToggleAdjustments((prev) => ({
               amountDelta: prev.amountDelta + totalAmount,
               countDelta: prev.countDelta + ids.length,
-            }))
+            }));
           },
           onSettled: () => {
-            setBatchTogglingStore(null)
+            setBatchTogglingStore(null);
           },
-        }
-      )
+        },
+      );
     },
-    [batchMutation, displayRecords, data]
-  )
+    [batchMutation, displayRecords, data],
+  );
 
   // 매장명 검색 실행
   const handleStoreSearch = useCallback(() => {
-    setSearchStoreName(storeName.trim())
-  }, [storeName])
+    setSearchStoreName(storeName.trim());
+  }, [storeName]);
 
   // 뷰 모드 전환
   const handleViewChange = useCallback((newView: ViewMode) => {
-    setView(newView)
-    setPage(1)
-    setToggledItems(new Map())
-    setToggleAdjustments({ amountDelta: 0, countDelta: 0 })
-  }, [])
+    setView(newView);
+    setPage(1);
+    setToggledItems(new Map());
+    setToggleAdjustments({ amountDelta: 0, countDelta: 0 });
+  }, []);
 
-  const yearOptions = getYearOptions()
+  const yearOptions = getYearOptions();
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-4 pb-24">
@@ -320,7 +334,9 @@ export function OutstandingContent() {
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
               {users?.map((user) => (
-                <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                <SelectItem key={user.id} value={user.id}>
+                  {user.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -328,11 +344,14 @@ export function OutstandingContent() {
       </div>
 
       {/* 필터 컨트롤 */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {view === "date" ? (
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {view === "date" && (
           <>
             {/* 연도 선택 */}
-            <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <Select
+              value={String(year)}
+              onValueChange={(v) => setYear(Number(v))}
+            >
               <SelectTrigger className="w-[100px]" size="sm">
                 <SelectValue />
               </SelectTrigger>
@@ -346,7 +365,10 @@ export function OutstandingContent() {
             </Select>
 
             {/* 월 선택 */}
-            <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+            <Select
+              value={String(month)}
+              onValueChange={(v) => setMonth(Number(v))}
+            >
               <SelectTrigger className="w-[90px]" size="sm">
                 <SelectValue />
               </SelectTrigger>
@@ -358,28 +380,6 @@ export function OutstandingContent() {
                 ))}
               </SelectContent>
             </Select>
-          </>
-        ) : (
-          <>
-            {/* 매장명 검색 */}
-            <div className="flex gap-1.5 flex-1 min-w-0">
-              <Input
-                className="h-8 text-sm"
-                placeholder="매장명 검색"
-                value={storeName}
-                onChange={(e) => setStoreName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleStoreSearch()
-                }}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleStoreSearch}
-              >
-                <Search className="size-4" />
-              </Button>
-            </div>
           </>
         )}
 
@@ -401,7 +401,6 @@ export function OutstandingContent() {
           </Button>
         </div>
       </div>
-
       {/* 요약 카드 */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="flex items-center justify-between">
@@ -415,6 +414,21 @@ export function OutstandingContent() {
         </div>
       </div>
 
+      {/* 매장명 검색 */}
+      <div className="flex gap-1.5 mb-6">
+        <Input
+          className="h-8 text-sm"
+          placeholder="매장명 검색"
+          value={storeName}
+          onChange={(e) => setStoreName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleStoreSearch();
+          }}
+        />
+        <Button variant="outline" size="sm" onClick={handleStoreSearch}>
+          <Search className="size-4" />
+        </Button>
+      </div>
       {/* 로딩 상태 */}
       {isLoading && (
         <div className="flex items-center justify-center py-20">
@@ -447,29 +461,25 @@ export function OutstandingContent() {
               ))
             ) : (
               <div className="text-center py-16 text-sm text-gray-400">
-                미수금이 없습니다
+                {searchStoreName ? "검색 결과가 없습니다" : "미수금이 없습니다"}
               </div>
             )
+          ) : // 매장별 보기: 매장 그룹 카드
+          storeGroups.length > 0 ? (
+            storeGroups.map((group) => (
+              <StoreOutstandingCard
+                key={group.storeName}
+                group={group}
+                onToggle={handleToggle}
+                onBatchCollect={handleBatchCollect}
+                togglingId={togglingId}
+                isBatchToggling={batchTogglingStore === group.storeName}
+              />
+            ))
           ) : (
-            // 매장별 보기: 매장 그룹 카드
-            storeGroups.length > 0 ? (
-              storeGroups.map((group) => (
-                <StoreOutstandingCard
-                  key={group.storeName}
-                  group={group}
-                  onToggle={handleToggle}
-                  onBatchCollect={handleBatchCollect}
-                  togglingId={togglingId}
-                  isBatchToggling={batchTogglingStore === group.storeName}
-                />
-              ))
-            ) : (
-              <div className="text-center py-16 text-sm text-gray-400">
-                {view === "store" && searchStoreName
-                  ? "검색 결과가 없습니다"
-                  : "미수금이 없습니다"}
-              </div>
-            )
+            <div className="text-center py-16 text-sm text-gray-400">
+              {searchStoreName ? "검색 결과가 없습니다" : "미수금이 없습니다"}
+            </div>
           )}
         </div>
       )}
@@ -499,5 +509,5 @@ export function OutstandingContent() {
         </div>
       )}
     </div>
-  )
+  );
 }

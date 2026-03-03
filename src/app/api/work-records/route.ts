@@ -1,13 +1,17 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { startOfDay, endOfDay, parseISO } from "date-fns"
+import type { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
   userId: z.string().optional(),
+  search: z.string().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
 })
 
 // 근무기록 생성 스키마
@@ -50,13 +54,16 @@ export async function GET(request: NextRequest) {
   const parseResult = querySchema.safeParse({
     date: searchParams.get("date"),
     userId: searchParams.get("userId") || undefined,
+    search: searchParams.get("search") || undefined,
+    page: searchParams.get("page") || undefined,
+    limit: searchParams.get("limit") || undefined,
   })
 
   if (!parseResult.success) {
     return ApiErrors.validationError(parseResult.error.issues[0].message)
   }
 
-  const { date, userId: requestedUserId } = parseResult.data
+  const { date, userId: requestedUserId, search, page, limit } = parseResult.data
   const isAdmin = user.role === "ADMIN"
 
   // 권한 체크
@@ -80,29 +87,80 @@ export async function GET(request: NextRequest) {
     userIdFilter = requestedUserId
   }
 
-  const workRecords = await prisma.workRecord.findMany({
-    where: {
-      date: { gte: dateStart, lte: dateEnd },
-      ...(userIdFilter && { userId: userIdFilter }),
-    },
-    include: {
-      store: { select: { id: true, name: true, address: true, managerName: true } },
-      items: { select: { id: true, name: true, amount: true, quantity: true } },
-      user: { select: { id: true, name: true } },
-      collectedBy: { select: { id: true, name: true } },
-    },
-    orderBy: [{ createdAt: "asc" }, { sortOrder: "asc" }],
-  })
+  // 기본 날짜+사용자 필터 (summary용, 검색 제외)
+  const baseWhere: Prisma.WorkRecordWhereInput = {
+    date: { gte: dateStart, lte: dateEnd },
+    ...(userIdFilter && { userId: userIdFilter }),
+  }
 
-  // 매장별 미수 집계 (현재 날짜 제외)
-  const storeIds = [...new Set(
-    workRecords.map(r => r.storeId).filter((id): id is string => id !== null)
+  // 검색 포함 필터 (페이지네이션용)
+  const pageWhere: Prisma.WorkRecordWhereInput = {
+    ...baseWhere,
+    ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" } } : {}),
+  }
+
+  // 1. 전체 날짜 통계(summary) + 페이지네이션 레코드 병렬 조회
+  const [allRecords, totalCount, pageRecords] = await Promise.all([
+    // summary + existingStoreIds용 (전체 날짜 기준, 검색 제외)
+    prisma.workRecord.findMany({
+      where: baseWhere,
+      select: {
+        storeId: true,
+        collectionStatus: true,
+        paymentTypeSnapshot: true,
+        items: { select: { amount: true } },
+      },
+    }),
+    // 검색 적용된 전체 건수
+    prisma.workRecord.count({ where: pageWhere }),
+    // 페이지네이션된 레코드
+    prisma.workRecord.findMany({
+      where: pageWhere,
+      include: {
+        store: { select: { id: true, name: true, address: true, managerName: true } },
+        items: { select: { id: true, name: true, amount: true, quantity: true } },
+        user: { select: { id: true, name: true } },
+        collectedBy: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: "asc" }, { sortOrder: "asc" }],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+  ])
+
+  // summary 계산 (전체 날짜 기준)
+  let totalSales = 0
+  let collectedSales = 0
+  let uncollectedSales = 0
+  const collectedByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+
+  for (const r of allRecords) {
+    const amount = r.items.reduce((sum, item) => sum + item.amount, 0)
+    totalSales += amount
+    if (r.collectionStatus === "COLLECTED") {
+      collectedSales += amount
+      collectedByPaymentType[r.paymentTypeSnapshot] += amount
+    } else if (r.collectionStatus === "UNCOLLECTED") {
+      uncollectedSales += amount
+    }
+  }
+
+  // existingStoreIds (전체 날짜 기준)
+  const existingStoreIds = [...new Set(
+    allRecords.map(r => r.storeId).filter((id): id is string => id !== null)
   )]
 
-  if (storeIds.length > 0) {
+  // 매장별 미수 집계 (현재 날짜 제외)
+  const pageStoreIds = [...new Set(
+    pageRecords.map(r => r.storeId).filter((id): id is string => id !== null)
+  )]
+
+  let storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
+
+  if (pageStoreIds.length > 0) {
     const outstandingRecords = await prisma.workRecord.findMany({
       where: {
-        storeId: { in: storeIds },
+        storeId: { in: pageStoreIds },
         collectionStatus: "UNCOLLECTED",
         NOT: { date: { gte: dateStart, lte: dateEnd } },
       },
@@ -112,23 +170,43 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
     for (const record of outstandingRecords) {
       const existing = storeOutstandingMap.get(record.storeId!) || { count: 0, totalAmount: 0 }
       existing.count++
       existing.totalAmount += record.items.reduce((sum, item) => sum + item.amount, 0)
       storeOutstandingMap.set(record.storeId!, existing)
     }
-
-    const enrichedRecords = workRecords.map(r => ({
-      ...r,
-      storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
-    }))
-
-    return apiSuccess(enrichedRecords)
   }
 
-  return apiSuccess(workRecords)
+  const records = pageRecords.map(r => ({
+    ...r,
+    storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
+  }))
+
+  const totalPages = Math.ceil(totalCount / limit)
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      records,
+      summary: {
+        totalVisits: allRecords.length,
+        totalSales,
+        collectedSales,
+        uncollectedSales,
+        collectedByPaymentType,
+      },
+      existingStoreIds,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    },
+  })
 }
 
 // 근무기록 생성
