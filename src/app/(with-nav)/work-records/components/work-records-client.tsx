@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -29,7 +29,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [storeName, setStoreName] = useState("")
   const [searchStoreName, setSearchStoreName] = useState("")
-  const [page, setPage] = useState(1)
 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
@@ -39,21 +38,33 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
 
-  const { data, isLoading, error, refetch, isFetching } = useWorkRecords(
+  const { data, isLoading, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useWorkRecords(
     dateString,
     isAdmin ? selectedUserId : undefined,
-    page,
     searchStoreName || undefined
   )
 
-  const records = data?.records ?? []
-  const summary = data?.summary
-  const pagination = data?.pagination
+  const records = useMemo(() => data?.pages.flatMap((page) => page.records) ?? [], [data])
+  const summary = data?.pages[0]?.summary
 
-  // 필터 변경 시 페이지 초기화
+  // 무한 스크롤 트리거
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    setPage(1)
-  }, [selectedDate, selectedUserId, searchStoreName])
+    const el = loadMoreRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()
@@ -146,29 +157,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
         )}
 
-        {/* 페이지네이션 */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mt-6">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.hasPrev}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              이전
-            </Button>
-            <span className="text-sm text-gray-600">
-              {pagination.page} / {pagination.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!pagination.hasNext}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              다음
-            </Button>
-          </div>
+        {/* 무한 스크롤 트리거 */}
+        <div ref={loadMoreRef} className="h-1" />
+        {isFetchingNextPage && (
+          <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
         )}
 
         <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} onRefresh={() => refetch()} isRefreshing={isFetching} />

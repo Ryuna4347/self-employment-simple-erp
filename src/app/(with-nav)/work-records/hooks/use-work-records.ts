@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { STORE_VISITS_KEY } from "./use-store-visits"
 import type { PaymentType } from "@/generated/prisma/client"
@@ -115,20 +115,22 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
 export const WORK_RECORDS_LIMIT = 100
 
-export function useWorkRecords(date: string, userId?: string, page: number = 1, search?: string) {
-  return useQuery({
-    queryKey: [...WORK_RECORDS_KEY, { date, userId, page, search }],
-    queryFn: async () => {
+export function useWorkRecords(date: string, userId?: string, search?: string) {
+  return useInfiniteQuery({
+    queryKey: [...WORK_RECORDS_KEY, { date, userId, search }],
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ date })
       if (userId) params.set("userId", userId)
       if (search) params.set("search", search)
-      params.set("page", String(page))
+      params.set("page", String(pageParam))
       params.set("limit", String(WORK_RECORDS_LIMIT))
       const response = await apiClient<WorkRecordsApiResponse>(`/api/work-records?${params.toString()}`)
       return response.data
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
     enabled: !!date,
-    placeholderData: keepPreviousData,
   })
 }
 
