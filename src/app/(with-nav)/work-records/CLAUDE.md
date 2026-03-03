@@ -26,6 +26,7 @@
 - `storeAddressSnapshot`: 주소 스냅샷
 - `managerNameSnapshot`: 담당자 스냅샷
 - `paymentTypeSnapshot`: 거래 당시 결제 방식
+- `sortOrder`: 코스 적용 시 정렬 순서 (default: 0)
 
 ### RecordItem (거래 상세 - 스냅샷)
 - `name`: 품목명
@@ -49,6 +50,32 @@
 - `collectionStatus: UNCOLLECTED` → 미수금
 - `collectionStatus: COLLECTED` → 수금완료
 - `collectionStatus: CLOSED` → 휴업&폐업
+
+### 중복 방지
+- 동일 날짜 + 동일 매장 근무기록 중복 등록 방지
+- 코스(템플릿) 적용 시 기존 레코드가 있으면 건너뛰기
+
+### 정렬
+- 코스 적용 시 `sortOrder`에 `StoreTemplateMember.order` 값 반영
+
+---
+
+## 주요 컴포넌트/훅
+
+### 매장 방문 이력 (StoreVisitHistory)
+- 카드 확장 시 최근 6개월 방문 이력 표시 (lazy load)
+- CLOSED 상태 제외, 현재 날짜 제외
+- API: `GET /api/work-records/store-visits?storeId=...`
+- Hook: `useStoreVisits`
+
+### 일별 통계 (DailyStats)
+- 방문 수, 총매출, 수금완료/미수금 금액 표시
+- 결제방식별(현금/계좌/카드) 색상 구분
+- 타입: `DailySummary` (types.ts)
+
+### 유저 필터
+- 관리자가 직원별 근무기록 필터링 가능
+- 공통 `UserFilter` 컴포넌트 사용 (`src/components/common/user-filter.tsx`)
 
 ---
 

@@ -35,6 +35,13 @@
 
 ### 일괄 생성
 - 템플릿 적용 시 모든 매장의 WorkRecord 일괄 생성
+- 소프트 삭제된 매장은 자동 제외 (에러 메시지 표시, 나머지 정상 처리)
+- 동일 날짜 + 동일 매장 중복 레코드 건너뛰기
+- 생성된 WorkRecord의 `sortOrder`에 멤버 `order` 값 반영
+
+### 유저 필터
+- 코스 목록에서 생성자 기준 필터링 가능
+- 공통 `UserFilter` 컴포넌트 사용 (`src/components/common/user-filter.tsx`)
 
 ---
 
