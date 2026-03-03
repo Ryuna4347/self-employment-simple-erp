@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 
 // 멤버 내 매장 정보
@@ -56,6 +56,23 @@ interface StoreTemplatesResponse {
   data: StoreTemplate[]
 }
 
+// 페이지네이션 API 응답 타입
+interface PaginationInfo {
+  page: number
+  limit: number
+  totalCount: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+interface StoreTemplatesPaginatedResponse {
+  data: {
+    templates: StoreTemplate[]
+    pagination: PaginationInfo
+  }
+}
+
 interface StoreTemplateResponse {
   data: StoreTemplate
 }
@@ -85,6 +102,34 @@ export function useStoreTemplates(userId?: string) {
       const response = await apiClient<StoreTemplatesResponse>(url)
       return response.data
     },
+  })
+}
+
+// 페이지당 항목 수
+export const STORE_TEMPLATES_LIMIT = 50
+
+/**
+ * 코스 목록 조회 훅 (무한 스크롤)
+ * @param userId - 필터할 사용자 ID
+ * @param search - 검색어 (코스명, 설명)
+ */
+export function useStoreTemplatesInfinite(userId?: string, search?: string) {
+  return useInfiniteQuery({
+    queryKey: [...STORE_TEMPLATES_KEY, "infinite", { userId, search }],
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams()
+      if (userId) params.set("userId", userId)
+      if (search) params.set("search", search)
+      params.set("page", String(pageParam))
+      params.set("limit", String(STORE_TEMPLATES_LIMIT))
+      const response = await apiClient<StoreTemplatesPaginatedResponse>(
+        `/api/store-templates?${params.toString()}`
+      )
+      return response.data
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
   })
 }
 

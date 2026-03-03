@@ -18,9 +18,19 @@ const createTemplateSchema = z.object({
     .default([]),
 })
 
+// 코스 목록 조회 쿼리 스키마
+const querySchema = z.object({
+  userId: z.string().optional(),
+  search: z.string().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+
 /**
  * GET /api/store-templates
  * 코스 목록 조회
+ *
+ * page 파라미터가 있으면 페이지네이션 모드, 없으면 전체 조회 (모달 호환)
  */
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
@@ -28,7 +38,19 @@ export async function GET(request: NextRequest) {
 
   const { user } = authResult
   const searchParams = request.nextUrl.searchParams
-  const requestedUserId = searchParams.get("userId") || undefined
+
+  const parseResult = querySchema.safeParse({
+    userId: searchParams.get("userId") || undefined,
+    search: searchParams.get("search") || undefined,
+    page: searchParams.get("page") || undefined,
+    limit: searchParams.get("limit") || undefined,
+  })
+
+  if (!parseResult.success) {
+    return ApiErrors.validationError(parseResult.error.issues[0].message)
+  }
+
+  const { userId: requestedUserId, search, page, limit } = parseResult.data
 
   // userId 필터 결정
   let userIdFilter: string | undefined
@@ -40,32 +62,77 @@ export async function GET(request: NextRequest) {
     userIdFilter = requestedUserId
   }
 
+  const includeClause = {
+    members: {
+      where: { store: { isDeleted: false } },
+      orderBy: { order: "asc" as const },
+      include: {
+        store: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            visitCycleWeeks: true,
+            firstVisitDate: true,
+          },
+        },
+      },
+    },
+  }
+
   try {
+    // 페이지네이션 모드
+    if (page) {
+      const where = {
+        ...(userIdFilter && { userId: userIdFilter }),
+        ...(search && {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { description: { contains: search, mode: "insensitive" as const } },
+          ],
+        }),
+      }
+
+      const [totalCount, templates] = await Promise.all([
+        prisma.storeTemplate.count({ where }),
+        prisma.storeTemplate.findMany({
+          where,
+          include: includeClause,
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+      ])
+
+      const templatesWithCount = templates.map((template) => ({
+        ...template,
+        memberCount: template.members.length,
+      }))
+
+      const totalPages = Math.ceil(totalCount / limit)
+
+      return apiSuccess({
+        templates: templatesWithCount,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      })
+    }
+
+    // 전체 조회 모드 (기존 호환 - 모달용)
     const templates = await prisma.storeTemplate.findMany({
       where: {
         ...(userIdFilter && { userId: userIdFilter }),
       },
-      include: {
-        members: {
-          where: { store: { isDeleted: false } },
-          orderBy: { order: "asc" },
-          include: {
-            store: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                visitCycleWeeks: true,
-                firstVisitDate: true,
-              },
-            },
-          },
-        },
-      },
+      include: includeClause,
       orderBy: { createdAt: "desc" },
     })
 
-    // memberCount 추가
     const templatesWithCount = templates.map((template) => ({
       ...template,
       memberCount: template.members.length,

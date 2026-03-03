@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
@@ -41,21 +41,19 @@ interface OutstandingResponse {
   }
 }
 
-// 필터 파라미터 타입
+// 필터 파라미터 타입 (page 제거 - useInfiniteQuery가 관리)
 export type DateFilterParams = {
   filter: "date"
   year: number
   month: number
   userId?: string
   search?: string
-  page: number
 }
 
 export type StoreFilterParams = {
   filter: "store"
   storeName?: string
   userId?: string
-  page: number
 }
 
 export type OutstandingParams = DateFilterParams | StoreFilterParams
@@ -70,17 +68,17 @@ const WORK_RECORDS_KEY = ["work-records"] as const
 const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
 /**
- * 미수금 목록 조회 훅
+ * 미수금 목록 조회 훅 (무한 스크롤)
  *
  * filter에 따라 날짜별(레코드 단위) 또는 매장별(매장 단위) 페이지네이션을 지원한다.
  */
 export function useOutstanding(params: OutstandingParams) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [...OUTSTANDING_KEY, params],
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const searchParams = new URLSearchParams()
       searchParams.set("filter", params.filter)
-      searchParams.set("page", String(params.page))
+      searchParams.set("page", String(pageParam))
       searchParams.set("limit", String(OUTSTANDING_LIMIT))
 
       if (params.filter === "date") {
@@ -102,7 +100,9 @@ export function useOutstanding(params: OutstandingParams) {
       )
       return response.data
     },
-    placeholderData: keepPreviousData,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
   })
 }
 

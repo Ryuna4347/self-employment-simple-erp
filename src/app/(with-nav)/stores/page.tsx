@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Plus, Search, Store as StoreIcon, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { StoreCard, StoreModal } from "./components"
 import {
-  useStores,
+  useStoresInfinite,
   useCreateStore,
   useUpdateStore,
   useDeleteStore,
@@ -17,28 +18,54 @@ import {
  * 매장 관리 페이지
  */
 export default function StoresPage() {
-  const [searchTerm, setSearchTerm] = useState("")
+  const [storeName, setStoreName] = useState("")
+  const [searchStoreName, setSearchStoreName] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingStore, setEditingStore] = useState<Store | null>(null)
 
   // react-query 훅
-  const { data: stores = [], isLoading, refetch, isFetching } = useStores()
+  const {
+    data,
+    isLoading,
+    refetch,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useStoresInfinite(searchStoreName || undefined)
   const createMutation = useCreateStore()
   const updateMutation = useUpdateStore()
   const deleteMutation = useDeleteStore()
 
-  // 검색 필터링 (클라이언트)
-  const filteredStores = useMemo(() => {
-    if (!searchTerm.trim()) return stores
-    const term = searchTerm.toLowerCase()
-    return stores.filter(
-      (store) =>
-        store.name.toLowerCase().includes(term) ||
-        store.address.toLowerCase().includes(term) ||
-        (store.managerName?.toLowerCase().includes(term) ?? false) ||
-        (store.assignedUser?.name.toLowerCase().includes(term) ?? false)
+  // 페이지 플래튼
+  const stores = useMemo(
+    () => data?.pages.flatMap((page) => page.stores) ?? [],
+    [data]
+  )
+
+  // 무한 스크롤 트리거
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0 }
     )
-  }, [stores, searchTerm])
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // 검색 실행
+  const handleSearch = useCallback(() => {
+    setSearchStoreName(storeName.trim())
+  }, [storeName])
 
   // 매장 추가 버튼 핸들러
   const handleAddStore = () => {
@@ -94,17 +121,19 @@ export default function StoresPage() {
       </div>
 
       {/* 검색 */}
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-          <Input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="매장명, 주소, 담당자, 담당직원 검색..."
-            className="pl-10"
-          />
-        </div>
+      <div className="flex gap-1.5 mb-4">
+        <Input
+          className="h-8 text-sm"
+          value={storeName}
+          onChange={(e) => setStoreName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch()
+          }}
+          placeholder="매장명, 주소, 담당자 검색..."
+        />
+        <Button variant="outline" size="sm" onClick={handleSearch}>
+          <Search className="size-4" />
+        </Button>
       </div>
 
       {/* 매장 목록 */}
@@ -112,14 +141,14 @@ export default function StoresPage() {
         {isLoading ? (
           // 로딩 상태
           <div className="text-center py-12 text-gray-400">로딩 중...</div>
-        ) : filteredStores.length === 0 ? (
+        ) : stores.length === 0 ? (
           // 빈 상태
           <div className="text-center py-12">
             <StoreIcon className="size-12 mx-auto text-gray-300 mb-3" />
             <p className="text-gray-400">
-              {searchTerm ? "검색 결과가 없습니다" : "등록된 매장이 없습니다"}
+              {searchStoreName ? "검색 결과가 없습니다" : "등록된 매장이 없습니다"}
             </p>
-            {!searchTerm && (
+            {!searchStoreName && (
               <p className="text-gray-400 text-sm mt-1">
                 우측 하단 버튼을 눌러 매장을 추가하세요
               </p>
@@ -127,7 +156,7 @@ export default function StoresPage() {
           </div>
         ) : (
           // 매장 리스트
-          filteredStores.map((store) => (
+          stores.map((store) => (
             <StoreCard
               key={store.id}
               store={store}
@@ -138,6 +167,12 @@ export default function StoresPage() {
           ))
         )}
       </div>
+
+      {/* 무한 스크롤 트리거 */}
+      <div ref={loadMoreRef} className="h-1" />
+      {isFetchingNextPage && (
+        <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
+      )}
 
       {/* 새로고침 버튼 */}
       <button

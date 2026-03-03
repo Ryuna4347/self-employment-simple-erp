@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { Plus, Search, LayoutTemplate, RefreshCw } from "lucide-react"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { UserFilter } from "@/components/common/user-filter"
 import { StoreTemplateCard, StoreTemplateModal } from "./index"
 import {
-  useStoreTemplates,
+  useStoreTemplatesInfinite,
   useCreateStoreTemplate,
   useUpdateStoreTemplate,
   useDeleteStoreTemplate,
@@ -24,6 +25,7 @@ interface StoreTemplatesClientProps {
  */
 export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const [searchTemplateName, setSearchTemplateName] = useState("")
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<StoreTemplate | null>(null)
@@ -31,21 +33,48 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
   const isAdmin = userRole === "ADMIN"
 
   // react-query 훅 - selectedUserId로 필터링
-  const { data: templates = [], isLoading, refetch, isFetching } = useStoreTemplates(selectedUserId)
+  const {
+    data,
+    isLoading,
+    refetch,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useStoreTemplatesInfinite(selectedUserId, searchTemplateName || undefined)
   const createMutation = useCreateStoreTemplate()
   const updateMutation = useUpdateStoreTemplate()
   const deleteMutation = useDeleteStoreTemplate()
 
-  // 검색 필터링 (클라이언트)
-  const filteredTemplates = useMemo(() => {
-    if (!searchTerm.trim()) return templates
-    const term = searchTerm.toLowerCase()
-    return templates.filter(
-      (template) =>
-        template.name.toLowerCase().includes(term) ||
-        (template.description?.toLowerCase().includes(term) ?? false)
+  // 페이지 플래튼
+  const templates = useMemo(
+    () => data?.pages.flatMap((page) => page.templates) ?? [],
+    [data]
+  )
+
+  // 무한 스크롤 트리거
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { threshold: 0 }
     )
-  }, [templates, searchTerm])
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // 검색 실행
+  const handleSearch = useCallback(() => {
+    setSearchTemplateName(searchTerm.trim())
+  }, [searchTerm])
 
   // 코스 추가 버튼 핸들러
   const handleAddTemplate = () => {
@@ -108,17 +137,19 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
       />
 
       {/* 검색 */}
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
-          <Input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="코스 검색..."
-            className="pl-10"
-          />
-        </div>
+      <div className="flex gap-1.5 mb-4">
+        <Input
+          className="h-8 text-sm"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch()
+          }}
+          placeholder="코스 검색..."
+        />
+        <Button variant="outline" size="sm" onClick={handleSearch}>
+          <Search className="size-4" />
+        </Button>
       </div>
 
       {/* 코스 목록 */}
@@ -126,14 +157,14 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
         {isLoading ? (
           // 로딩 상태
           <div className="text-center py-12 text-gray-400">로딩 중...</div>
-        ) : filteredTemplates.length === 0 ? (
+        ) : templates.length === 0 ? (
           // 빈 상태
           <div className="text-center py-12">
             <LayoutTemplate className="size-12 mx-auto text-gray-300 mb-3" />
             <p className="text-gray-400">
-              {searchTerm ? "검색 결과가 없습니다" : "등록된 코스이 없습니다"}
+              {searchTemplateName ? "검색 결과가 없습니다" : "등록된 코스이 없습니다"}
             </p>
-            {!searchTerm && (
+            {!searchTemplateName && (
               <p className="text-gray-400 text-sm mt-1">
                 우측 하단 버튼을 눌러 코스을 추가하세요
               </p>
@@ -141,7 +172,7 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
           </div>
         ) : (
           // 코스 리스트
-          filteredTemplates.map((template) => (
+          templates.map((template) => (
             <StoreTemplateCard
               key={template.id}
               template={template}
@@ -153,6 +184,12 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
           ))
         )}
       </div>
+
+      {/* 무한 스크롤 트리거 */}
+      <div ref={loadMoreRef} className="h-1" />
+      {isFetchingNextPage && (
+        <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
+      )}
 
       {/* 새로고침 버튼 */}
       <button

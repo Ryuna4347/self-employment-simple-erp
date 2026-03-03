@@ -30,33 +30,86 @@ const createStoreSchema = z.object({
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
 })
 
+// 매장 목록 조회 쿼리 스키마
+const querySchema = z.object({
+  search: z.string().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+
 /**
  * GET /api/stores
  * 매장 목록 조회 (검색 지원)
+ *
+ * page 파라미터가 있으면 페이지네이션 모드, 없으면 전체 조회 (모달 호환)
  */
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const search = searchParams.get("search")
+  const searchParams = request.nextUrl.searchParams
 
-    const stores = await prisma.store.findMany({
-      where: {
-        isDeleted: false,
-        ...(search && {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { address: { contains: search, mode: "insensitive" } },
-            { managerName: { contains: search, mode: "insensitive" } },
-          ],
+  const parseResult = querySchema.safeParse({
+    search: searchParams.get("search") || undefined,
+    page: searchParams.get("page") || undefined,
+    limit: searchParams.get("limit") || undefined,
+  })
+
+  if (!parseResult.success) {
+    return ApiErrors.validationError(parseResult.error.issues[0].message)
+  }
+
+  const { search, page, limit } = parseResult.data
+
+  const where = {
+    isDeleted: false,
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: "insensitive" as const } },
+        { address: { contains: search, mode: "insensitive" as const } },
+        { managerName: { contains: search, mode: "insensitive" as const } },
+      ],
+    }),
+  }
+
+  const includeClause = {
+    storeItems: true,
+    assignedUser: { select: { id: true, name: true } },
+  }
+
+  try {
+    // 페이지네이션 모드
+    if (page) {
+      const [totalCount, stores] = await Promise.all([
+        prisma.store.count({ where }),
+        prisma.store.findMany({
+          where,
+          include: includeClause,
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * limit,
+          take: limit,
         }),
-      },
-      include: {
-        storeItems: true,
-        assignedUser: { select: { id: true, name: true } },
-      },
+      ])
+
+      const totalPages = Math.ceil(totalCount / limit)
+
+      return apiSuccess({
+        stores,
+        pagination: {
+          page,
+          limit,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      })
+    }
+
+    // 전체 조회 모드 (기존 호환 - 모달용)
+    const stores = await prisma.store.findMany({
+      where,
+      include: includeClause,
       orderBy: { createdAt: "desc" },
     })
 

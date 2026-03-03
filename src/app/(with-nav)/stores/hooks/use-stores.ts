@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType, ReceiptType } from "@/generated/prisma/client"
 
@@ -59,6 +59,23 @@ interface StoreResponse {
   data: Store
 }
 
+// 페이지네이션 API 응답 타입
+interface PaginationInfo {
+  page: number
+  limit: number
+  totalCount: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+interface StoresPaginatedResponse {
+  data: {
+    stores: Store[]
+    pagination: PaginationInfo
+  }
+}
+
 // 쿼리 키
 const STORES_KEY = ["stores"] as const
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
@@ -74,6 +91,32 @@ export function useStores(search?: string) {
       const response = await apiClient<StoresResponse>(`/api/stores${params}`)
       return response.data
     },
+  })
+}
+
+// 페이지당 항목 수
+export const STORES_LIMIT = 50
+
+/**
+ * 매장 목록 조회 훅 (무한 스크롤)
+ * @param search - 검색어 (매장명, 주소, 담당자)
+ */
+export function useStoresInfinite(search?: string) {
+  return useInfiniteQuery({
+    queryKey: [...STORES_KEY, "infinite", { search }],
+    queryFn: async ({ pageParam }) => {
+      const params = new URLSearchParams()
+      if (search) params.set("search", search)
+      params.set("page", String(pageParam))
+      params.set("limit", String(STORES_LIMIT))
+      const response = await apiClient<StoresPaginatedResponse>(
+        `/api/stores?${params.toString()}`
+      )
+      return response.data
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
   })
 }
 

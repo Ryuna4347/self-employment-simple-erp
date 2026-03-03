@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, Search, Users } from "lucide-react";
 import {
@@ -43,8 +43,8 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
  * 미수금 관리 메인 컨텐츠
  *
  * 날짜별/매장별 필터를 전환하며 미수금 목록을 표시한다.
- * 날짜별: 연/월 Select, 레코드 단위 페이지네이션
- * 매장별: 매장명 검색 텍스트필드, 매장 단위 페이지네이션
+ * 날짜별: 연/월 Select, 레코드 단위 무한 스크롤
+ * 매장별: 매장명 검색 텍스트필드, 매장 단위 무한 스크롤
  */
 export function OutstandingContent() {
   const searchParams = useSearchParams();
@@ -60,7 +60,6 @@ export function OutstandingContent() {
     : now.getMonth() + 1;
   const initialView = (searchParams.get("view") as ViewMode) || "date";
   const initialStoreName = searchParams.get("storeName") ?? "";
-  const initialPage = Number(searchParams.get("page") ?? 1);
   const initialUserId = searchParams.get("userId") ?? "all";
 
   const [year, setYear] = useState(initialYear);
@@ -68,7 +67,6 @@ export function OutstandingContent() {
   const [view, setView] = useState<ViewMode>(initialView);
   const [storeName, setStoreName] = useState(initialStoreName);
   const [searchStoreName, setSearchStoreName] = useState(initialStoreName);
-  const [page, setPage] = useState(initialPage);
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
 
   // 직원 목록 조회
@@ -84,9 +82,8 @@ export function OutstandingContent() {
     }
     if (searchStoreName) params.set("storeName", searchStoreName);
     if (selectedUserId !== "all") params.set("userId", selectedUserId);
-    if (page > 1) params.set("page", String(page));
     router.replace(`/admin/outstanding?${params.toString()}`);
-  }, [year, month, view, searchStoreName, selectedUserId, page, router]);
+  }, [year, month, view, searchStoreName, selectedUserId, router]);
 
   // 낙관적 업데이트용 토글 상태 맵
   const [toggledItems, setToggledItems] = useState<
@@ -99,14 +96,13 @@ export function OutstandingContent() {
     countDelta: 0,
   });
 
-  // 필터 파라미터 변경 시 토글 상태 + 페이지 초기화
-  useEffect(() => {
+  // 토글 상태 초기화 헬퍼
+  const resetToggles = useCallback(() => {
     setToggledItems(new Map());
     setToggleAdjustments({ amountDelta: 0, countDelta: 0 });
-    setPage(1);
-  }, [year, month, view, searchStoreName, selectedUserId]);
+  }, []);
 
-  // 쿼리 파라미터 구성
+  // 쿼리 파라미터 구성 (page 제거 - useInfiniteQuery가 관리)
   const queryParams: OutstandingParams = useMemo(() => {
     const userId = selectedUserId !== "all" ? selectedUserId : undefined;
     if (view === "date") {
@@ -115,7 +111,6 @@ export function OutstandingContent() {
         year,
         month,
         userId,
-        page,
         ...(searchStoreName ? { search: searchStoreName } : {}),
       };
     }
@@ -123,33 +118,45 @@ export function OutstandingContent() {
       filter: "store",
       ...(searchStoreName ? { storeName: searchStoreName } : {}),
       userId,
-      page,
     };
-  }, [view, year, month, searchStoreName, selectedUserId, page]);
+  }, [view, year, month, searchStoreName, selectedUserId]);
 
   // 데이터 조회
-  const { data, isLoading, isError } = useOutstanding(queryParams);
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useOutstanding(queryParams);
   const toggleMutation = useToggleCollection();
   const batchMutation = useBatchToggleCollection();
 
+  // 페이지 플래튼
+  const allRecords = useMemo(
+    () => data?.pages.flatMap((page) => page.records) ?? [],
+    [data]
+  );
+
   // 토글 상태가 반영된 레코드 목록
   const displayRecords = useMemo(() => {
-    if (!data?.records) return [];
-    return data.records.map((record) => ({
+    return allRecords.map((record) => ({
       ...record,
       collectionStatus: toggledItems.has(record.id)
         ? toggledItems.get(record.id)!
         : record.collectionStatus,
     }));
-  }, [data, toggledItems]);
+  }, [allRecords, toggledItems]);
 
-  // 동적 요약 (서버 summary + 낙관적 보정)
+  // 동적 요약 (첫 페이지의 서버 summary + 낙관적 보정)
   const dynamicSummary = useMemo(() => {
-    if (!data) return { totalOutstanding: 0, count: 0 };
+    const summary = data?.pages[0]?.summary;
+    if (!summary) return { totalOutstanding: 0, count: 0 };
     return {
       totalOutstanding:
-        data.summary.totalOutstanding + toggleAdjustments.amountDelta,
-      count: data.summary.count + toggleAdjustments.countDelta,
+        summary.totalOutstanding + toggleAdjustments.amountDelta,
+      count: summary.count + toggleAdjustments.countDelta,
     };
   }, [data, toggleAdjustments]);
 
@@ -197,6 +204,25 @@ export function OutstandingContent() {
     );
   }, [view, displayRecords]);
 
+  // 무한 스크롤 트리거
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   // 토글 중인 레코드 ID
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
@@ -214,7 +240,7 @@ export function OutstandingContent() {
       setToggledItems((prev) => new Map(prev).set(id, newCollectionStatus));
 
       // 요약 보정: 수금 완료 → 금액/건수 감소, 미수 처리 → 증가
-      const record = data?.records.find((r) => r.id === id);
+      const record = allRecords.find((r) => r.id === id);
       const isCollecting = newCollectionStatus === "COLLECTED";
       if (record) {
         const amount = record.totalAmount;
@@ -250,7 +276,7 @@ export function OutstandingContent() {
         },
       );
     },
-    [toggleMutation, data],
+    [toggleMutation, allRecords],
   );
 
   // 일괄 수금 처리 핸들러 (낙관적 업데이트)
@@ -272,7 +298,7 @@ export function OutstandingContent() {
 
       // 요약 보정
       const totalAmount = ids.reduce((sum, id) => {
-        const record = data?.records.find((r) => r.id === id);
+        const record = allRecords.find((r) => r.id === id);
         return sum + (record?.totalAmount ?? 0);
       }, 0);
       setToggleAdjustments((prev) => ({
@@ -303,21 +329,38 @@ export function OutstandingContent() {
         },
       );
     },
-    [batchMutation, displayRecords, data],
+    [batchMutation, displayRecords, allRecords],
   );
 
   // 매장명 검색 실행
   const handleStoreSearch = useCallback(() => {
     setSearchStoreName(storeName.trim());
-  }, [storeName]);
+    resetToggles();
+  }, [storeName, resetToggles]);
 
   // 뷰 모드 전환
   const handleViewChange = useCallback((newView: ViewMode) => {
     setView(newView);
-    setPage(1);
-    setToggledItems(new Map());
-    setToggleAdjustments({ amountDelta: 0, countDelta: 0 });
-  }, []);
+    resetToggles();
+  }, [resetToggles]);
+
+  // 연도 변경
+  const handleYearChange = useCallback((v: string) => {
+    setYear(Number(v));
+    resetToggles();
+  }, [resetToggles]);
+
+  // 월 변경
+  const handleMonthChange = useCallback((v: string) => {
+    setMonth(Number(v));
+    resetToggles();
+  }, [resetToggles]);
+
+  // 담당자 변경
+  const handleUserChange = useCallback((v: string) => {
+    setSelectedUserId(v);
+    resetToggles();
+  }, [resetToggles]);
 
   const yearOptions = getYearOptions();
 
@@ -327,7 +370,7 @@ export function OutstandingContent() {
       <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 shadow-sm">
         <div className="flex items-center gap-3">
           <Users className="size-4 text-gray-500" />
-          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+          <Select value={selectedUserId} onValueChange={handleUserChange}>
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="담당자 선택" />
             </SelectTrigger>
@@ -350,7 +393,7 @@ export function OutstandingContent() {
             {/* 연도 선택 */}
             <Select
               value={String(year)}
-              onValueChange={(v) => setYear(Number(v))}
+              onValueChange={handleYearChange}
             >
               <SelectTrigger className="w-[100px]" size="sm">
                 <SelectValue />
@@ -367,7 +410,7 @@ export function OutstandingContent() {
             {/* 월 선택 */}
             <Select
               value={String(month)}
-              onValueChange={(v) => setMonth(Number(v))}
+              onValueChange={handleMonthChange}
             >
               <SelectTrigger className="w-[90px]" size="sm">
                 <SelectValue />
@@ -484,29 +527,10 @@ export function OutstandingContent() {
         </div>
       )}
 
-      {/* 페이지네이션 */}
-      {data?.pagination && data.pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 mt-6">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!data.pagination.hasPrev}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            이전
-          </Button>
-          <span className="text-sm text-gray-600">
-            {data.pagination.page} / {data.pagination.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!data.pagination.hasNext}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            다음
-          </Button>
-        </div>
+      {/* 무한 스크롤 트리거 */}
+      <div ref={loadMoreRef} className="h-1" />
+      {isFetchingNextPage && (
+        <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
       )}
     </div>
   );
