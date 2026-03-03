@@ -106,7 +106,6 @@ interface WorkRecordsApiResponse {
   data: {
     records: WorkRecordResponse[]
     summary: WorkRecordsSummary
-    existingStoreIds: string[]
     pagination: PaginationInfo
   }
 }

@@ -101,11 +101,10 @@ export async function GET(request: NextRequest) {
 
   // 1. 전체 날짜 통계(summary) + 페이지네이션 레코드 병렬 조회
   const [allRecords, totalCount, pageRecords] = await Promise.all([
-    // summary + existingStoreIds용 (전체 날짜 기준, 검색 제외)
+    // summary용 (전체 날짜 기준, 검색 제외)
     prisma.workRecord.findMany({
       where: baseWhere,
       select: {
-        storeId: true,
         collectionStatus: true,
         paymentTypeSnapshot: true,
         items: { select: { amount: true } },
@@ -144,11 +143,6 @@ export async function GET(request: NextRequest) {
       uncollectedSales += amount
     }
   }
-
-  // existingStoreIds (전체 날짜 기준)
-  const existingStoreIds = [...new Set(
-    allRecords.map(r => r.storeId).filter((id): id is string => id !== null)
-  )]
 
   // 매장별 미수 집계 (현재 날짜 제외)
   const pageStoreIds = [...new Set(
@@ -196,7 +190,6 @@ export async function GET(request: NextRequest) {
         uncollectedSales,
         collectedByPaymentType,
       },
-      existingStoreIds,
       pagination: {
         page,
         limit,

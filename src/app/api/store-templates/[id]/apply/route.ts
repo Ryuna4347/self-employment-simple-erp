@@ -117,21 +117,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
     if (membersToCreate.length === 0) {
-      const messages: string[] = []
-      if (existingStoreIds.size > 0) {
-        messages.push(`${existingStoreIds.size}개 매장은 이미 기록이 존재합니다`)
-      }
-      if (deletedStoreIds.size > 0) {
-        messages.push(`${deletedStoreIds.size}개 매장은 삭제된 매장입니다`)
-      }
-      if (cycleSkippedStoreIds.size > 0) {
-        messages.push(`${cycleSkippedStoreIds.size}개 매장은 방문 주기에 해당하지 않습니다`)
-      }
-      return ApiErrors.validationError(
-        messages.length > 0
-          ? messages.join(", ")
-          : "해당 날짜에 생성할 근무 기록이 없습니다"
-      )
+      return apiSuccess({
+        created: 0,
+        skipped: existingStoreIds.size,
+        cycleSkipped: cycleSkippedStoreIds.size,
+        workRecords: [],
+      })
     }
 
     // WorkRecord + RecordItem 벌크 생성 (2회 INSERT로 최적화)

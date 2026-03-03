@@ -70,11 +70,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     return summary
   }, [summary])
 
-  // 이미 기록이 있는 매장 ID 집합 (코스 적용 모달에서 사용, 서버에서 전체 기준)
-  const existingStoreIds = useMemo(() => {
-    return new Set(data?.existingStoreIds ?? [])
-  }, [data?.existingStoreIds])
-
   // 매장명 검색 실행
   const handleSearch = useCallback(() => {
     setSearchStoreName(storeName.trim())
@@ -192,7 +187,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
-        existingStoreIds={existingStoreIds}
       />
     </div>
   )

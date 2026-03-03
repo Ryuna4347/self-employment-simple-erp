@@ -35,12 +35,11 @@ interface ExcludedStore {
   name: string
   address: string
   visitInfo: string
-  reason: "duplicate" | "cycle-mismatch" | "future-first-visit"
+  reason: "cycle-mismatch" | "future-first-visit"
 }
 
 // 제외 사유 라벨
 const excludeReasonLabels: Record<ExcludedStore["reason"], string> = {
-  duplicate: "이미 기록이 있습니다",
   "cycle-mismatch": "이 날은 방문일이 아닙니다",
   "future-first-visit": "첫 방문일 전입니다",
 }
@@ -49,14 +48,12 @@ interface TemplateApplyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   selectedDate: Date
-  existingStoreIds: Set<string>
 }
 
 export function TemplateApplyModal({
   open,
   onOpenChange,
   selectedDate,
-  existingStoreIds,
 }: TemplateApplyModalProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
 
@@ -71,7 +68,7 @@ export function TemplateApplyModal({
     return templates.find((t) => t.id === selectedTemplateId)
   }, [templates, selectedTemplateId])
 
-  // 제외 매장 계산 (클라이언트 사이드)
+  // 제외 매장 계산 (방문 주기 기준, 중복 체크는 서버에서 처리)
   const excludedStores = useMemo<ExcludedStore[]>(() => {
     if (!selectedTemplate) return []
 
@@ -82,13 +79,6 @@ export function TemplateApplyModal({
       const { store } = member
       const visitInfo = getVisitDayAndCycle(store.firstVisitDate, store.visitCycleWeeks)
 
-      // 1. 중복 체크 (이미 기록 존재)
-      if (existingStoreIds.has(store.id)) {
-        excluded.push({ id: store.id, name: store.name, address: store.address, visitInfo, reason: "duplicate" })
-        return
-      }
-
-      // 2. 방문 주기 체크
       const firstVisit = startOfDay(new Date(store.firstVisitDate))
       const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
 
@@ -104,7 +94,7 @@ export function TemplateApplyModal({
     })
 
     return excluded
-  }, [selectedTemplate, selectedDate, existingStoreIds])
+  }, [selectedTemplate, selectedDate])
 
   // 생성될 매장 수
   const createCount = selectedTemplate
@@ -122,7 +112,13 @@ export function TemplateApplyModal({
         onSuccess: (result) => {
           onOpenChange(false)
           setSelectedTemplateId("")
-          toast.success(`${result.created}개 기록이 생성되었습니다`)
+          if (result.created > 0) {
+            const parts = [`${result.created}개 기록이 생성되었습니다`]
+            if (result.skipped > 0) parts.push(`중복 ${result.skipped}개 제외`)
+            toast.success(parts.join(" · "))
+          } else {
+            toast.info("생성할 기록이 없습니다")
+          }
         },
       }
     )
