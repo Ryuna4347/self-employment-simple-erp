@@ -45,6 +45,8 @@ model Store {
   storeItems      StoreItem[]
   templateMembers StoreTemplateMember[]
   workRecords     WorkRecord[]
+
+  @@index([isDeleted])                           // stores: 소프트 삭제 필터
 }
 
 model StoreItem {
@@ -98,6 +100,12 @@ model WorkRecord {
   store                Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
   user                 User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   collectedBy          User?        @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([date])                                // dashboard: date range 단독 조회
+  @@index([userId, date])                        // work-records: 사용자별 날짜 조회
+  @@index([storeId, collectionStatus])           // 매장별 미수금 + store-visits
+  @@index([collectionStatus, date])              // outstanding: 날짜별 필터
+  @@index([collectionStatus, storeNameSnapshot]) // outstanding: 매장별 필터
 }
 
 model RecordItem {

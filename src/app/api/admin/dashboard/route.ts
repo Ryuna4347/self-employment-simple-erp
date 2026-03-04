@@ -7,7 +7,6 @@ import {
   startOfMonth,
   endOfMonth,
   startOfDay,
-  endOfDay,
   eachDayOfInterval,
   eachMonthOfInterval,
   startOfYear,
@@ -44,143 +43,151 @@ export async function GET(request: NextRequest) {
     let dateEnd: Date
 
     if (period === "daily" && month) {
-      // 일별: 해당 월의 시작~끝
       const targetDate = new Date(year, month - 1, 1)
       dateStart = startOfMonth(targetDate)
       dateEnd = endOfMonth(targetDate)
     } else {
-      // 월별: 해당 연도 시작~끝
       dateStart = startOfYear(new Date(year, 0, 1))
       dateEnd = endOfYear(new Date(year, 0, 1))
     }
 
-    // 해당 기간의 WorkRecord + items 조회
-    const workRecords = await prisma.workRecord.findMany({
-      where: {
-        date: { gte: dateStart, lte: dateEnd },
-      },
-      include: {
-        items: true,
-      },
-    })
+    const today = startOfDay(new Date())
+    const truncUnit = period === "daily" && month ? "day" : "month"
 
-    // === summary 계산 ===
+    // 모든 집계를 DB 레벨에서 병렬 실행
+    const [
+      summaryByStatus,
+      revenueByStatus,
+      uniqueStoresResult,
+      chartData,
+      topStoresData,
+      outstandingRecords,
+    ] = await Promise.all([
+      // 1) collectionStatus별 건수 (summary + 파이차트 공용)
+      prisma.workRecord.groupBy({
+        by: ["collectionStatus"],
+        _count: true,
+        where: { date: { gte: dateStart, lte: dateEnd } },
+      }),
+
+      // 2) collectionStatus별 매출 합계 (총매출 + 미수금액)
+      prisma.$queryRaw<{ collectionStatus: string; total: bigint }[]>`
+        SELECT wr."collectionStatus", COALESCE(SUM(ri.amount), 0) as total
+        FROM "WorkRecord" wr
+        LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
+        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
+        GROUP BY wr."collectionStatus"
+      `,
+
+      // 3) 고유 매장 수
+      prisma.workRecord.findMany({
+        where: { date: { gte: dateStart, lte: dateEnd }, storeId: { not: null } },
+        distinct: ["storeId"],
+        select: { storeId: true },
+      }),
+
+      // 4) 기간별 매출 (차트)
+      prisma.$queryRaw<{ period: Date; revenue: bigint }[]>`
+        SELECT DATE_TRUNC(${truncUnit}, wr.date) as period, COALESCE(SUM(ri.amount), 0) as revenue
+        FROM "WorkRecord" wr
+        LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
+        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
+        GROUP BY period ORDER BY period
+      `,
+
+      // 5) 매출 상위 5개 매장
+      prisma.$queryRaw<{ group_key: string; name: string; amount: bigint }[]>`
+        SELECT
+          COALESCE(wr."storeId", wr."storeNameSnapshot", '알 수 없음') as group_key,
+          MAX(COALESCE(wr."storeNameSnapshot", '알 수 없음')) as name,
+          COALESCE(SUM(ri.amount), 0) as amount
+        FROM "WorkRecord" wr
+        LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
+        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
+        GROUP BY group_key
+        ORDER BY amount DESC
+        LIMIT 5
+      `,
+
+      // 6) 최근 미수금 5건 (오늘 이전만)
+      prisma.workRecord.findMany({
+        where: {
+          collectionStatus: "UNCOLLECTED",
+          date: { gte: dateStart, lte: dateEnd, lt: today },
+        },
+        include: { items: { select: { amount: true } } },
+        orderBy: { date: "desc" },
+        take: 5,
+      }),
+    ])
+
+    // === summary 조립 ===
+    const totalVisits = summaryByStatus.reduce((sum, s) => sum + s._count, 0)
+
     let totalRevenue = 0
     let outstandingAmount = 0
-    const storeIds = new Set<string>()
-
-    for (const record of workRecords) {
-      const recordTotal = record.items.reduce(
-        (sum, item) => sum + item.amount,
-        0,
-      )
-      totalRevenue += recordTotal
-
-      if (record.collectionStatus === "UNCOLLECTED") {
-        outstandingAmount += recordTotal
-      }
-
-      if (record.storeId) {
-        storeIds.add(record.storeId)
+    for (const row of revenueByStatus) {
+      const amount = Number(row.total)
+      totalRevenue += amount
+      if (row.collectionStatus === "UNCOLLECTED") {
+        outstandingAmount = amount
       }
     }
 
     const summary = {
       totalRevenue,
       outstandingAmount,
-      totalVisits: workRecords.length,
-      uniqueStores: storeIds.size,
+      totalVisits,
+      uniqueStores: uniqueStoresResult.length,
     }
 
-    // === chart 데이터 ===
-    const chartMap = new Map<string, number>()
+    // === chart 조립 (빈 날짜/월 채우기) ===
+    const chartRevenueMap = new Map<string, number>()
 
     if (period === "daily" && month) {
-      // 일별: 해당 월의 각 날짜별 매출
       const days = eachDayOfInterval({ start: dateStart, end: dateEnd })
       for (const day of days) {
-        chartMap.set(format(day, "MM/dd"), 0)
+        chartRevenueMap.set(format(day, "MM/dd"), 0)
       }
-
-      for (const record of workRecords) {
-        const label = format(record.date, "MM/dd")
-        const recordTotal = record.items.reduce(
-          (sum, item) => sum + item.amount,
-          0,
-        )
-        chartMap.set(label, (chartMap.get(label) ?? 0) + recordTotal)
+      for (const row of chartData) {
+        const label = format(new Date(row.period), "MM/dd")
+        chartRevenueMap.set(label, Number(row.revenue))
       }
     } else {
-      // 월별: 해당 연도의 각 월별 매출
       const months = eachMonthOfInterval({ start: dateStart, end: dateEnd })
       for (const m of months) {
-        chartMap.set(format(m, "M월"), 0)
+        chartRevenueMap.set(format(m, "M월"), 0)
       }
-
-      for (const record of workRecords) {
-        const label = format(record.date, "M월")
-        const recordTotal = record.items.reduce(
-          (sum, item) => sum + item.amount,
-          0,
-        )
-        chartMap.set(label, (chartMap.get(label) ?? 0) + recordTotal)
+      for (const row of chartData) {
+        const label = format(new Date(row.period), "M월")
+        chartRevenueMap.set(label, Number(row.revenue))
       }
     }
 
-    const chart = Array.from(chartMap.entries()).map(([label, revenue]) => ({
+    const chart = Array.from(chartRevenueMap.entries()).map(([label, revenue]) => ({
       label,
       revenue,
     }))
 
-    // === topStores: 매출 상위 5개 매장 ===
-    const storeRevenueMap = new Map<
-      string,
-      { name: string; amount: number }
-    >()
+    // === topStores 조립 ===
+    const topStores = topStoresData.map((row) => ({
+      name: row.name,
+      amount: Number(row.amount),
+    }))
 
-    for (const record of workRecords) {
-      const storeName = record.storeNameSnapshot ?? "알 수 없음"
-      const key = record.storeId ?? storeName
-      const recordTotal = record.items.reduce(
-        (sum, item) => sum + item.amount,
-        0,
-      )
-
-      const existing = storeRevenueMap.get(key)
-      if (existing) {
-        existing.amount += recordTotal
-      } else {
-        storeRevenueMap.set(key, { name: storeName, amount: recordTotal })
-      }
-    }
-
-    const topStores = Array.from(storeRevenueMap.values())
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5)
-
-    // === recentOutstanding: 최근 미수금 5건 (오늘 이전만) ===
-    const today = startOfDay(new Date())
-    const outstandingRecords = workRecords
-      .filter((r) => r.collectionStatus === "UNCOLLECTED" && r.date < today)
-      .sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      )
-      .slice(0, 5)
-
+    // === recentOutstanding 조립 ===
     const recentOutstanding = outstandingRecords.map((record) => ({
       id: record.id,
       date: format(record.date, "yyyy-MM-dd"),
       storeName: record.storeNameSnapshot ?? "알 수 없음",
-      totalAmount: record.items.reduce(
-        (sum, item) => sum + item.amount,
-        0,
-      ),
+      totalAmount: record.items.reduce((sum, item) => sum + item.amount, 0),
     }))
 
     // === 수금 현황 (파이 차트용) ===
-    const collectedCount = workRecords.filter((r) => r.collectionStatus === "COLLECTED").length
-    const uncollectedCount = workRecords.filter((r) => r.collectionStatus === "UNCOLLECTED").length
-    const closedCount = workRecords.filter((r) => r.collectionStatus === "CLOSED").length
+    const statusMap: Record<string, number> = { COLLECTED: 0, UNCOLLECTED: 0, CLOSED: 0 }
+    for (const s of summaryByStatus) {
+      statusMap[s.collectionStatus] = s._count
+    }
 
     return NextResponse.json({
       success: true,
@@ -190,9 +197,9 @@ export async function GET(request: NextRequest) {
         topStores,
         recentOutstanding,
         collectionStatus: {
-          collected: collectedCount,
-          uncollected: uncollectedCount,
-          closed: closedCount,
+          collected: statusMap.COLLECTED,
+          uncollected: statusMap.UNCOLLECTED,
+          closed: statusMap.CLOSED,
         },
       },
     })
