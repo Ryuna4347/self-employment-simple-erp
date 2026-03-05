@@ -80,6 +80,9 @@ export interface WorkRecordResponse {
   collectedBy: WorkRecordUser | null
   // 해당 매장의 다른 날짜 미수 집계 (현재 날짜 제외)
   storeOutstanding?: StoreOutstanding | null
+  // 수금 확인 요청 관련
+  canDirectCollect?: boolean
+  hasPendingRequest?: boolean
 }
 
 // 일별 통계 (서버에서 계산)

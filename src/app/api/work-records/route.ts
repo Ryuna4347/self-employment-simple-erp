@@ -149,20 +149,43 @@ export async function GET(request: NextRequest) {
     pageRecords.map(r => r.storeId).filter((id): id is string => id !== null)
   )]
 
-  let storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
+  const storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
+  // 매장별 가장 빠른 미수 날짜 (직접 수금 가능 여부 판단용)
+  const earliestUncollectedMap = new Map<string, Date>()
+  // 매장별 PENDING 요청 존재 여부
+  const pendingRequestStoreIds = new Set<string>()
 
   if (pageStoreIds.length > 0) {
-    const outstandingRecords = await prisma.workRecord.findMany({
-      where: {
-        storeId: { in: pageStoreIds },
-        collectionStatus: "UNCOLLECTED",
-        NOT: { date: { gte: dateStart, lte: dateEnd } },
-      },
-      select: {
-        storeId: true,
-        items: { select: { amount: true } },
-      },
-    })
+    const [outstandingRecords, earliestByStore, pendingRequests] = await Promise.all([
+      prisma.workRecord.findMany({
+        where: {
+          storeId: { in: pageStoreIds },
+          collectionStatus: "UNCOLLECTED",
+          NOT: { date: { gte: dateStart, lte: dateEnd } },
+        },
+        select: {
+          storeId: true,
+          items: { select: { amount: true } },
+        },
+      }),
+      // 매장별 가장 빠른 미수 날짜 조회
+      prisma.workRecord.groupBy({
+        by: ["storeId"],
+        where: {
+          storeId: { in: pageStoreIds },
+          collectionStatus: "UNCOLLECTED",
+        },
+        _min: { date: true },
+      }),
+      // 매장별 PENDING 요청 존재 여부
+      prisma.collectionRequest.findMany({
+        where: {
+          storeId: { in: pageStoreIds },
+          status: "PENDING",
+        },
+        select: { storeId: true },
+      }),
+    ])
 
     for (const record of outstandingRecords) {
       const existing = storeOutstandingMap.get(record.storeId!) || { count: 0, totalAmount: 0 }
@@ -170,12 +193,50 @@ export async function GET(request: NextRequest) {
       existing.totalAmount += record.items.reduce((sum, item) => sum + item.amount, 0)
       storeOutstandingMap.set(record.storeId!, existing)
     }
+
+    for (const group of earliestByStore) {
+      if (group.storeId && group._min.date) {
+        earliestUncollectedMap.set(group.storeId, group._min.date)
+      }
+    }
+
+    for (const req of pendingRequests) {
+      if (req.storeId) pendingRequestStoreIds.add(req.storeId)
+    }
   }
 
-  const records = pageRecords.map(r => ({
-    ...r,
-    storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
-  }))
+  const now = new Date()
+
+  const records = pageRecords.map(r => {
+    let canDirectCollect: boolean | undefined
+    let hasPendingRequest: boolean | undefined
+
+    if (r.collectionStatus === "UNCOLLECTED") {
+      hasPendingRequest = r.storeId ? pendingRequestStoreIds.has(r.storeId) : false
+
+      // 직접 수금 가능 여부: 24시간 이내 + 이전 미수 없음
+      const referenceDate = new Date(Math.max(r.createdAt.getTime(), r.date.getTime()))
+      const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
+      const withinOneDay = now <= oneDayLater
+
+      let hasPreviousUncollected = false
+      if (r.storeId) {
+        const earliest = earliestUncollectedMap.get(r.storeId)
+        if (earliest && earliest < startOfDay(r.date)) {
+          hasPreviousUncollected = true
+        }
+      }
+
+      canDirectCollect = withinOneDay && !hasPreviousUncollected
+    }
+
+    return {
+      ...r,
+      storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
+      canDirectCollect,
+      hasPendingRequest,
+    }
+  })
 
   const totalPages = Math.ceil(totalCount / limit)
 

@@ -20,9 +20,11 @@ model User {
   expenses       Expense[]
   RefreshToken   RefreshToken[]
   storeTemplates StoreTemplate[]
-  workRecords           WorkRecord[]
-  collectedWorkRecords  WorkRecord[]  @relation("collectedByUser")
-  assignedStores        Store[]       @relation("assignedStores")
+  workRecords                  WorkRecord[]
+  collectedWorkRecords         WorkRecord[]           @relation("collectedByUser")
+  assignedStores               Store[]                @relation("assignedStores")
+  collectionRequests           CollectionRequest[]    @relation("collectionRequester")
+  reviewedCollectionRequests   CollectionRequest[]    @relation("collectionReviewer")
 }
 
 model Store {
@@ -42,9 +44,10 @@ model Store {
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   assignedUser    User?                 @relation("assignedStores", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  storeItems      StoreItem[]
-  templateMembers StoreTemplateMember[]
-  workRecords     WorkRecord[]
+  storeItems           StoreItem[]
+  templateMembers      StoreTemplateMember[]
+  workRecords          WorkRecord[]
+  collectionRequests   CollectionRequest[]
 
   @@index([isDeleted])                           // stores: 소프트 삭제 필터
 }
@@ -96,10 +99,11 @@ model WorkRecord {
   updatedAt            DateTime     @updatedAt
   collectedAt          DateTime?    // 수금완료 처리 시점
   collectedByUserId    String?      // 수금완료 처리한 사용자
-  items                RecordItem[]
-  store                Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  user                 User         @relation(fields: [userId], references: [id], onDelete: Restrict)
-  collectedBy          User?        @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
+  items                    RecordItem[]
+  collectionRequestItems   CollectionRequestItem[]
+  store                    Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  user                     User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  collectedBy              User?        @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
 
   @@index([date])                                // dashboard: date range 단독 조회
   @@index([userId, date])                        // work-records: 사용자별 날짜 조회
@@ -163,4 +167,42 @@ enum CollectionStatus {
   UNCOLLECTED  // 미수
   COLLECTED    // 수금완료
   CLOSED       // 휴업&폐업
+}
+
+enum CollectionRequestStatus {
+  PENDING   // 대기 중
+  APPROVED  // 승인됨
+  REJECTED  // 거부됨
+}
+
+model CollectionRequest {
+  id                String                  @id @default(cuid())
+  storeId           String?
+  storeNameSnapshot String
+  requesterId       String
+  status            CollectionRequestStatus @default(PENDING)
+  reviewerId        String?
+  reviewedAt        DateTime?
+  note              String?
+  createdAt         DateTime                @default(now())
+
+  requester User                    @relation("collectionRequester", fields: [requesterId], references: [id])
+  reviewer  User?                   @relation("collectionReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  store     Store?                  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  items     CollectionRequestItem[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([storeId, status])
+}
+
+model CollectionRequestItem {
+  id                  String @id @default(cuid())
+  collectionRequestId String
+  workRecordId        String
+
+  collectionRequest CollectionRequest @relation(fields: [collectionRequestId], references: [id], onDelete: Cascade)
+  workRecord        WorkRecord        @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionRequestId, workRecordId])
 }

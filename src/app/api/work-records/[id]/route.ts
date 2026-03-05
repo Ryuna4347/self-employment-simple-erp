@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
+import { startOfDay } from "date-fns"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
@@ -51,7 +52,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   // 근무기록 존재 여부 확인
   const workRecord = await prisma.workRecord.findUnique({
     where: { id },
-    select: { id: true, userId: true, collectionStatus: true },
+    select: { id: true, userId: true, collectionStatus: true, createdAt: true, date: true, storeId: true },
   })
 
   if (!workRecord) {
@@ -84,6 +85,37 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 
   const { collectionStatus, imageUrl, note, items } = parseResult.data
+
+  // 일반 사용자의 직접 수금처리 제한
+  if (collectionStatus === "COLLECTED" && workRecord.collectionStatus === "UNCOLLECTED" && user.role !== "ADMIN") {
+    // 1. 시간 제한: max(createdAt, date) 기준 24시간 이내인지 확인
+    const referenceDate = new Date(Math.max(
+      workRecord.createdAt.getTime(),
+      workRecord.date.getTime()
+    ))
+    const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
+    const now = new Date()
+
+    if (now > oneDayLater) {
+      return ApiErrors.forbidden("수금 처리 기한이 지났습니다. 수금 확인 요청을 이용해주세요.")
+    }
+
+    // 2. 같은 매장에 이전 날짜의 미수금이 있는지 확인
+    if (workRecord.storeId) {
+      const previousUncollected = await prisma.workRecord.count({
+        where: {
+          storeId: workRecord.storeId,
+          collectionStatus: "UNCOLLECTED",
+          date: { lt: startOfDay(workRecord.date) },
+          id: { not: workRecord.id },
+        },
+      })
+
+      if (previousUncollected > 0) {
+        return ApiErrors.forbidden("이전 미수금이 존재합니다. 수금 확인 요청을 이용해주세요.")
+      }
+    }
+  }
 
   // 수금 추적 필드 결정
   let collectionTrackingData: { collectedAt: Date | null; collectedByUserId: string | null } | undefined

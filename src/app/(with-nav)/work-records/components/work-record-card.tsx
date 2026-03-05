@@ -10,6 +10,8 @@ import {
   CircleCheck,
   ImageIcon,
   Loader2,
+  Clock,
+  Send,
 } from "lucide-react";
 import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ interface WorkRecordCardProps {
   onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
+  onRequestCollect?: (record: WorkRecordResponse) => void;
   userRole: "ADMIN" | "USER";
   isDeleting?: boolean;
   isCollecting?: boolean;
@@ -97,6 +100,7 @@ export function WorkRecordCard({
   onEdit,
   onDelete,
   onCollect,
+  onRequestCollect,
   userRole,
   isDeleting,
   isCollecting,
@@ -124,6 +128,11 @@ export function WorkRecordCard({
   const handleCollect = (e: React.MouseEvent) => {
     e.stopPropagation();
     onCollect?.(record.id);
+  };
+
+  const handleRequestCollect = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRequestCollect?.(record);
   };
 
   return (
@@ -231,20 +240,38 @@ export function WorkRecordCard({
                         )}
                     </p>
                     {record.collectionStatus === "UNCOLLECTED" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCollect}
-                        disabled={isActionPending}
-                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      >
-                        {isCollecting ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <CircleCheck className="size-3" />
-                        )}
-                        {isCollecting ? "처리 중..." : "수금처리"}
-                      </Button>
+                      record.canDirectCollect || userRole === "ADMIN" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCollect}
+                          disabled={isActionPending}
+                          className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          {isCollecting ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <CircleCheck className="size-3" />
+                          )}
+                          {isCollecting ? "처리 중..." : "수금처리"}
+                        </Button>
+                      ) : record.hasPendingRequest ? (
+                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
+                          <Clock className="size-3" />
+                          수금 확인 요청 중
+                        </span>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRequestCollect}
+                          disabled={isActionPending}
+                          className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                        >
+                          <Send className="size-3" />
+                          수금 확인 요청
+                        </Button>
+                      )
                     )}
                   </div>
                 </div>

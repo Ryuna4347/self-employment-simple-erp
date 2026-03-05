@@ -12,6 +12,7 @@ import { FabMenu } from "./fab-menu"
 import { UserFilter } from "./user-filter"
 import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
+import { CollectionRequestModal } from "./collection-request-modal"
 import {
   useWorkRecords,
   useDeleteWorkRecord,
@@ -33,7 +34,9 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [collectionRequestModalOpen, setCollectionRequestModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<WorkRecordResponse | null>(null)
+  const [collectionRequestTarget, setCollectionRequestTarget] = useState<WorkRecordResponse | null>(null)
 
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
@@ -113,6 +116,12 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     updateMutation.mutate({ id, collectionStatus: "COLLECTED" })
   }
 
+  // 수금 확인 요청 모달 열기
+  const handleRequestCollect = (record: WorkRecordResponse) => {
+    setCollectionRequestTarget(record)
+    setCollectionRequestModalOpen(true)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       <div className="max-w-4xl mx-auto px-4 py-6 pb-8">
@@ -154,7 +163,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
+          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} onRequestCollect={handleRequestCollect} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
         )}
 
         {/* 무한 스크롤 트리거 */}
@@ -179,6 +188,13 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
+      />
+
+      {/* 수금 확인 요청 모달 */}
+      <CollectionRequestModal
+        open={collectionRequestModalOpen}
+        onOpenChange={setCollectionRequestModalOpen}
+        record={collectionRequestTarget}
       />
     </div>
   )

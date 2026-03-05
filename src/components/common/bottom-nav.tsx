@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Users,
   CircleDollarSign,
+  ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +62,11 @@ const ADMIN_NAV_ITEMS = [
     href: "/admin/outstanding",
     label: "미수금 관리",
     icon: CircleDollarSign,
+  },
+  {
+    href: "/admin/collections",
+    label: "수금 관리",
+    icon: ClipboardCheck,
   },
 ] as const;
 

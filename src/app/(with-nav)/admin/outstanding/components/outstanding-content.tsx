@@ -13,11 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUsers } from "@/hooks/use-users";
-import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records";
 import {
   useOutstanding,
-  useToggleCollection,
-  useBatchToggleCollection,
   type OutstandingParams,
 } from "../hooks/use-outstanding";
 import { OutstandingCard } from "./outstanding-card";
@@ -40,11 +37,9 @@ function getYearOptions(): number[] {
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 /**
- * 미수금 관리 메인 컨텐츠
+ * 미수금 관리 메인 컨텐츠 (조회 전용)
  *
  * 날짜별/매장별 필터를 전환하며 미수금 목록을 표시한다.
- * 날짜별: 연/월 Select, 레코드 단위 무한 스크롤
- * 매장별: 매장명 검색 텍스트필드, 매장 단위 무한 스크롤
  */
 export function OutstandingContent() {
   const searchParams = useSearchParams();
@@ -85,24 +80,7 @@ export function OutstandingContent() {
     router.replace(`/admin/outstanding?${params.toString()}`);
   }, [year, month, view, searchStoreName, selectedUserId, router]);
 
-  // 낙관적 업데이트용 토글 상태 맵
-  const [toggledItems, setToggledItems] = useState<
-    Map<string, CollectionStatus>
-  >(new Map());
-
-  // 낙관적 요약 보정 (페이지 간 누적)
-  const [toggleAdjustments, setToggleAdjustments] = useState({
-    amountDelta: 0,
-    countDelta: 0,
-  });
-
-  // 토글 상태 초기화 헬퍼
-  const resetToggles = useCallback(() => {
-    setToggledItems(new Map());
-    setToggleAdjustments({ amountDelta: 0, countDelta: 0 });
-  }, []);
-
-  // 쿼리 파라미터 구성 (page 제거 - useInfiniteQuery가 관리)
+  // 쿼리 파라미터 구성
   const queryParams: OutstandingParams = useMemo(() => {
     const userId = selectedUserId !== "all" ? selectedUserId : undefined;
     if (view === "date") {
@@ -130,8 +108,6 @@ export function OutstandingContent() {
     hasNextPage,
     isFetchingNextPage,
   } = useOutstanding(queryParams);
-  const toggleMutation = useToggleCollection();
-  const batchMutation = useBatchToggleCollection();
 
   // 페이지 플래튼
   const allRecords = useMemo(
@@ -139,34 +115,20 @@ export function OutstandingContent() {
     [data]
   );
 
-  // 토글 상태가 반영된 레코드 목록
-  const displayRecords = useMemo(() => {
-    return allRecords.map((record) => ({
-      ...record,
-      collectionStatus: toggledItems.has(record.id)
-        ? toggledItems.get(record.id)!
-        : record.collectionStatus,
-    }));
-  }, [allRecords, toggledItems]);
-
-  // 동적 요약 (첫 페이지의 서버 summary + 낙관적 보정)
-  const dynamicSummary = useMemo(() => {
-    const summary = data?.pages[0]?.summary;
-    if (!summary) return { totalOutstanding: 0, count: 0 };
-    return {
-      totalOutstanding:
-        summary.totalOutstanding + toggleAdjustments.amountDelta,
-      count: summary.count + toggleAdjustments.countDelta,
-    };
-  }, [data, toggleAdjustments]);
+  // 서버 요약
+  const summary = useMemo(() => {
+    const s = data?.pages[0]?.summary;
+    if (!s) return { totalOutstanding: 0, count: 0 };
+    return s;
+  }, [data]);
 
   // 매장별 그룹핑 (store 모드에서만 사용)
   const storeGroups = useMemo((): StoreGroup[] => {
-    if (view !== "store" || !displayRecords.length) return [];
+    if (view !== "store" || !allRecords.length) return [];
 
     const groupMap = new Map<string, StoreGroup>();
 
-    for (const record of displayRecords) {
+    for (const record of allRecords) {
       const key = record.storeNameSnapshot ?? "-";
 
       if (!groupMap.has(key)) {
@@ -202,7 +164,7 @@ export function OutstandingContent() {
     return Array.from(groupMap.values()).sort(
       (a, b) => b.totalAmount - a.totalAmount,
     );
-  }, [view, displayRecords]);
+  }, [view, allRecords]);
 
   // 무한 스크롤 트리거
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -223,144 +185,10 @@ export function OutstandingContent() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // 토글 중인 레코드 ID
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-
-  // 일괄 수금 처리 중인 매장명
-  const [batchTogglingStore, setBatchTogglingStore] = useState<string | null>(
-    null,
-  );
-
-  // 수금 상태 토글 핸들러 (낙관적 업데이트)
-  const handleToggle = useCallback(
-    (id: string, newCollectionStatus: CollectionStatus) => {
-      setTogglingId(id);
-
-      // 낙관적 업데이트
-      setToggledItems((prev) => new Map(prev).set(id, newCollectionStatus));
-
-      // 요약 보정: 수금 완료 → 금액/건수 감소, 미수 처리 → 증가
-      const record = allRecords.find((r) => r.id === id);
-      const isCollecting = newCollectionStatus === "COLLECTED";
-      if (record) {
-        const amount = record.totalAmount;
-        setToggleAdjustments((prev) => ({
-          amountDelta: prev.amountDelta + (isCollecting ? -amount : amount),
-          countDelta: prev.countDelta + (isCollecting ? -1 : 1),
-        }));
-      }
-
-      toggleMutation.mutate(
-        { id, collectionStatus: newCollectionStatus },
-        {
-          onError: () => {
-            // 실패 시 롤백
-            setToggledItems((prev) => {
-              const next = new Map(prev);
-              next.delete(id);
-              return next;
-            });
-            // 요약 보정 롤백
-            if (record) {
-              const amount = record.totalAmount;
-              setToggleAdjustments((prev) => ({
-                amountDelta:
-                  prev.amountDelta + (isCollecting ? amount : -amount),
-                countDelta: prev.countDelta + (isCollecting ? 1 : -1),
-              }));
-            }
-          },
-          onSettled: () => {
-            setTogglingId(null);
-          },
-        },
-      );
-    },
-    [toggleMutation, allRecords],
-  );
-
-  // 일괄 수금 처리 핸들러 (낙관적 업데이트)
-  const handleBatchCollect = useCallback(
-    (ids: string[]) => {
-      const storeName = displayRecords.find((r) =>
-        ids.includes(r.id),
-      )?.storeNameSnapshot;
-      setBatchTogglingStore(storeName ?? null);
-
-      // 낙관적 업데이트: 모든 ID를 수금 완료로 설정
-      setToggledItems((prev) => {
-        const next = new Map(prev);
-        for (const id of ids) {
-          next.set(id, "COLLECTED");
-        }
-        return next;
-      });
-
-      // 요약 보정
-      const totalAmount = ids.reduce((sum, id) => {
-        const record = allRecords.find((r) => r.id === id);
-        return sum + (record?.totalAmount ?? 0);
-      }, 0);
-      setToggleAdjustments((prev) => ({
-        amountDelta: prev.amountDelta - totalAmount,
-        countDelta: prev.countDelta - ids.length,
-      }));
-
-      batchMutation.mutate(
-        { ids, collectionStatus: "COLLECTED" },
-        {
-          onError: () => {
-            // 실패 시 롤백
-            setToggledItems((prev) => {
-              const next = new Map(prev);
-              for (const id of ids) {
-                next.delete(id);
-              }
-              return next;
-            });
-            setToggleAdjustments((prev) => ({
-              amountDelta: prev.amountDelta + totalAmount,
-              countDelta: prev.countDelta + ids.length,
-            }));
-          },
-          onSettled: () => {
-            setBatchTogglingStore(null);
-          },
-        },
-      );
-    },
-    [batchMutation, displayRecords, allRecords],
-  );
-
   // 매장명 검색 실행
   const handleStoreSearch = useCallback(() => {
     setSearchStoreName(storeName.trim());
-    resetToggles();
-  }, [storeName, resetToggles]);
-
-  // 뷰 모드 전환
-  const handleViewChange = useCallback((newView: ViewMode) => {
-    setView(newView);
-    resetToggles();
-  }, [resetToggles]);
-
-  // 연도 변경
-  const handleYearChange = useCallback((v: string) => {
-    setYear(Number(v));
-    resetToggles();
-  }, [resetToggles]);
-
-  // 월 변경
-  const handleMonthChange = useCallback((v: string) => {
-    setMonth(Number(v));
-    resetToggles();
-  }, [resetToggles]);
-
-  // 담당자 변경
-  const handleUserChange = useCallback((v: string) => {
-    setSelectedUserId(v);
-    resetToggles();
-  }, [resetToggles]);
+  }, [storeName]);
 
   const yearOptions = getYearOptions();
 
@@ -370,7 +198,7 @@ export function OutstandingContent() {
       <div className="bg-white rounded-lg border border-gray-200 p-3 mb-4 shadow-sm">
         <div className="flex items-center gap-3">
           <Users className="size-4 text-gray-500" />
-          <Select value={selectedUserId} onValueChange={handleUserChange}>
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
             <SelectTrigger className="flex-1">
               <SelectValue placeholder="담당자 선택" />
             </SelectTrigger>
@@ -393,7 +221,7 @@ export function OutstandingContent() {
             {/* 연도 선택 */}
             <Select
               value={String(year)}
-              onValueChange={handleYearChange}
+              onValueChange={(v) => setYear(Number(v))}
             >
               <SelectTrigger className="w-[100px]" size="sm">
                 <SelectValue />
@@ -410,7 +238,7 @@ export function OutstandingContent() {
             {/* 월 선택 */}
             <Select
               value={String(month)}
-              onValueChange={handleMonthChange}
+              onValueChange={(v) => setMonth(Number(v))}
             >
               <SelectTrigger className="w-[90px]" size="sm">
                 <SelectValue />
@@ -431,14 +259,14 @@ export function OutstandingContent() {
           <Button
             variant={view === "date" ? "default" : "outline"}
             size="sm"
-            onClick={() => handleViewChange("date")}
+            onClick={() => setView("date")}
           >
             날짜별
           </Button>
           <Button
             variant={view === "store" ? "default" : "outline"}
             size="sm"
-            onClick={() => handleViewChange("store")}
+            onClick={() => setView("store")}
           >
             매장별
           </Button>
@@ -449,11 +277,11 @@ export function OutstandingContent() {
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">미수금 합계</span>
           <span className="text-lg font-bold text-red-600">
-            {dynamicSummary.totalOutstanding.toLocaleString()}원
+            {summary.totalOutstanding.toLocaleString()}원
           </span>
         </div>
         <div className="text-xs text-gray-500 text-right mt-1">
-          {dynamicSummary.count}건
+          {summary.count}건
         </div>
       </div>
 
@@ -493,13 +321,11 @@ export function OutstandingContent() {
         <div className="space-y-3">
           {view === "date" ? (
             // 날짜별 보기: 플랫 리스트
-            displayRecords.length > 0 ? (
-              displayRecords.map((record) => (
+            allRecords.length > 0 ? (
+              allRecords.map((record) => (
                 <OutstandingCard
                   key={record.id}
                   record={record}
-                  onToggle={handleToggle}
-                  isToggling={togglingId === record.id}
                 />
               ))
             ) : (
@@ -513,10 +339,6 @@ export function OutstandingContent() {
               <StoreOutstandingCard
                 key={group.storeName}
                 group={group}
-                onToggle={handleToggle}
-                onBatchCollect={handleBatchCollect}
-                togglingId={togglingId}
-                isBatchToggling={batchTogglingStore === group.storeName}
               />
             ))
           ) : (

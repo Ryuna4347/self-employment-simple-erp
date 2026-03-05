@@ -1,9 +1,7 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
-import { Button } from "@/components/ui/button"
 
 // 지불방식 한글 라벨
 const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
@@ -28,27 +26,16 @@ export interface OutstandingRecord {
 
 interface OutstandingCardProps {
   record: OutstandingRecord
-  onToggle: (id: string, newCollectionStatus: CollectionStatus) => void
-  isToggling: boolean
 }
 
 /**
- * 미수금 카드 컴포넌트
+ * 미수금 카드 컴포넌트 (조회 전용)
  *
  * 개별 미수금 레코드를 카드 형태로 표시한다.
- * 수금 완료/미수 상태에 따라 좌측 색상 바와 배경색이 변경된다.
  */
-export function OutstandingCard({ record, onToggle, isToggling }: OutstandingCardProps) {
-  const isCollected = record.collectionStatus === "COLLECTED"
-
+export function OutstandingCard({ record }: OutstandingCardProps) {
   return (
-    <div
-      className={`rounded-lg shadow-sm p-4 border-l-4 ${
-        isCollected
-          ? "border-blue-500 bg-blue-50"
-          : "border-red-500 bg-white"
-      }`}
-    >
+    <div className="rounded-lg shadow-sm p-4 border-l-4 border-red-500 bg-white">
       {/* Row 1: 가게명 + 날짜 */}
       <div className="flex items-center justify-between">
         <span className="font-medium text-gray-900">
@@ -74,38 +61,11 @@ export function OutstandingCard({ record, onToggle, isToggling }: OutstandingCar
         )}
       </div>
 
-      {/* Row 4: 금액 + 수금 정보 + 토글 버튼 */}
-      <div className="flex items-center justify-between mt-3">
-        <div>
-          <span
-            className={
-              isCollected
-                ? "text-blue-600 font-semibold line-through"
-                : "text-red-600 font-semibold"
-            }
-          >
-            {record.totalAmount.toLocaleString()}원
-          </span>
-          {isCollected && record.collectedAt && (
-            <p className="text-xs text-blue-500 mt-0.5">
-              {record.collectedByName ?? "알 수 없음"} · {record.collectedAt}
-            </p>
-          )}
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={isToggling}
-          className={
-            isCollected
-              ? "border-blue-300 text-blue-600 hover:bg-blue-100"
-              : ""
-          }
-          onClick={() => onToggle(record.id, isCollected ? "UNCOLLECTED" : "COLLECTED")}
-        >
-          {isToggling && <Loader2 className="size-4 animate-spin" />}
-          {isCollected ? "미수 처리" : "수금완료"}
-        </Button>
+      {/* Row 4: 금액 */}
+      <div className="mt-3">
+        <span className="text-red-600 font-semibold">
+          {record.totalAmount.toLocaleString()}원
+        </span>
       </div>
     </div>
   )
