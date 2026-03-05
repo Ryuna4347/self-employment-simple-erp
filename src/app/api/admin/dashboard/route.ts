@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
-import { ApiErrors } from "@/lib/api-response"
+import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import {
   startOfMonth,
   endOfMonth,
@@ -33,7 +33,10 @@ export async function GET(request: NextRequest) {
     })
 
     if (!parseResult.success) {
-      return ApiErrors.validationError(parseResult.error.issues[0].message)
+      const firstError = parseResult.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { period, year, month } = parseResult.data
@@ -189,18 +192,15 @@ export async function GET(request: NextRequest) {
       statusMap[s.collectionStatus] = s._count
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        summary,
-        chart,
-        topStores,
-        recentOutstanding,
-        collectionStatus: {
-          collected: statusMap.COLLECTED,
-          uncollected: statusMap.UNCOLLECTED,
-          closed: statusMap.CLOSED,
-        },
+    return apiSuccess({
+      summary,
+      chart,
+      topStores,
+      recentOutstanding,
+      collectionStatus: {
+        collected: statusMap.COLLECTED,
+        uncollected: statusMap.UNCOLLECTED,
+        closed: statusMap.CLOSED,
       },
     })
   } catch (error) {

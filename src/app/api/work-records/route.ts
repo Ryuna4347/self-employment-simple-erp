@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
@@ -60,7 +60,10 @@ export async function GET(request: NextRequest) {
   })
 
   if (!parseResult.success) {
-    return ApiErrors.validationError(parseResult.error.issues[0].message)
+    const firstError = parseResult.error.issues[0]
+    return ApiErrors.validationError(firstError.message, [
+      { field: firstError.path.join("."), message: firstError.message },
+    ])
   }
 
   const { date, userId: requestedUserId, search, page, limit } = parseResult.data
@@ -179,25 +182,22 @@ export async function GET(request: NextRequest) {
 
   const totalPages = Math.ceil(totalCount / limit)
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      records,
-      summary: {
-        totalVisits: allRecords.length,
-        totalSales,
-        collectedSales,
-        uncollectedSales,
-        collectedByPaymentType,
-      },
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+  return apiSuccess({
+    records,
+    summary: {
+      totalVisits: allRecords.length,
+      totalSales,
+      collectedSales,
+      uncollectedSales,
+      collectedByPaymentType,
+    },
+    pagination: {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
     },
   })
 }

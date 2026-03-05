@@ -47,7 +47,10 @@ export async function GET(request: NextRequest) {
   })
 
   if (!parseResult.success) {
-    return ApiErrors.validationError(parseResult.error.issues[0].message)
+    const firstError = parseResult.error.issues[0]
+    return ApiErrors.validationError(firstError.message, [
+      { field: firstError.path.join("."), message: firstError.message },
+    ])
   }
 
   const { userId: requestedUserId, search, page, limit } = parseResult.data
@@ -161,7 +164,10 @@ export async function POST(request: NextRequest) {
     // 입력 검증
     const parseResult = createTemplateSchema.safeParse(body)
     if (!parseResult.success) {
-      return ApiErrors.validationError(parseResult.error.issues[0].message)
+      const firstError = parseResult.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { name, description, members } = parseResult.data

@@ -17,13 +17,10 @@ export async function POST(request: Request) {
     const parsed = inviteSchema.safeParse(body)
 
     if (!parsed.success) {
-      return ApiErrors.validationError(
-        "입력값이 올바르지 않습니다",
-        parsed.error.issues.map((issue) => ({
-          field: issue.path.join("."),
-          message: issue.message,
-        }))
-      )
+      const firstError = parsed.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { name } = parsed.data
