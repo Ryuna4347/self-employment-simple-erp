@@ -76,3 +76,4 @@ src/app/
 - shadcn/ui (new-york 스타일)
 - zod 유효성 검사
 - 작업할 때는 반드시 브랜치를 만들고 작업할 것
+- 스키마 변경 시 `prisma db push` 대신 `prisma migrate dev` 사용 (마이그레이션 히스토리 유지)

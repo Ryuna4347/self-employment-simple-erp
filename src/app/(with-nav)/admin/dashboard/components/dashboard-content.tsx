@@ -117,19 +117,21 @@ export function DashboardContent() {
           </SelectContent>
         </Select>
 
-        {/* 월 선택 */}
-        <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
-          <SelectTrigger className="w-[90px]" size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTH_OPTIONS.map((m) => (
-              <SelectItem key={m} value={String(m)}>
-                {m}월
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* 월 선택 (일별 모드에서만 표시) */}
+        {period === "daily" && (
+          <Select value={String(month)} onValueChange={(v) => setMonth(Number(v))}>
+            <SelectTrigger className="w-[90px]" size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTH_OPTIONS.map((m) => (
+                <SelectItem key={m} value={String(m)}>
+                  {m}월
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* 기간 토글 버튼 */}
         <div className="flex gap-1 ml-auto">
