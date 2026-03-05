@@ -190,11 +190,12 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         selectedDate={selectedDate}
       />
 
-      {/* 수금 확인 요청 모달 */}
+      {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
       <CollectionRequestModal
         open={collectionRequestModalOpen}
         onOpenChange={setCollectionRequestModalOpen}
         record={collectionRequestTarget}
+        userRole={userRole}
       />
     </div>
   )

@@ -240,7 +240,31 @@ export function WorkRecordCard({
                         )}
                     </p>
                     {record.collectionStatus === "UNCOLLECTED" && (
-                      record.canDirectCollect || userRole === "ADMIN" ? (
+                      record.hasPendingRequest ? (
+                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
+                          <Clock className="size-3" />
+                          수금 확인 요청 중
+                        </span>
+                      ) : record.hasPreviousUncollected ? (
+                        // 이전 미수건이 있으면 모달로 일괄 처리
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRequestCollect}
+                          disabled={isActionPending}
+                          className={userRole === "ADMIN"
+                            ? "h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            : "h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          }
+                        >
+                          {userRole === "ADMIN" ? (
+                            <><CircleCheck className="size-3" />일괄 수금처리</>
+                          ) : (
+                            <><Send className="size-3" />수금 확인 요청</>
+                          )}
+                        </Button>
+                      ) : record.canDirectCollect || userRole === "ADMIN" ? (
+                        // 이전 미수 없음 → 바로 단건 수금
                         <Button
                           variant="outline"
                           size="sm"
@@ -255,12 +279,8 @@ export function WorkRecordCard({
                           )}
                           {isCollecting ? "처리 중..." : "수금처리"}
                         </Button>
-                      ) : record.hasPendingRequest ? (
-                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
-                          <Clock className="size-3" />
-                          수금 확인 요청 중
-                        </span>
                       ) : (
+                        // 기한 초과 → 수금 확인 요청
                         <Button
                           variant="outline"
                           size="sm"

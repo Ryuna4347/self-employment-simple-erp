@@ -210,6 +210,7 @@ export async function GET(request: NextRequest) {
   const records = pageRecords.map(r => {
     let canDirectCollect: boolean | undefined
     let hasPendingRequest: boolean | undefined
+    let hasPreviousUncollected: boolean | undefined
 
     if (r.collectionStatus === "UNCOLLECTED") {
       hasPendingRequest = r.storeId ? pendingRequestStoreIds.has(r.storeId) : false
@@ -219,7 +220,7 @@ export async function GET(request: NextRequest) {
       const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
       const withinOneDay = now <= oneDayLater
 
-      let hasPreviousUncollected = false
+      hasPreviousUncollected = false
       if (r.storeId) {
         const earliest = earliestUncollectedMap.get(r.storeId)
         if (earliest && earliest < startOfDay(r.date)) {
@@ -235,6 +236,7 @@ export async function GET(request: NextRequest) {
       storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
       canDirectCollect,
       hasPendingRequest,
+      hasPreviousUncollected,
     }
   })
 

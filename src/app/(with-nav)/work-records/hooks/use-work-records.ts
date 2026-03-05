@@ -83,6 +83,7 @@ export interface WorkRecordResponse {
   // 수금 확인 요청 관련
   canDirectCollect?: boolean
   hasPendingRequest?: boolean
+  hasPreviousUncollected?: boolean
 }
 
 // 일별 통계 (서버에서 계산)

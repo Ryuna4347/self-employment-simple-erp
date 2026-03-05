@@ -16,18 +16,21 @@ import {
 } from "@/components/ui/responsive-modal"
 import { useStoreUncollected } from "../hooks/use-store-uncollected"
 import { useCreateCollectionRequest } from "../hooks/use-collection-request"
+import { useBatchCollect } from "../hooks/use-batch-collect"
 import type { WorkRecordResponse } from "../hooks/use-work-records"
 
 interface CollectionRequestModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   record: WorkRecordResponse | null
+  userRole: "ADMIN" | "USER"
 }
 
 export function CollectionRequestModal({
   open,
   onOpenChange,
   record,
+  userRole,
 }: CollectionRequestModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [note, setNote] = useState("")
@@ -36,8 +39,10 @@ export function CollectionRequestModal({
   const storeId = record?.storeId
   const storeName = record?.storeNameSnapshot ?? record?.store?.name ?? "알 수 없음"
 
+  const isAdmin = userRole === "ADMIN"
   const { data: uncollectedRecords, isLoading } = useStoreUncollected(open ? storeId : null)
   const createMutation = useCreateCollectionRequest()
+  const batchCollectMutation = useBatchCollect()
 
   // 데이터 로드 시 전체 선택 초기화
   if (uncollectedRecords && !initialized) {
@@ -83,38 +88,63 @@ export function CollectionRequestModal({
       .reduce((sum, r) => sum + r.totalAmount, 0)
   }, [uncollectedRecords, selectedIds])
 
+  const isPending = createMutation.isPending || batchCollectMutation.isPending
+
   const handleSubmit = () => {
     if (selectedIds.size === 0) {
       toast.error("최소 1건 이상 선택해주세요")
       return
     }
 
-    createMutation.mutate(
-      {
-        storeId: storeId ?? undefined,
-        storeNameSnapshot: storeName,
-        workRecordIds: Array.from(selectedIds),
-        note: note.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success("수금 확인 요청이 제출되었습니다")
-          handleOpenChange(false)
+    const workRecordIds = Array.from(selectedIds)
+
+    if (isAdmin) {
+      // 어드민: 직접 일괄 수금 처리
+      batchCollectMutation.mutate(
+        { workRecordIds },
+        {
+          onSuccess: () => {
+            toast.success("일괄 수금 처리가 완료되었습니다")
+            handleOpenChange(false)
+          },
+          onError: () => {
+            toast.error("수금 처리에 실패했습니다")
+          },
+        }
+      )
+    } else {
+      // 일반 유저: 수금 확인 요청
+      createMutation.mutate(
+        {
+          storeId: storeId ?? undefined,
+          storeNameSnapshot: storeName,
+          workRecordIds,
+          note: note.trim() || undefined,
         },
-        onError: () => {
-          toast.error("요청 제출에 실패했습니다")
-        },
-      }
-    )
+        {
+          onSuccess: () => {
+            toast.success("수금 확인 요청이 제출되었습니다")
+            handleOpenChange(false)
+          },
+          onError: () => {
+            toast.error("요청 제출에 실패했습니다")
+          },
+        }
+      )
+    }
   }
 
   return (
     <ResponsiveModal open={open} onOpenChange={handleOpenChange} mobileVariant="fullscreen">
       <ResponsiveModalContent className="sm:max-w-md">
         <ResponsiveModalHeader>
-          <ResponsiveModalTitle>수금 확인 요청</ResponsiveModalTitle>
+          <ResponsiveModalTitle>
+            {isAdmin ? "일괄 수금 처리" : "수금 확인 요청"}
+          </ResponsiveModalTitle>
           <ResponsiveModalDescription>
-            {storeName}의 미수금 내역을 선택하여 수금 확인을 요청합니다
+            {isAdmin
+              ? `${storeName}의 미수금 내역을 선택하여 일괄 수금 처리합니다`
+              : `${storeName}의 미수금 내역을 선택하여 수금 확인을 요청합니다`}
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
@@ -172,19 +202,21 @@ export function CollectionRequestModal({
                 </span>
               </div>
 
-              {/* 메모 입력 */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">
-                  메모 (선택)
-                </label>
-                <Textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="관리자에게 전달할 메모를 입력하세요"
-                  className="resize-none"
-                  rows={2}
-                />
-              </div>
+              {/* 메모 입력 (유저 모드만) */}
+              {!isAdmin && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                    메모 (선택)
+                  </label>
+                  <Textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="관리자에게 전달할 메모를 입력하세요"
+                    className="resize-none"
+                    rows={2}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -192,11 +224,13 @@ export function CollectionRequestModal({
         <ResponsiveModalFooter>
           <Button
             onClick={handleSubmit}
-            disabled={createMutation.isPending || selectedIds.size === 0}
+            disabled={isPending || selectedIds.size === 0}
             className="w-full"
           >
-            {createMutation.isPending && <Loader2 className="size-4 animate-spin" />}
-            수금 확인 요청 ({selectedIds.size}건, {selectedTotal.toLocaleString()}원)
+            {isPending && <Loader2 className="size-4 animate-spin" />}
+            {isAdmin
+              ? `수금 처리 (${selectedIds.size}건, ${selectedTotal.toLocaleString()}원)`
+              : `수금 확인 요청 (${selectedIds.size}건, ${selectedTotal.toLocaleString()}원)`}
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>
