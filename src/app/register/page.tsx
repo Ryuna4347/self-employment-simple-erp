@@ -166,7 +166,7 @@ function RegisterFormWithCode({ code }: { code: string }) {
 
       const data: CompleteResponse = await response.json();
 
-      if (data.data) {
+      if (response.ok) {
         setPageState("success");
         // 2초 후 메인 페이지로 리다이렉트
         setTimeout(() => {

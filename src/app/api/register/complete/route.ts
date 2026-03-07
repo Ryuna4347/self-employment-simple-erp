@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return apiSuccess(null, 200, "회원가입이 완료되었습니다")
+    return apiSuccess({ success: true }, 200, "회원가입이 완료되었습니다")
   } catch (error) {
     console.error("회원가입 완료 오류:", error)
     return ApiErrors.internalError("회원가입 처리 중 오류가 발생했습니다")

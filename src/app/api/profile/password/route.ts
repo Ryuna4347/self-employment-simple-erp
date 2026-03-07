@@ -54,7 +54,7 @@ export async function PATCH(request: NextRequest) {
       data: { password: hashedPassword },
     })
 
-    return apiSuccess(null, 200, "비밀번호가 변경되었습니다")
+    return apiSuccess({ success: true }, 200, "비밀번호가 변경되었습니다")
   } catch (error) {
     console.error("비밀번호 변경 오류:", error)
     return ApiErrors.internalError("비밀번호 변경 중 오류가 발생했습니다")
