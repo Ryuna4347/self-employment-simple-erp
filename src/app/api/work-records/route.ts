@@ -142,7 +142,8 @@ export async function GET(request: NextRequest) {
       .flatMap(r => r.collectionRequestItems.map(item => item.collectionRequestId))
   )
 
-  const latestRecordIds = new Set<string>()
+  // 최근 기록 ID → 요청 전체 금액/결제방식별 금액 매핑
+  const latestRecordPendingMap = new Map<string, { total: number; byPaymentType: Record<string, number> }>()
   if (pendingRequestIds.size > 0) {
     const pendingRequests = await prisma.collectionRequest.findMany({
       where: { id: { in: [...pendingRequestIds] } },
@@ -150,15 +151,29 @@ export async function GET(request: NextRequest) {
         items: {
           select: {
             workRecordId: true,
-            workRecord: { select: { date: true } },
+            workRecord: {
+              select: {
+                date: true,
+                paymentTypeSnapshot: true,
+                items: { select: { amount: true } },
+              },
+            },
           },
           orderBy: { workRecord: { date: "desc" } },
-          take: 1,
         },
       },
     })
     for (const req of pendingRequests) {
-      if (req.items[0]) latestRecordIds.add(req.items[0].workRecordId)
+      if (!req.items[0]) continue
+      const latestId = req.items[0].workRecordId
+      let total = 0
+      const byPaymentType: Record<string, number> = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+      for (const item of req.items) {
+        const amount = item.workRecord.items.reduce((sum, i) => sum + i.amount, 0)
+        total += amount
+        byPaymentType[item.workRecord.paymentTypeSnapshot] += amount
+      }
+      latestRecordPendingMap.set(latestId, { total, byPaymentType })
     }
   }
 
@@ -178,9 +193,12 @@ export async function GET(request: NextRequest) {
       collectedByPaymentType[r.paymentTypeSnapshot] += amount
     } else if (r.collectionStatus === "UNCOLLECTED") {
       uncollectedSales += amount
-      if (latestRecordIds.has(r.id)) {
-        pendingCollectionSales += amount
-        pendingCollectionByPaymentType[r.paymentTypeSnapshot] += amount
+      const pending = latestRecordPendingMap.get(r.id)
+      if (pending) {
+        pendingCollectionSales += pending.total
+        pendingCollectionByPaymentType.CASH += pending.byPaymentType.CASH
+        pendingCollectionByPaymentType.ACCOUNT += pending.byPaymentType.ACCOUNT
+        pendingCollectionByPaymentType.CARD += pending.byPaymentType.CARD
       }
     }
   }
