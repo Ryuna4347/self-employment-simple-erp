@@ -246,7 +246,7 @@ export function WorkRecordCard({
                           수금 확인 요청 중
                         </span>
                       ) : record.hasPreviousUncollected ? (
-                        // 이전 미수건이 있으면 모달로 일괄 처리
+                        // 다른 날짜 미수건이 있으면 모달로 일괄 처리
                         <Button
                           variant="outline"
                           size="sm"

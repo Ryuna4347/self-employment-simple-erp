@@ -69,6 +69,7 @@ interface WorkRecordModalProps {
   onOpenChange: (open: boolean) => void
   selectedDate: Date
   editRecord?: WorkRecordResponse | null
+  userRole: "ADMIN" | "USER"
 }
 
 // 결제방식 한글 변환
@@ -86,6 +87,7 @@ export function WorkRecordModal({
   onOpenChange,
   selectedDate,
   editRecord,
+  userRole,
 }: WorkRecordModalProps) {
   // 수정 모드 확인 (애니메이션 중 라벨 변경 방지)
   const [internalEditRecord, setInternalEditRecord] = useState<WorkRecordResponse | null>(null)
@@ -569,8 +571,15 @@ export function WorkRecordModal({
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="COLLECTED" id="collected" />
-                <Label htmlFor="collected" className="font-normal cursor-pointer">
+                <RadioGroupItem
+                  value="COLLECTED"
+                  id="collected"
+                  disabled={userRole !== "ADMIN" && !!internalEditRecord?.hasPreviousUncollected}
+                />
+                <Label
+                  htmlFor="collected"
+                  className={`font-normal ${userRole !== "ADMIN" && internalEditRecord?.hasPreviousUncollected ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                >
                   수금 완료
                 </Label>
               </div>

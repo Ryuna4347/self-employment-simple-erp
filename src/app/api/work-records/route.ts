@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
     if (r.collectionStatus === "UNCOLLECTED") {
       hasPendingRequest = r.storeId ? pendingRequestStoreIds.has(r.storeId) : false
 
-      // 직접 수금 가능 여부: 24시간 이내 + 이전 미수 없음
+      // 직접 수금 가능 여부: 24시간 이내 + 다른 날짜 미수 없음
       const referenceDate = new Date(Math.max(r.createdAt.getTime(), r.date.getTime()))
       const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
       const withinOneDay = now <= oneDayLater
@@ -226,7 +226,7 @@ export async function GET(request: NextRequest) {
       hasPreviousUncollected = false
       if (r.storeId) {
         const earliest = earliestUncollectedMap.get(r.storeId)
-        if (earliest && earliest < startOfDay(r.date)) {
+        if (earliest) {
           hasPreviousUncollected = true
         }
       }

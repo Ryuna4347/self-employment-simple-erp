@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       date: true,
       collectionStatus: true,
     },
-    orderBy: { date: "desc" },
+    orderBy: { date: "asc" },
   })
 
   return apiSuccess(visits)

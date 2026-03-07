@@ -181,6 +181,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         onOpenChange={setWorkRecordModalOpen}
         selectedDate={selectedDate}
         editRecord={editingRecord}
+        userRole={userRole}
       />
 
       {/* 코스 적용 모달 */}
