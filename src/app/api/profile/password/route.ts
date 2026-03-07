@@ -23,7 +23,10 @@ export async function PATCH(request: NextRequest) {
     // 입력 검증
     const parseResult = changePasswordSchema.safeParse(body)
     if (!parseResult.success) {
-      return ApiErrors.validationError(parseResult.error.issues[0].message)
+      const firstError = parseResult.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { currentPassword, newPassword } = parseResult.data

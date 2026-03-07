@@ -66,7 +66,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // 입력 검증
     const parseResult = applySchema.safeParse(body)
     if (!parseResult.success) {
-      return ApiErrors.validationError(parseResult.error.issues[0].message)
+      const firstError = parseResult.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { date } = parseResult.data
