@@ -24,5 +24,6 @@ export function useStoreUncollected(storeId: string | null | undefined) {
       return response.data
     },
     enabled: !!storeId,
+    staleTime: 0,
   })
 }

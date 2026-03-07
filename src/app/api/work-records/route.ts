@@ -108,9 +108,14 @@ export async function GET(request: NextRequest) {
     prisma.workRecord.findMany({
       where: baseWhere,
       select: {
+        id: true,
         collectionStatus: true,
         paymentTypeSnapshot: true,
         items: { select: { amount: true } },
+        collectionRequestItems: {
+          where: { collectionRequest: { status: "PENDING" } },
+          select: { collectionRequestId: true },
+        },
       },
     }),
     // 검색 적용된 전체 건수
@@ -130,11 +135,55 @@ export async function GET(request: NextRequest) {
     }),
   ])
 
+  // PENDING 수금확인 요청의 가장 최근 기록 ID 집합 구하기
+  const pendingRequestIds = new Set(
+    allRecords
+      .filter(r => r.collectionStatus === "UNCOLLECTED" && r.collectionRequestItems.length > 0)
+      .flatMap(r => r.collectionRequestItems.map(item => item.collectionRequestId))
+  )
+
+  // 최근 기록 ID → 요청 전체 금액/결제방식별 금액 매핑
+  const latestRecordPendingMap = new Map<string, { total: number; byPaymentType: Record<string, number> }>()
+  if (pendingRequestIds.size > 0) {
+    const pendingRequests = await prisma.collectionRequest.findMany({
+      where: { id: { in: [...pendingRequestIds] } },
+      select: {
+        items: {
+          select: {
+            workRecordId: true,
+            workRecord: {
+              select: {
+                date: true,
+                paymentTypeSnapshot: true,
+                items: { select: { amount: true } },
+              },
+            },
+          },
+          orderBy: { workRecord: { date: "desc" } },
+        },
+      },
+    })
+    for (const req of pendingRequests) {
+      if (!req.items[0]) continue
+      const latestId = req.items[0].workRecordId
+      let total = 0
+      const byPaymentType: Record<string, number> = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+      for (const item of req.items) {
+        const amount = item.workRecord.items.reduce((sum, i) => sum + i.amount, 0)
+        total += amount
+        byPaymentType[item.workRecord.paymentTypeSnapshot] += amount
+      }
+      latestRecordPendingMap.set(latestId, { total, byPaymentType })
+    }
+  }
+
   // summary 계산 (전체 날짜 기준)
   let totalSales = 0
   let collectedSales = 0
   let uncollectedSales = 0
+  let pendingCollectionSales = 0
   const collectedByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+  const pendingCollectionByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
 
   for (const r of allRecords) {
     const amount = r.items.reduce((sum, item) => sum + item.amount, 0)
@@ -144,6 +193,13 @@ export async function GET(request: NextRequest) {
       collectedByPaymentType[r.paymentTypeSnapshot] += amount
     } else if (r.collectionStatus === "UNCOLLECTED") {
       uncollectedSales += amount
+      const pending = latestRecordPendingMap.get(r.id)
+      if (pending) {
+        pendingCollectionSales += pending.total
+        pendingCollectionByPaymentType.CASH += pending.byPaymentType.CASH
+        pendingCollectionByPaymentType.ACCOUNT += pending.byPaymentType.ACCOUNT
+        pendingCollectionByPaymentType.CARD += pending.byPaymentType.CARD
+      }
     }
   }
 
@@ -253,6 +309,8 @@ export async function GET(request: NextRequest) {
       collectedSales,
       uncollectedSales,
       collectedByPaymentType,
+      pendingCollectionSales,
+      pendingCollectionByPaymentType,
     },
     pagination: {
       page,

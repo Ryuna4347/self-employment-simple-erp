@@ -7,4 +7,6 @@ export interface DailySummary {
   collectedSales: number
   uncollectedSales: number
   collectedByPaymentType: Record<PaymentType, number>
+  pendingCollectionSales: number
+  pendingCollectionByPaymentType: Record<PaymentType, number>
 }
