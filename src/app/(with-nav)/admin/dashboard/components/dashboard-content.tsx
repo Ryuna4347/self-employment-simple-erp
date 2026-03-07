@@ -13,7 +13,7 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download } from "lucide-react"
+import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -199,6 +199,21 @@ export function DashboardContent() {
                 </div>
                 <p className="text-lg font-semibold text-blue-600">
                   {data.summary.totalRevenue.toLocaleString()}원
+                </p>
+              </div>
+            </div>
+
+            {/* 총 비용 */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600">총 비용</p>
+                  <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                    <Receipt className="w-4 h-4 text-orange-500" />
+                  </div>
+                </div>
+                <p className="text-lg font-semibold text-orange-600">
+                  {data.summary.totalExpenses.toLocaleString()}원
                 </p>
               </div>
             </div>

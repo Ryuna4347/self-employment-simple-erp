@@ -1,0 +1,107 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { apiClient } from "@/lib/api-client"
+
+// 비용 레코드 타입
+export interface CostRecord {
+  id: string
+  date: string
+  title: string
+  amount: number
+  description: string | null
+  userName: string
+}
+
+// 비용 목록 응답 타입
+interface CostsResponse {
+  data: {
+    records: CostRecord[]
+    summary: { totalCosts: number; count: number }
+  }
+}
+
+// 비용 생성/수정 입력 타입
+export interface CostInput {
+  date: string
+  title: string
+  amount: number
+  description?: string
+}
+
+// 쿼리 키
+const COSTS_KEY = ["admin", "costs"] as const
+const DASHBOARD_KEY = ["admin", "dashboard"] as const
+
+/**
+ * 비용 목록 조회 훅
+ */
+export function useCosts(year: number, month: number) {
+  return useQuery({
+    queryKey: [...COSTS_KEY, { year, month }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        year: String(year),
+        month: String(month),
+      })
+      const response = await apiClient<CostsResponse>(
+        `/api/admin/costs?${params.toString()}`
+      )
+      return response.data
+    },
+  })
+}
+
+/**
+ * 비용 생성 훅
+ */
+export function useCreateCost() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (data: CostInput) => {
+      return await apiClient("/api/admin/costs", {
+        method: "POST",
+        json: data,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+    },
+  })
+}
+
+/**
+ * 비용 수정 훅
+ */
+export function useUpdateCost() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...data }: CostInput & { id: string }) => {
+      return await apiClient(`/api/admin/costs/${id}`, {
+        method: "PUT",
+        json: data,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+    },
+  })
+}
+
+/**
+ * 비용 삭제 훅
+ */
+export function useDeleteCost() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      return await apiClient(`/api/admin/costs/${id}`, {
+        method: "DELETE",
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+    },
+  })
+}

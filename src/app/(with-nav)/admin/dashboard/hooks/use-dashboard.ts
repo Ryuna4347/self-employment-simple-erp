@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api-client"
 // 대시보드 요약 통계
 interface DashboardSummary {
   totalRevenue: number
+  totalExpenses: number
   outstandingAmount: number
   totalVisits: number
   uniqueStores: number

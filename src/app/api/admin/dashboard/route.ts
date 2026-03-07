@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       chartData,
       topStoresData,
       outstandingRecords,
+      expenseAggregate,
     ] = await Promise.all([
       // 1) collectionStatus별 건수 (summary + 파이차트 공용)
       prisma.workRecord.groupBy({
@@ -119,6 +120,12 @@ export async function GET(request: NextRequest) {
         orderBy: { date: "desc" },
         take: 5,
       }),
+
+      // 7) 비용 합계
+      prisma.expense.aggregate({
+        _sum: { amount: true },
+        where: { date: { gte: dateStart, lte: dateEnd } },
+      }),
     ])
 
     // === summary 조립 ===
@@ -134,8 +141,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const totalExpenses = Number(expenseAggregate._sum.amount ?? 0)
+
     const summary = {
       totalRevenue,
+      totalExpenses,
       outstandingAmount,
       totalVisits,
       uniqueStores: uniqueStoresResult.length,
