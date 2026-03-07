@@ -44,6 +44,9 @@ export function CollectionRequestModal({
   const createMutation = useCreateCollectionRequest()
   const batchCollectMutation = useBatchCollect()
 
+  // 가장 최근(마지막) 기록 ID - 항상 선택 고정
+  const latestId = uncollectedRecords?.[uncollectedRecords.length - 1]?.id
+
   // 데이터 로드 시 전체 선택 초기화
   if (uncollectedRecords && !initialized) {
     setSelectedIds(new Set(uncollectedRecords.map((r) => r.id)))
@@ -61,6 +64,7 @@ export function CollectionRequestModal({
   }
 
   const toggleId = (id: string) => {
+    if (id === latestId) return
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -75,7 +79,7 @@ export function CollectionRequestModal({
   const toggleAll = () => {
     if (!uncollectedRecords) return
     if (selectedIds.size === uncollectedRecords.length) {
-      setSelectedIds(new Set())
+      setSelectedIds(new Set(latestId ? [latestId] : []))
     } else {
       setSelectedIds(new Set(uncollectedRecords.map((r) => r.id)))
     }
@@ -180,6 +184,7 @@ export function CollectionRequestModal({
                     <Checkbox
                       checked={selectedIds.has(r.id)}
                       onCheckedChange={() => toggleId(r.id)}
+                      disabled={r.id === latestId}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">{r.date}</p>
