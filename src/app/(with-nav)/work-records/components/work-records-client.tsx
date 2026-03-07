@@ -80,7 +80,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
   // DailyStats용 summary (서버에서 계산된 전체 날짜 기준)
   const dailySummary = useMemo(() => {
-    if (!summary) return { totalVisits: 0, totalSales: 0, collectedSales: 0, uncollectedSales: 0, collectedByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 } }
+    if (!summary) return { totalVisits: 0, totalSales: 0, collectedSales: 0, uncollectedSales: 0, collectedByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 }, pendingCollectionSales: 0, pendingCollectionByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 } }
     return summary
   }, [summary])
 

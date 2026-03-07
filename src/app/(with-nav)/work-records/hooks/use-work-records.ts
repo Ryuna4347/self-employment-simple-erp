@@ -93,6 +93,8 @@ export interface WorkRecordsSummary {
   collectedSales: number
   uncollectedSales: number
   collectedByPaymentType: Record<PaymentType, number>
+  pendingCollectionSales: number
+  pendingCollectionByPaymentType: Record<PaymentType, number>
 }
 
 // 페이지네이션 정보

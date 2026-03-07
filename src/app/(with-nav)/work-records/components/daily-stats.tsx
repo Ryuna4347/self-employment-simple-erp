@@ -40,16 +40,29 @@ export function DailyStats({ summary }: DailyStatsProps) {
             <p className="text-blue-100 mb-0.5">수금 완료</p>
             <p className="font-semibold">
               {summary.collectedSales.toLocaleString()}원
+              {summary.pendingCollectionSales > 0 && (
+                <span className="text-xs font-normal text-yellow-200 ml-1">
+                  ({summary.pendingCollectionSales.toLocaleString()}원)
+                </span>
+              )}
             </p>
-            {summary.collectedSales > 0 && (
+            {(summary.collectedSales > 0 || summary.pendingCollectionSales > 0) && (
               <div className="mt-1.5 space-y-0.5 text-xs text-blue-100">
                 {(Object.entries(summary.collectedByPaymentType) as [PaymentType, number][])
-                  .filter(([, amount]) => amount > 0)
-                  .map(([type, amount]) => (
-                    <p key={type}>
-                      {PAYMENT_TYPE_CONFIG[type].label} {amount.toLocaleString()}원
-                    </p>
-                  ))}
+                  .filter(([type, amount]) => amount > 0 || summary.pendingCollectionByPaymentType[type] > 0)
+                  .map(([type, amount]) => {
+                    const pendingAmount = summary.pendingCollectionByPaymentType[type]
+                    return (
+                      <p key={type}>
+                        {PAYMENT_TYPE_CONFIG[type].label} {amount.toLocaleString()}원
+                        {pendingAmount > 0 && (
+                          <span className="text-yellow-200 ml-1">
+                            ({pendingAmount.toLocaleString()}원)
+                          </span>
+                        )}
+                      </p>
+                    )
+                  })}
               </div>
             )}
           </div>

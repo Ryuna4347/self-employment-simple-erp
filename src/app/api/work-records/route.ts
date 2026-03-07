@@ -108,9 +108,14 @@ export async function GET(request: NextRequest) {
     prisma.workRecord.findMany({
       where: baseWhere,
       select: {
+        id: true,
         collectionStatus: true,
         paymentTypeSnapshot: true,
         items: { select: { amount: true } },
+        collectionRequestItems: {
+          where: { collectionRequest: { status: "PENDING" } },
+          select: { collectionRequestId: true },
+        },
       },
     }),
     // 검색 적용된 전체 건수
@@ -130,11 +135,40 @@ export async function GET(request: NextRequest) {
     }),
   ])
 
+  // PENDING 수금확인 요청의 가장 최근 기록 ID 집합 구하기
+  const pendingRequestIds = new Set(
+    allRecords
+      .filter(r => r.collectionStatus === "UNCOLLECTED" && r.collectionRequestItems.length > 0)
+      .flatMap(r => r.collectionRequestItems.map(item => item.collectionRequestId))
+  )
+
+  const latestRecordIds = new Set<string>()
+  if (pendingRequestIds.size > 0) {
+    const pendingRequests = await prisma.collectionRequest.findMany({
+      where: { id: { in: [...pendingRequestIds] } },
+      select: {
+        items: {
+          select: {
+            workRecordId: true,
+            workRecord: { select: { date: true } },
+          },
+          orderBy: { workRecord: { date: "desc" } },
+          take: 1,
+        },
+      },
+    })
+    for (const req of pendingRequests) {
+      if (req.items[0]) latestRecordIds.add(req.items[0].workRecordId)
+    }
+  }
+
   // summary 계산 (전체 날짜 기준)
   let totalSales = 0
   let collectedSales = 0
   let uncollectedSales = 0
+  let pendingCollectionSales = 0
   const collectedByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+  const pendingCollectionByPaymentType = { CASH: 0, ACCOUNT: 0, CARD: 0 }
 
   for (const r of allRecords) {
     const amount = r.items.reduce((sum, item) => sum + item.amount, 0)
@@ -144,6 +178,10 @@ export async function GET(request: NextRequest) {
       collectedByPaymentType[r.paymentTypeSnapshot] += amount
     } else if (r.collectionStatus === "UNCOLLECTED") {
       uncollectedSales += amount
+      if (latestRecordIds.has(r.id)) {
+        pendingCollectionSales += amount
+        pendingCollectionByPaymentType[r.paymentTypeSnapshot] += amount
+      }
     }
   }
 
@@ -253,6 +291,8 @@ export async function GET(request: NextRequest) {
       collectedSales,
       uncollectedSales,
       collectedByPaymentType,
+      pendingCollectionSales,
+      pendingCollectionByPaymentType,
     },
     pagination: {
       page,
