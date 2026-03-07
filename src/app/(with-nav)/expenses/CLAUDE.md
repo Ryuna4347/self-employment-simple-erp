@@ -14,10 +14,12 @@
 ## 데이터 모델
 
 ### Expense
-- `date`: 지출 발생 날짜
+- `date`: 지출 발생 날짜 (사용자 입력)
 - `userId`: 작성자
+- `title`: 지출 제목 (예: "유류비", "식대")
 - `amount`: 지출 금액
-- `description`: 지출 설명 (예: "주유비", "점심 식대")
+- `description`: 비고 (선택)
+- `createdAt`, `updatedAt`: 자동 관리
 
 ---
 
@@ -34,9 +36,11 @@
 
 ## 구현 상태
 
-> **미구현**: 페이지 UI와 API 라우트가 아직 구현되지 않음. Prisma 모델만 정의된 상태.
+> **미구현**: 사용자용 `/expenses` 페이지 UI와 API 라우트는 아직 구현되지 않음.
+> 관리자용 비용 관리는 `/admin/costs`에서 구현됨.
 
 ## 관련 페이지
 
-- `/expenses` - 지출 목록 (미구현)
+- `/expenses` - 사용자용 지출 목록 (미구현)
+- `/admin/costs` - 관리자용 비용 관리 (구현 완료)
 - `/admin/dashboard` - 대시보드 재무 지표

@@ -38,6 +38,11 @@ src/app/
 │   ├── expenses/
 │   ├── profile/
 │   └── admin/
+│       ├── dashboard/
+│       ├── staff/
+│       ├── outstanding/
+│       ├── collections/
+│       └── costs/
 ├── register/         # 회원가입
 ├── api/              # API 라우트
 └── page.tsx          # 로그인 페이지 (/)
@@ -53,7 +58,7 @@ src/app/
 | 순회 템플릿 | `/store-templates` | 매장 그룹 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 (미구현) |
 | 프로필 | `/profile` | 비밀번호 변경 |
-| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금 |
+| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용 |
 
 ## 인증 시스템
 
