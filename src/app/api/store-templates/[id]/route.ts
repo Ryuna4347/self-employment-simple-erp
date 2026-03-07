@@ -94,7 +94,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // 입력 검증
     const parseResult = updateTemplateSchema.safeParse(body)
     if (!parseResult.success) {
-      return ApiErrors.validationError(parseResult.error.issues[0].message)
+      const firstError = parseResult.error.issues[0]
+      return ApiErrors.validationError(firstError.message, [
+        { field: firstError.path.join("."), message: firstError.message },
+      ])
     }
 
     const { name, description, members } = parseResult.data
