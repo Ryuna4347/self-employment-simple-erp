@@ -1,4 +1,5 @@
 import { getDay, getDate } from "date-fns"
+import { toKSTLocal } from "@/lib/date-utils"
 import type { WeekGroup, Weekday } from "./types"
 
 /**
@@ -10,7 +11,7 @@ import type { WeekGroup, Weekday } from "./types"
  * 2026-03-16 (월) → 3번째 월요일 → occurrence = 3
  */
 export function getWeekdayOccurrence(date: Date): number {
-  const dayOfMonth = getDate(date) // 1~31
+  const dayOfMonth = getDate(toKSTLocal(date)) // 1~31 (KST 기준)
   return Math.ceil(dayOfMonth / 7)
 }
 
@@ -30,7 +31,7 @@ export function getWeekGroup(occurrence: number): WeekGroup {
 export function getDateClassification(
   date: Date
 ): { weekday: Weekday; weekGroup: WeekGroup } | null {
-  const dayOfWeek = getDay(date) // 0=Sun, 1=Mon, ..., 6=Sat
+  const dayOfWeek = getDay(toKSTLocal(date)) // 0=Sun, 1=Mon, ..., 6=Sat (KST 기준)
 
   // 토/일 제외
   if (dayOfWeek === 0 || dayOfWeek === 6) return null

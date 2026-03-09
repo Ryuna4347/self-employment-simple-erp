@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs"
 import { prisma } from "@/lib/prisma"
-import { startOfMonth, endOfMonth } from "date-fns"
+import { startOfMonthKST, endOfMonthKST } from "@/lib/date-utils"
 import type {
   SheetData,
   EmployeeBlock,
@@ -19,9 +19,8 @@ import {
 // ── 데이터 조회 ──
 
 async function fetchMonthlyData(year: number, month: number) {
-  const targetDate = new Date(year, month - 1, 1)
-  const dateStart = startOfMonth(targetDate)
-  const dateEnd = endOfMonth(targetDate)
+  const dateStart = startOfMonthKST(year, month)
+  const dateEnd = endOfMonthKST(year, month)
 
   const [workRecords, expenses] = await Promise.all([
     prisma.workRecord.findMany({

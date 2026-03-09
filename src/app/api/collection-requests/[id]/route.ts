@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { format } from "date-fns"
+import { toKSTLocal } from "@/lib/date-utils"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ...item,
       workRecord: {
         ...item.workRecord,
-        date: format(item.workRecord.date, "yyyy-MM-dd"),
+        date: format(toKSTLocal(item.workRecord.date), "yyyy-MM-dd"),
         totalAmount: item.workRecord.items.reduce((sum, ri) => sum + ri.amount, 0),
       },
     })),

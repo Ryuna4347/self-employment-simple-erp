@@ -3,7 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { parseISO, startOfDay, differenceInCalendarDays } from "date-fns"
+import { differenceInCalendarDays } from "date-fns"
+import { dateToKSTMidnight } from "@/lib/date-utils"
 
 // 적용 요청 스키마
 const applySchema = z.object({
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const { date } = parseResult.data
-    const targetDate = startOfDay(parseISO(date))
+    const targetDate = dateToKSTMidnight(date)
 
     // 이미 해당 날짜에 같은 매장의 WorkRecord가 있는지 확인
     const existingRecords = await prisma.workRecord.findMany({
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const cycleSkippedStoreIds = new Set<string>()
     const membersToCreate = afterDeleteFilter.filter((m) => {
       const { visitCycleWeeks, firstVisitDate } = m.store
-      const firstVisit = startOfDay(new Date(firstVisitDate))
+      const firstVisit = new Date(firstVisitDate)
       const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
 
       // 첫 방문일이 미래이면 제외

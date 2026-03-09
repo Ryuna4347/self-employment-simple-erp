@@ -3,7 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { subMonths, startOfDay } from "date-fns"
+import { subMonths } from "date-fns"
+import { dateToKSTMidnight, toKSTDateString } from "@/lib/date-utils"
 
 const querySchema = z.object({
   storeId: z.string().min(1, "매장 ID가 필요합니다"),
@@ -29,7 +30,9 @@ export async function GET(request: NextRequest) {
   }
 
   const { storeId } = parseResult.data
-  const sixMonthsAgo = startOfDay(subMonths(new Date(), 6))
+  // KST 기준 오늘에서 6개월 전
+  const todayUTC = new Date(toKSTDateString() + "T00:00:00.000Z")
+  const sixMonthsAgo = dateToKSTMidnight(subMonths(todayUTC, 6).toISOString().slice(0, 10))
 
   const visits = await prisma.workRecord.findMany({
     where: {

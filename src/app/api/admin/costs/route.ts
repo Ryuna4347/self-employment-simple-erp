@@ -3,7 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { startOfMonth, endOfMonth, format } from "date-fns"
+import { format } from "date-fns"
+import { dateToKSTMidnight, startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
 
 // GET 쿼리 파라미터 스키마
 const querySchema = z.object({
@@ -37,9 +38,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { year, month } = parseResult.data
-    const targetDate = new Date(year, month - 1, 1)
-    const dateStart = startOfMonth(targetDate)
-    const dateEnd = endOfMonth(targetDate)
+    const dateStart = startOfMonthKST(year, month)
+    const dateEnd = endOfMonthKST(year, month)
 
     const [records, aggregate] = await Promise.all([
       prisma.expense.findMany({
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const formattedRecords = records.map((r) => ({
       id: r.id,
-      date: format(r.date, "yyyy-MM-dd"),
+      date: format(toKSTLocal(r.date), "yyyy-MM-dd"),
       title: r.title,
       amount: r.amount,
       description: r.description,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     const expense = await prisma.expense.create({
       data: {
-        date: new Date(date),
+        date: dateToKSTMidnight(date),
         title,
         amount,
         description: description || null,
