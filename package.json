@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import-stores": "npx tsx scripts/import-stores.ts",
+    "generate-store-template": "npx tsx scripts/generate-store-template.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
