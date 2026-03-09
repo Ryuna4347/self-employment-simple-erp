@@ -91,13 +91,13 @@ export async function GET(request: NextRequest) {
         select: { storeId: true },
       }),
 
-      // 4) 기간별 매출 (차트) - KST 타임존 기준 DATE_TRUNC
-      prisma.$queryRaw<{ period: Date; revenue: bigint }[]>`
-        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period, COALESCE(SUM(ri.amount), 0) as revenue
+      // 4) 기간별 + 결제유형별 매출 (차트) - KST 타임존 기준 DATE_TRUNC
+      prisma.$queryRaw<{ period: Date; paymentType: string; revenue: bigint }[]>`
+        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period, wr."paymentTypeSnapshot" as "paymentType", COALESCE(SUM(ri.amount), 0) as revenue
         FROM "WorkRecord" wr
         LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
         WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
-        GROUP BY period ORDER BY period
+        GROUP BY period, wr."paymentTypeSnapshot" ORDER BY period
       `,
 
       // 5) 매출 상위 5개 매장
@@ -155,34 +155,52 @@ export async function GET(request: NextRequest) {
       uniqueStores: uniqueStoresResult.length,
     }
 
-    // === chart 조립 (빈 날짜/월 채우기) ===
+    // === chart 조립 (빈 날짜/월 채우기 + 결제유형별 분리) ===
     // toKSTLocal로 보정하여 eachDayOfInterval/eachMonthOfInterval이 KST 날짜 생성
-    const chartRevenueMap = new Map<string, number>()
+    type ChartEntry = { revenue: number; cash: number; account: number; card: number }
+    const chartRevenueMap = new Map<string, ChartEntry>()
+    const emptyEntry = (): ChartEntry => ({ revenue: 0, cash: 0, account: 0, card: 0 })
+
+    // paymentType → 필드명 매핑
+    const paymentTypeField: Record<string, keyof ChartEntry> = {
+      CASH: "cash",
+      ACCOUNT: "account",
+      CARD: "card",
+    }
 
     if (period === "daily" && month) {
       const days = eachDayOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
       for (const day of days) {
-        chartRevenueMap.set(format(day, "MM/dd"), 0)
+        chartRevenueMap.set(format(day, "MM/dd"), emptyEntry())
       }
       for (const row of chartData) {
-        // DATE_TRUNC AT TIME ZONE 결과는 "fake UTC" = KST 날짜
         const label = format(new Date(row.period), "MM/dd")
-        chartRevenueMap.set(label, Number(row.revenue))
+        const entry = chartRevenueMap.get(label) ?? emptyEntry()
+        const amount = Number(row.revenue)
+        entry.revenue += amount
+        const field = paymentTypeField[row.paymentType]
+        if (field) entry[field] += amount
+        chartRevenueMap.set(label, entry)
       }
     } else {
       const months = eachMonthOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
       for (const m of months) {
-        chartRevenueMap.set(format(m, "M월"), 0)
+        chartRevenueMap.set(format(m, "M월"), emptyEntry())
       }
       for (const row of chartData) {
         const label = format(new Date(row.period), "M월")
-        chartRevenueMap.set(label, Number(row.revenue))
+        const entry = chartRevenueMap.get(label) ?? emptyEntry()
+        const amount = Number(row.revenue)
+        entry.revenue += amount
+        const field = paymentTypeField[row.paymentType]
+        if (field) entry[field] += amount
+        chartRevenueMap.set(label, entry)
       }
     }
 
-    const chart = Array.from(chartRevenueMap.entries()).map(([label, revenue]) => ({
+    const chart = Array.from(chartRevenueMap.entries()).map(([label, entry]) => ({
       label,
-      revenue,
+      ...entry,
     }))
 
     // === topStores 조립 ===

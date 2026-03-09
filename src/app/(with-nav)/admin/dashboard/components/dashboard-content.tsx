@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   BarChart,
   Bar,
@@ -12,6 +12,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts"
 import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,12 @@ export function DashboardContent() {
   )
 
   const [isExporting, setIsExporting] = useState(false)
+  const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null)
+
+  // 기간 변경 시 선택 해제
+  useEffect(() => {
+    setSelectedBarLabel(null)
+  }, [period, year, month])
 
   const yearOptions = getYearOptions()
 
@@ -264,14 +271,63 @@ export function DashboardContent() {
             </div>
           </div>
 
+          {/* 결제유형별 매출 상세 (차트 클릭 시) */}
+          {selectedBarLabel && (() => {
+            const point = data.chart.find((d) => d.label === selectedBarLabel)
+            if (!point) return null
+            return (
+              <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-900">
+                    {selectedBarLabel} 결제유형별 매출
+                  </p>
+                  <button
+                    onClick={() => setSelectedBarLabel(null)}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    닫기
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-2 bg-orange-50 rounded">
+                    <span className="inline-block w-3 h-3 rounded-sm mr-1" style={{ backgroundColor: "#f97316" }} />
+                    <p className="text-xs text-gray-600 mt-1">카드</p>
+                    <p className="text-sm font-semibold text-orange-500">{point.card.toLocaleString()}원</p>
+                  </div>
+                  <div className="text-center p-2 bg-green-50 rounded">
+                    <span className="inline-block w-3 h-3 rounded-sm mr-1" style={{ backgroundColor: "#16a34a" }} />
+                    <p className="text-xs text-gray-600 mt-1">현금</p>
+                    <p className="text-sm font-semibold text-green-600">{point.cash.toLocaleString()}원</p>
+                  </div>
+                  <div className="text-center p-2 bg-violet-50 rounded">
+                    <span className="inline-block w-3 h-3 rounded-sm mr-1" style={{ backgroundColor: "#7c3aed" }} />
+                    <p className="text-xs text-gray-600 mt-1">계좌이체</p>
+                    <p className="text-sm font-semibold text-violet-600">{point.account.toLocaleString()}원</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 text-right mt-2">
+                  합계: {point.revenue.toLocaleString()}원
+                </p>
+              </div>
+            )
+          })()}
+
           {/* 차트 섹션 */}
           <div className="space-y-6 mb-6">
             {/* 매출 추이 차트 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
               <h3 className="text-sm font-medium text-gray-900 mb-4">매출 추이</h3>
               {data.chart.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={data.chart}>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={data.chart}
+                    onClick={(state) => {
+                      if (state?.activeLabel != null) {
+                        const label = String(state.activeLabel)
+                        setSelectedBarLabel((prev) => prev === label ? null : label)
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="label"
@@ -279,12 +335,19 @@ export function DashboardContent() {
                     />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value) => [
+                      formatter={(value, name) => [
                         `${Number(value).toLocaleString()}원`,
-                        "매출",
+                        name,
                       ]}
+                      labelFormatter={(label) => {
+                        const point = data.chart.find((d) => d.label === label)
+                        return point ? `${label} (합계: ${point.revenue.toLocaleString()}원)` : String(label)
+                      }}
                     />
-                    <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                    <Bar dataKey="card" stackId="a" fill="#f97316" name="카드" />
+                    <Bar dataKey="cash" stackId="a" fill="#16a34a" name="현금" />
+                    <Bar dataKey="account" stackId="a" fill="#7c3aed" name="계좌이체" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (

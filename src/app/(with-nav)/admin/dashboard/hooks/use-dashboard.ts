@@ -14,6 +14,9 @@ interface DashboardSummary {
 interface ChartDataPoint {
   label: string
   revenue: number
+  cash: number
+  account: number
+  card: number
 }
 
 // 매출 상위 매장
