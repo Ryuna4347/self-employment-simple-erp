@@ -28,6 +28,7 @@ import {
   type StoreTemplate,
 } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { getVisitDayAndCycle } from "@/app/(with-nav)/store-templates/utils/visit-info"
+import { useUsers } from "@/hooks/use-users"
 
 // 제외 매장 정보
 interface ExcludedStore {
@@ -48,17 +49,25 @@ interface TemplateApplyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   selectedDate: Date
+  userId: string
 }
 
 export function TemplateApplyModal({
   open,
   onOpenChange,
   selectedDate,
+  userId,
 }: TemplateApplyModalProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  const [selectedUserId, setSelectedUserId] = useState<string>(userId)
 
-  // 코스 목록 조회
-  const { data: templates = [], isLoading: isLoadingTemplates } = useStoreTemplates()
+  // 유저 목록 조회
+  const { data: users } = useUsers()
+  const currentUser = users?.find((u) => u.id === userId)
+  const currentUserName = currentUser?.name || "나"
+
+  // 코스 목록 조회 (선택된 유저 기준)
+  const { data: templates = [], isLoading: isLoadingTemplates } = useStoreTemplates(selectedUserId)
 
   // 코스 적용 mutation
   const applyMutation = useApplyStoreTemplate()
@@ -124,10 +133,17 @@ export function TemplateApplyModal({
     )
   }
 
+  // 유저 변경 핸들러
+  const handleUserChange = (newUserId: string) => {
+    setSelectedUserId(newUserId)
+    setSelectedTemplateId("")
+  }
+
   // 모달 닫힐 때 상태 초기화
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setSelectedTemplateId("")
+      setSelectedUserId(userId)
     }
     onOpenChange(isOpen)
   }
@@ -152,6 +168,22 @@ export function TemplateApplyModal({
             <div className="px-3 py-2 bg-gray-50 rounded-md text-sm">
               {format(selectedDate, "yyyy년 M월 d일 (EEEE)", { locale: ko })}
             </div>
+          </div>
+
+          {/* 코스 소유자 선택 */}
+          <div className="space-y-2">
+            <Label>코스 소유자</Label>
+            <Select value={selectedUserId} onValueChange={handleUserChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={userId}>{currentUserName} (나)</SelectItem>
+                {users?.filter((u) => u.id !== userId).map((user) => (
+                  <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* 코스 선택 */}

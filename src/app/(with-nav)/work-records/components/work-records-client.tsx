@@ -189,6 +189,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         open={templateModalOpen}
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
+        userId={userId}
       />
 
       {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
