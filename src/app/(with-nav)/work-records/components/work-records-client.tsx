@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { format } from "date-fns"
-import { Search } from "lucide-react"
+import { Search, Fuel } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { CalendarHeader } from "./calendar-header"
@@ -13,6 +13,8 @@ import { UserFilter } from "./user-filter"
 import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
 import { CollectionRequestModal } from "./collection-request-modal"
+import { FuelCostModal } from "./fuel-cost-modal"
+import { useFuelCost } from "../hooks/use-fuel-cost"
 import {
   useWorkRecords,
   useDeleteWorkRecord,
@@ -37,9 +39,16 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [collectionRequestModalOpen, setCollectionRequestModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<WorkRecordResponse | null>(null)
   const [collectionRequestTarget, setCollectionRequestTarget] = useState<WorkRecordResponse | null>(null)
+  const [fuelCostModalOpen, setFuelCostModalOpen] = useState(false)
 
   const isAdmin = userRole === "ADMIN"
   const dateString = format(selectedDate, "yyyy-MM-dd")
+
+  // 주유비: "전체"가 아닌 경우에만 조회
+  const isAllUsers = isAdmin && selectedUserId === "all"
+  const fuelCostUserId = isAdmin ? selectedUserId : undefined
+  const { data: fuelCost } = useFuelCost(dateString, isAllUsers ? undefined : fuelCostUserId)
+  const canEditFuelCost = !isAdmin || selectedUserId === userId
 
   const { data, isLoading, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useWorkRecords(
     dateString,
@@ -126,7 +135,23 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
       <div className="max-w-4xl mx-auto px-4 py-6 pb-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">근무 기록</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">근무 기록</h1>
+            {!isAllUsers && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 text-sm"
+                onClick={canEditFuelCost ? () => setFuelCostModalOpen(true) : undefined}
+                disabled={!canEditFuelCost && fuelCost?.amount == null}
+              >
+                <Fuel className="size-4" />
+                {fuelCost?.amount != null
+                  ? `${fuelCost.amount.toLocaleString()}원`
+                  : "주유비 입력"}
+              </Button>
+            )}
+          </div>
           <p className="text-gray-600 text-sm mt-1">일별 방문 기록과 거래 내역을 관리합니다</p>
         </div>
 
@@ -190,6 +215,14 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
         userId={userId}
+      />
+
+      {/* 주유비 입력 모달 */}
+      <FuelCostModal
+        open={fuelCostModalOpen}
+        onOpenChange={setFuelCostModalOpen}
+        date={dateString}
+        currentAmount={fuelCost?.amount ?? null}
       />
 
       {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
