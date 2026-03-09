@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
         where: {
           storeId: { in: pageStoreIds },
           collectionStatus: "UNCOLLECTED",
+          NOT: { date: { gte: dateStart, lte: dateEnd } },
         },
         _min: { date: true },
       }),
