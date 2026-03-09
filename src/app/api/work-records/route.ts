@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { startOfDay, endOfDay, parseISO } from "date-fns"
+import { dateToKSTMidnight, dateToKSTEndOfDay } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
@@ -77,9 +77,8 @@ export async function GET(request: NextRequest) {
     return ApiErrors.forbidden("전체 기록을 조회할 권한이 없습니다")
   }
 
-  const targetDate = parseISO(date)
-  const dateStart = startOfDay(targetDate)
-  const dateEnd = endOfDay(targetDate)
+  const dateStart = dateToKSTMidnight(date)
+  const dateEnd = dateToKSTEndOfDay(date)
 
   let userIdFilter: string | undefined
   if (!requestedUserId) {
@@ -359,12 +358,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 동일 날짜 + 동일 매장 중복 체크
-    const targetDate = parseISO(date)
+
     const existing = await prisma.workRecord.findFirst({
       where: {
         userId: user.id,
         storeId,
-        date: { gte: startOfDay(targetDate), lte: endOfDay(targetDate) },
+        date: { gte: dateToKSTMidnight(date), lte: dateToKSTEndOfDay(date) },
       },
       select: { id: true },
     })
@@ -381,7 +380,7 @@ export async function POST(request: NextRequest) {
   // 트랜잭션으로 WorkRecord + RecordItem 생성
   const workRecord = await prisma.workRecord.create({
     data: {
-      date: parseISO(date),
+      date: dateToKSTMidnight(date),
       // storeId가 있으면 store connect, 없으면 관계 생략
       ...(storeId ? { store: { connect: { id: storeId } } } : {}),
       user: { connect: { id: user.id } },

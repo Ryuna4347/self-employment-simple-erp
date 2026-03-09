@@ -1,5 +1,6 @@
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
+import { toKSTLocal } from "@/lib/date-utils"
 
 // 방문 주기 라벨 (store-card.tsx와 동일 패턴)
 export const visitCycleLabels: Record<number, string> = {
@@ -16,7 +17,7 @@ export function getVisitDayAndCycle(
   firstVisitDate: string,
   visitCycleWeeks: number
 ): string {
-  const dayOfWeek = format(new Date(firstVisitDate), "EEEE", { locale: ko })
+  const dayOfWeek = format(toKSTLocal(new Date(firstVisitDate)), "EEEE", { locale: ko })
   const cycleLabel = visitCycleLabels[visitCycleWeeks] ?? `${visitCycleWeeks}주`
   return `${cycleLabel} ${dayOfWeek}`
 }

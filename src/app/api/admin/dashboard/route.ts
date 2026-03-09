@@ -4,15 +4,17 @@ import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import {
-  startOfMonth,
-  endOfMonth,
-  startOfDay,
   eachDayOfInterval,
   eachMonthOfInterval,
-  startOfYear,
-  endOfYear,
   format,
 } from "date-fns"
+import { Prisma } from "@/generated/prisma/client"
+import {
+  startOfDayKST,
+  startOfMonthKST,
+  endOfMonthKST,
+  toKSTLocal,
+} from "@/lib/date-utils"
 
 const querySchema = z.object({
   period: z.enum(["daily", "monthly"]).default("monthly"),
@@ -41,20 +43,19 @@ export async function GET(request: NextRequest) {
 
     const { period, year, month } = parseResult.data
 
-    // 날짜 범위 계산
+    // KST 기준 날짜 범위 계산
     let dateStart: Date
     let dateEnd: Date
 
     if (period === "daily" && month) {
-      const targetDate = new Date(year, month - 1, 1)
-      dateStart = startOfMonth(targetDate)
-      dateEnd = endOfMonth(targetDate)
+      dateStart = startOfMonthKST(year, month)
+      dateEnd = endOfMonthKST(year, month)
     } else {
-      dateStart = startOfYear(new Date(year, 0, 1))
-      dateEnd = endOfYear(new Date(year, 0, 1))
+      dateStart = startOfMonthKST(year, 1)
+      dateEnd = endOfMonthKST(year, 12)
     }
 
-    const today = startOfDay(new Date())
+    const today = startOfDayKST()
     const truncUnit = period === "daily" && month ? "day" : "month"
 
     // 모든 집계를 DB 레벨에서 병렬 실행
@@ -90,9 +91,9 @@ export async function GET(request: NextRequest) {
         select: { storeId: true },
       }),
 
-      // 4) 기간별 매출 (차트)
+      // 4) 기간별 매출 (차트) - KST 타임존 기준 DATE_TRUNC
       prisma.$queryRaw<{ period: Date; revenue: bigint }[]>`
-        SELECT DATE_TRUNC(${truncUnit}, wr.date) as period, COALESCE(SUM(ri.amount), 0) as revenue
+        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period, COALESCE(SUM(ri.amount), 0) as revenue
         FROM "WorkRecord" wr
         LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
         WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
@@ -155,19 +156,21 @@ export async function GET(request: NextRequest) {
     }
 
     // === chart 조립 (빈 날짜/월 채우기) ===
+    // toKSTLocal로 보정하여 eachDayOfInterval/eachMonthOfInterval이 KST 날짜 생성
     const chartRevenueMap = new Map<string, number>()
 
     if (period === "daily" && month) {
-      const days = eachDayOfInterval({ start: dateStart, end: dateEnd })
+      const days = eachDayOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
       for (const day of days) {
         chartRevenueMap.set(format(day, "MM/dd"), 0)
       }
       for (const row of chartData) {
+        // DATE_TRUNC AT TIME ZONE 결과는 "fake UTC" = KST 날짜
         const label = format(new Date(row.period), "MM/dd")
         chartRevenueMap.set(label, Number(row.revenue))
       }
     } else {
-      const months = eachMonthOfInterval({ start: dateStart, end: dateEnd })
+      const months = eachMonthOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
       for (const m of months) {
         chartRevenueMap.set(format(m, "M월"), 0)
       }
@@ -191,7 +194,7 @@ export async function GET(request: NextRequest) {
     // === recentOutstanding 조립 ===
     const recentOutstanding = outstandingRecords.map((record) => ({
       id: record.id,
-      date: format(record.date, "yyyy-MM-dd"),
+      date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
       storeName: record.storeNameSnapshot ?? "알 수 없음",
       totalAmount: record.items.reduce((sum, item) => sum + item.amount, 0),
     }))

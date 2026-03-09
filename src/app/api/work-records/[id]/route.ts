@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { startOfDay } from "date-fns"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
@@ -106,7 +105,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         where: {
           storeId: workRecord.storeId,
           collectionStatus: "UNCOLLECTED",
-          date: { lt: startOfDay(workRecord.date) },
+          date: { lt: workRecord.date },
           id: { not: workRecord.id },
         },
       })

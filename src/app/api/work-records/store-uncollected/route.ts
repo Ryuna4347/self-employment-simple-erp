@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { format } from "date-fns"
+import { toKSTLocal } from "@/lib/date-utils"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   const data = records.map((r) => ({
     id: r.id,
-    date: format(r.date, "yyyy-MM-dd"),
+    date: format(toKSTLocal(r.date), "yyyy-MM-dd"),
     items: r.items,
     totalAmount: r.items.reduce((sum, item) => sum + item.amount, 0),
   }))

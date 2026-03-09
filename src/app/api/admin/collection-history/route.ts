@@ -2,7 +2,8 @@ import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess } from "@/lib/api-response"
-import { startOfMonth, endOfMonth, format } from "date-fns"
+import { format } from "date-fns"
+import { startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
 
 // 수금 이력 조회 (직접 수금 + 수금 확인 요청 승인 통합)
 export async function GET(request: NextRequest) {
@@ -17,8 +18,8 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") || "1"))
   const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "20")))
 
-  const periodStart = startOfMonth(new Date(year, month - 1))
-  const periodEnd = endOfMonth(new Date(year, month - 1))
+  const periodStart = startOfMonthKST(year, month)
+  const periodEnd = endOfMonthKST(year, month)
 
   // 1. 직접 수금 레코드 (CollectionRequestItem에 속하지 않는 COLLECTED 레코드)
   const directRecords = await prisma.workRecord.findMany({
@@ -94,12 +95,12 @@ export async function GET(request: NextRequest) {
     entries.push({
       type: "direct",
       collectedByName: r.collectedBy?.name ?? "알 수 없음",
-      collectedAt: r.collectedAt ? format(r.collectedAt, "yyyy-MM-dd HH:mm") : "",
+      collectedAt: r.collectedAt ? format(toKSTLocal(r.collectedAt), "yyyy-MM-dd HH:mm") : "",
       storeNameSnapshot: r.storeNameSnapshot ?? "알 수 없음",
       totalAmount: r.items.reduce((sum, item) => sum + item.amount, 0),
       workRecord: {
         id: r.id,
-        date: format(r.date, "yyyy-MM-dd"),
+        date: format(toKSTLocal(r.date), "yyyy-MM-dd"),
         items: r.items,
       },
     })
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
     const requestRecords = req.items
       .map((item) => ({
         id: item.workRecord.id,
-        date: format(item.workRecord.date, "yyyy-MM-dd"),
+        date: format(toKSTLocal(item.workRecord.date), "yyyy-MM-dd"),
         totalAmount: item.workRecord.items.reduce((sum, ri) => sum + ri.amount, 0),
         items: item.workRecord.items,
       }))
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
     entries.push({
       type: "request",
       collectedByName: req.requester.name,
-      collectedAt: format(req.createdAt, "yyyy-MM-dd HH:mm"),
+      collectedAt: format(toKSTLocal(req.createdAt), "yyyy-MM-dd HH:mm"),
       storeNameSnapshot: req.storeNameSnapshot,
       totalAmount,
       records: requestRecords,

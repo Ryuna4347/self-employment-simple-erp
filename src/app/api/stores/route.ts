@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { parseISO, startOfDay } from "date-fns"
+import { dateToKSTMidnight } from "@/lib/date-utils"
 
 // 매장 생성 스키마
 const createStoreSchema = z.object({
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
         data: {
           ...storeData,
           assignedUserId: assignedUserId ?? null,
-          firstVisitDate: startOfDay(parseISO(firstVisitDate)),
+          firstVisitDate: dateToKSTMidnight(firstVisitDate),
         },
       })
 

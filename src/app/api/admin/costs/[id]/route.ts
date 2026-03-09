@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import { dateToKSTMidnight } from "@/lib/date-utils"
 
 const costSchema = z.object({
   date: z.string().min(1, "날짜를 입력해주세요"),
@@ -37,7 +38,7 @@ export async function PUT(
     const updated = await prisma.expense.update({
       where: { id },
       data: {
-        date: new Date(date),
+        date: dateToKSTMidnight(date),
         title,
         amount,
         description: description || null,

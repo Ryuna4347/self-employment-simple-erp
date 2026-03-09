@@ -3,7 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
-import { startOfMonth, endOfMonth, startOfDay, format } from "date-fns"
+import { format } from "date-fns"
+import { startOfDayKST, startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 // 날짜별 필터 스키마
@@ -77,10 +78,9 @@ export async function GET(request: NextRequest) {
  */
 async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const { year, month, userId, search, page, limit } = params
-  const targetDate = new Date(year, month - 1, 1)
-  const dateStart = startOfMonth(targetDate)
-  const dateEnd = endOfMonth(targetDate)
-  const today = startOfDay(new Date())
+  const dateStart = startOfMonthKST(year, month)
+  const dateEnd = endOfMonthKST(year, month)
+  const today = startOfDayKST()
 
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
@@ -116,7 +116,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
 
   const records = pageRecords.map((record) => ({
     id: record.id,
-    date: format(record.date, "yyyy-MM-dd"),
+    date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
     storeNameSnapshot: record.storeNameSnapshot,
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,
@@ -124,7 +124,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
     collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
-    collectedAt: record.collectedAt ? format(record.collectedAt, "yyyy-MM-dd HH:mm") : null,
+    collectedAt: record.collectedAt ? format(toKSTLocal(record.collectedAt), "yyyy-MM-dd HH:mm") : null,
     collectedByName: record.collectedBy?.name ?? null,
   }))
 
@@ -156,7 +156,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const { storeName, userId, page, limit } = params
 
   // 매장 검색 조건 (오늘 이전 레코드만)
-  const today = startOfDay(new Date())
+  const today = startOfDayKST()
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
     date: { lt: today },
@@ -217,7 +217,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
 
   const records = pageRecords.map((record) => ({
     id: record.id,
-    date: format(record.date, "yyyy-MM-dd"),
+    date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
     storeNameSnapshot: record.storeNameSnapshot,
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,
@@ -225,7 +225,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     collectionStatus: record.collectionStatus,
     totalAmount: calcTotalAmount(record.items),
     userName: record.user.name,
-    collectedAt: record.collectedAt ? format(record.collectedAt, "yyyy-MM-dd HH:mm") : null,
+    collectedAt: record.collectedAt ? format(toKSTLocal(record.collectedAt), "yyyy-MM-dd HH:mm") : null,
     collectedByName: record.collectedBy?.name ?? null,
   }))
 

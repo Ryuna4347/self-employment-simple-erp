@@ -1,4 +1,5 @@
 import { format } from "date-fns"
+import { toKSTLocal } from "@/lib/date-utils"
 import type { PrismaClient } from "@/generated/prisma/client"
 
 type TransactionClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]
@@ -51,7 +52,7 @@ export async function consolidateAndCollect(
       await tx.recordItem.create({
         data: {
           workRecordId: lastRecord.id,
-          name: `이월 수금 (${format(record.date, "yyyy-MM-dd")})`,
+          name: `이월 수금 (${format(toKSTLocal(record.date), "yyyy-MM-dd")})`,
           amount: recordTotal,
           quantity: 1,
         },

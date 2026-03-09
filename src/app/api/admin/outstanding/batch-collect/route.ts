@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { startOfDay } from "date-fns"
 import { prisma } from "@/lib/prisma"
+import { startOfDayKST } from "@/lib/date-utils"
 import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { ids, collectionStatus } = parseResult.data
 
     // 오늘 날짜의 레코드는 수금처리 대상에서 제외
-    const today = startOfDay(new Date())
+    const today = startOfDayKST()
 
     const result = await prisma.$transaction(async (tx) => {
       const targetRecords = await tx.workRecord.findMany({
