@@ -21,13 +21,15 @@ export function encodeInviteCode(name: string, inviteCode: string): string {
  */
 export function decodeInviteCode(code: string): InviteData | null {
   try {
-    const json = Buffer.from(code, "base64").toString("utf-8")
+    // URL 쿼리 파라미터에서 '+'가 공백으로 변환되므로 복원
+    const sanitizedCode = code.replace(/ /g, "+")
+    const json = Buffer.from(sanitizedCode, "base64").toString("utf-8")
     const data = JSON.parse(json) as InviteData
-    
+
     if (!data.name || !data.inviteCode) {
       return null
     }
-    
+
     return data
   } catch {
     return null
@@ -51,5 +53,5 @@ export function generateInviteCode(): string {
  */
 export function createInviteUrl(baseUrl: string, name: string, inviteCode: string): string {
   const code = encodeInviteCode(name, inviteCode)
-  return `${baseUrl}/register?code=${code}`
+  return `${baseUrl}/register?code=${encodeURIComponent(code)}`
 }
