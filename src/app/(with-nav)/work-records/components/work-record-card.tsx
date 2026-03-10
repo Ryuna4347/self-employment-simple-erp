@@ -13,6 +13,7 @@ import {
   Clock,
   Send,
 } from "lucide-react";
+import { toast } from "sonner";
 import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
 import type {
@@ -173,7 +174,17 @@ export function WorkRecordCard({
                     </span>
                   )}
               </div>
-              <div className="flex items-start gap-1.5 text-sm text-gray-600">
+              <div
+                className="flex items-start gap-1.5 text-sm text-gray-600 cursor-pointer active:bg-gray-100 rounded"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const address = record.storeAddressSnapshot ?? record.store?.address ?? "";
+                  if (address) {
+                    navigator.clipboard.writeText(address);
+                    toast.success("주소가 복사되었습니다");
+                  }
+                }}
+              >
                 <MapPin className="size-4 flex-shrink-0 mt-0.5" />
                 <span className="line-clamp-1">
                   {record.storeAddressSnapshot ??
