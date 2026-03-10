@@ -6,8 +6,6 @@ interface MemberStore {
   id: string
   name: string
   address: string
-  visitCycleWeeks: number
-  firstVisitDate: string
 }
 
 // 코스 멤버 타입
@@ -43,7 +41,6 @@ export interface StoreTemplateInput {
 export interface ApplyTemplateResult {
   created: number
   skipped: number
-  cycleSkipped: number
   workRecords: Array<{
     id: string
     storeId: string

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { format, startOfDay, differenceInCalendarDays } from "date-fns"
+import { format } from "date-fns"
 import { ko } from "date-fns/locale"
-import { MapPin, FileText, Info } from "lucide-react"
+import { FileText } from "lucide-react"
 import { toast } from "sonner"
 import {
   ResponsiveModal,
@@ -27,23 +27,7 @@ import {
   useApplyStoreTemplate,
   type StoreTemplate,
 } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
-import { getVisitDayAndCycle } from "@/app/(with-nav)/store-templates/utils/visit-info"
 import { useUsers } from "@/hooks/use-users"
-
-// 제외 매장 정보
-interface ExcludedStore {
-  id: string
-  name: string
-  address: string
-  visitInfo: string
-  reason: "cycle-mismatch" | "future-first-visit"
-}
-
-// 제외 사유 라벨
-const excludeReasonLabels: Record<ExcludedStore["reason"], string> = {
-  "cycle-mismatch": "이 날은 방문일이 아닙니다",
-  "future-first-visit": "첫 방문일 전입니다",
-}
 
 interface TemplateApplyModalProps {
   open: boolean
@@ -77,38 +61,8 @@ export function TemplateApplyModal({
     return templates.find((t) => t.id === selectedTemplateId)
   }, [templates, selectedTemplateId])
 
-  // 제외 매장 계산 (방문 주기 기준, 중복 체크는 서버에서 처리)
-  const excludedStores = useMemo<ExcludedStore[]>(() => {
-    if (!selectedTemplate) return []
-
-    const excluded: ExcludedStore[] = []
-    const targetDate = startOfDay(selectedDate)
-
-    selectedTemplate.members.forEach((member) => {
-      const { store } = member
-      const visitInfo = getVisitDayAndCycle(store.firstVisitDate, store.visitCycleWeeks)
-
-      const firstVisit = startOfDay(new Date(store.firstVisitDate))
-      const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
-
-      if (daysDiff < 0) {
-        excluded.push({ id: store.id, name: store.name, address: store.address, visitInfo, reason: "future-first-visit" })
-        return
-      }
-
-      const isVisitDay = daysDiff % (store.visitCycleWeeks * 7) === 0
-      if (!isVisitDay) {
-        excluded.push({ id: store.id, name: store.name, address: store.address, visitInfo, reason: "cycle-mismatch" })
-      }
-    })
-
-    return excluded
-  }, [selectedTemplate, selectedDate])
-
   // 생성될 매장 수
-  const createCount = selectedTemplate
-    ? selectedTemplate.memberCount - excludedStores.length
-    : 0
+  const createCount = selectedTemplate?.memberCount ?? 0
 
   // 코스 적용 핸들러
   const handleApply = () => {
@@ -219,57 +173,11 @@ export function TemplateApplyModal({
           </div>
 
           {/* 선택된 코스 정보 */}
-          {selectedTemplate && (
-            <>
-              {/* 설명 */}
-              {selectedTemplate.description && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">설명</p>
-                  <p className="text-sm text-gray-700">{selectedTemplate.description}</p>
-                </div>
-              )}
-
-              {/* 제외된 매장 섹션 */}
-              {excludedStores.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-2">
-                    제외된 매장 ({excludedStores.length}개)
-                  </p>
-                  <div className="space-y-2">
-                    {excludedStores.map((store) => (
-                      <div
-                        key={store.id}
-                        className="bg-white rounded p-2"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 text-sm truncate">
-                            {store.name}
-                          </p>
-                          <p className="text-xs text-gray-500 flex items-center gap-1 truncate">
-                            <MapPin className="size-3 flex-shrink-0" />
-                            {store.address}
-                          </p>
-                          <p className="text-gray-500 text-xs mt-0.5">
-                            {store.visitInfo}
-                          </p>
-                          <p className="text-amber-600 text-xs mt-1 font-medium">
-                            {excludeReasonLabels[store.reason]}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 생성 불가 안내 */}
-              {createCount === 0 && (
-                <div className="flex items-center gap-2 text-sm text-gray-500 px-1">
-                  <Info className="size-4 text-gray-400 flex-shrink-0" />
-                  <span>이 날짜에 생성할 매장이 없습니다</span>
-                </div>
-              )}
-            </>
+          {selectedTemplate && selectedTemplate.description && (
+            <div className="bg-blue-50 rounded-lg p-4">
+              <p className="text-xs text-gray-500 mb-1">설명</p>
+              <p className="text-sm text-gray-700">{selectedTemplate.description}</p>
+            </div>
           )}
         </div>
 

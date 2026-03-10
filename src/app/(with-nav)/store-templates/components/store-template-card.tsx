@@ -5,7 +5,6 @@ import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { StoreTemplate } from "../hooks/use-store-templates"
-import { getVisitDayAndCycle } from "../utils/visit-info"
 
 interface StoreTemplateCardProps {
   template: StoreTemplate
@@ -119,9 +118,6 @@ export function StoreTemplateCard({
                       <p className="text-gray-600 text-xs flex items-center gap-1">
                         <MapPin className="size-3" />
                         <span className="line-clamp-1">{member.store.address}</span>
-                      </p>
-                      <p className="text-gray-500 text-xs mt-0.5">
-                        {getVisitDayAndCycle(member.store.firstVisitDate, member.store.visitCycleWeeks)}
                       </p>
                     </div>
                   </div>

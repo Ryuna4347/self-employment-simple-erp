@@ -1,7 +1,7 @@
 /**
  * 날짜 유틸리티 - KST(Asia/Seoul) 기준 정규화
  *
- * 모든 date-only 필드(firstVisitDate, WorkRecord.date 등)를
+ * 모든 date-only 필드(WorkRecord.date 등)를
  * KST 자정 기준으로 저장/비교하기 위한 헬퍼.
  * 한국은 DST가 없으므로 +9시간 고정 오프셋 사용.
  */

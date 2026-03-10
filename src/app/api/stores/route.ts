@@ -3,7 +3,6 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { dateToKSTMidnight } from "@/lib/date-utils"
 
 // 매장 생성 스키마
 const createStoreSchema = z.object({
@@ -14,8 +13,6 @@ const createStoreSchema = z.object({
   kakaoPlaceId: z.string().nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
-  visitCycleWeeks: z.union([z.literal(1), z.literal(2), z.literal(4)]),
-  firstVisitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
   items: z
     .array(
       z.object({
@@ -144,7 +141,7 @@ export async function POST(request: NextRequest) {
       ])
     }
 
-    const { items, firstVisitDate, templateId, assignedUserId, ...storeData } = parseResult.data
+    const { items, templateId, assignedUserId, ...storeData } = parseResult.data
 
     // 코스 소유권 검증
     if (templateId) {
@@ -166,7 +163,6 @@ export async function POST(request: NextRequest) {
         data: {
           ...storeData,
           assignedUserId: assignedUserId ?? null,
-          firstVisitDate: dateToKSTMidnight(firstVisitDate),
         },
       })
 

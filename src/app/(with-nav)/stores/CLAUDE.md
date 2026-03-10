@@ -22,8 +22,6 @@
 - `latitude` / `longitude`: 좌표
 - `receiptType`: 영수증 발급 종류 (NONE / SIMPLE_RECEIPT / TRANSACTION_STATEMENT)
 - `assignedUserId`: 담당 사원 ID
-- `visitCycleWeeks`: 방문 주기 (1주/2주/4주)
-- `firstVisitDate`: 첫 방문일 (주기 기준일)
 - `isDeleted`: 소프트 삭제 여부 (default: false)
 
 ### StoreItem (매장별 템플릿)

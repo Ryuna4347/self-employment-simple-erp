@@ -24,8 +24,6 @@ export interface Store {
   longitude: number | null
   assignedUserId: string | null
   assignedUser: { id: string; name: string } | null
-  visitCycleWeeks: number
-  firstVisitDate: string
   storeItems: StoreItem[]
 }
 
@@ -39,8 +37,6 @@ export interface StoreInput {
   kakaoPlaceId?: string | null
   latitude?: number | null
   longitude?: number | null
-  visitCycleWeeks: number
-  firstVisitDate: string
   assignedUserId?: string | null
   items?: {
     name: string

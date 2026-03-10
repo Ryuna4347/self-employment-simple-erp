@@ -38,8 +38,6 @@ model Store {
   longitude       Float?
   receiptType     ReceiptType       @default(NONE)  // 영수증 발급 종류
   assignedUserId  String?
-  visitCycleWeeks Int               @default(1)     // 방문 주기 (주): 1, 2, 4
-  firstVisitDate  DateTime          @default(now()) // 첫 방문일 (주기 기준일)
   isDeleted       Boolean               @default(false)
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt

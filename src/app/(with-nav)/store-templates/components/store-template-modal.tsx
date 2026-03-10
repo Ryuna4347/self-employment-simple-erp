@@ -37,7 +37,6 @@ import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { cn } from "@/lib/utils"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { StoreTemplate, StoreTemplateInput } from "../hooks/use-store-templates"
-import { getVisitDayAndCycle } from "../utils/visit-info"
 
 // 코스 스키마
 const templateSchema = z.object({
@@ -115,9 +114,6 @@ function SortableStoreItem({
         <p className="text-gray-600 text-xs flex items-center gap-1">
           <MapPin className="size-3" />
           <span className="line-clamp-1">{item.store.address}</span>
-        </p>
-        <p className="text-gray-500 text-xs mt-0.5">
-          {getVisitDayAndCycle(item.store.firstVisitDate, item.store.visitCycleWeeks)}
         </p>
       </div>
 
@@ -206,8 +202,6 @@ export function StoreTemplateModal({
             longitude: null,
             assignedUserId: null,
             assignedUser: null,
-            visitCycleWeeks: member.store.visitCycleWeeks,
-            firstVisitDate: member.store.firstVisitDate,
             storeItems: [],
           } as Store,
           order: member.order,
@@ -339,9 +333,6 @@ export function StoreTemplateModal({
                     <p className="text-gray-600 text-xs flex items-center gap-1">
                       <MapPin className="size-3" />
                       {store.address}
-                    </p>
-                    <p className="text-gray-500 text-xs mt-0.5">
-                      {getVisitDayAndCycle(store.firstVisitDate, store.visitCycleWeeks)}
                     </p>
                   </>
                 )}

@@ -3,7 +3,6 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { differenceInCalendarDays } from "date-fns"
 import { dateToKSTMidnight } from "@/lib/date-utils"
 
 // 적용 요청 스키마
@@ -41,8 +40,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 address: true,
                 managerName: true,
                 PaymentType: true,
-                visitCycleWeeks: true,
-                firstVisitDate: true,
                 isDeleted: true,
                 storeItems: {
                   select: {
@@ -99,32 +96,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
     const afterDeleteFilter = afterDuplicateFilter.filter((m) => !m.store.isDeleted)
 
-    // 2. 방문 주기 필터링
-    const cycleSkippedStoreIds = new Set<string>()
-    const membersToCreate = afterDeleteFilter.filter((m) => {
-      const { visitCycleWeeks, firstVisitDate } = m.store
-      const firstVisit = new Date(firstVisitDate)
-      const daysDiff = differenceInCalendarDays(targetDate, firstVisit)
-
-      // 첫 방문일이 미래이면 제외
-      if (daysDiff < 0) {
-        cycleSkippedStoreIds.add(m.storeId)
-        return false
-      }
-
-      // 주기에 맞는 날인지 확인
-      const isVisitDay = daysDiff % (visitCycleWeeks * 7) === 0
-      if (!isVisitDay) {
-        cycleSkippedStoreIds.add(m.storeId)
-      }
-      return isVisitDay
-    })
+    // 2. 생성 대상 확인
+    const membersToCreate = afterDeleteFilter
 
     if (membersToCreate.length === 0) {
       return apiSuccess({
         created: 0,
         skipped: existingStoreIds.size,
-        cycleSkipped: cycleSkippedStoreIds.size,
         workRecords: [],
       })
     }
@@ -174,7 +152,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return apiSuccess({
       created: workRecords.length,
       skipped: existingStoreIds.size,
-      cycleSkipped: cycleSkippedStoreIds.size,
       workRecords,
     })
   } catch (error) {

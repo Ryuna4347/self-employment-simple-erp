@@ -25,7 +25,6 @@ import {
 import type { Store, StoreInput } from "../hooks/use-stores"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { useUsers } from "@/hooks/use-users"
-import { format } from "date-fns"
 
 // 품목 스키마
 const storeItemSchema = z.object({
@@ -41,8 +40,6 @@ const storeSchema = z.object({
   PaymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]),
   managerName: z.string().optional(),
-  visitCycleWeeks: z.enum(["1", "2", "4"]),
-  firstVisitDate: z.string().min(1, "첫 방문일을 입력해주세요"),
   assignedUserId: z.string().optional(),
   items: z.array(storeItemSchema).optional(),
 })
@@ -92,8 +89,6 @@ export function StoreModal({
       receiptType: "NONE",
       managerName: "",
       assignedUserId: "",
-      visitCycleWeeks: "1" as const,
-      firstVisitDate: "",
       items: [],
     },
   })
@@ -119,8 +114,6 @@ export function StoreModal({
           receiptType: editStore.receiptType ?? "NONE",
           managerName: editStore.managerName ?? "",
           assignedUserId: editStore.assignedUserId ?? "",
-          visitCycleWeeks: editStore.visitCycleWeeks.toString() as "1" | "2" | "4",
-          firstVisitDate: format(new Date(editStore.firstVisitDate), "yyyy-MM-dd"),
           items: editStore.storeItems.map((item) => ({
             name: item.name,
             amount: item.amount,
@@ -135,8 +128,6 @@ export function StoreModal({
           receiptType: "NONE",
           managerName: "",
           assignedUserId: "",
-          visitCycleWeeks: "1" as const,
-          firstVisitDate: "",
           items: [],
         })
       }
@@ -151,8 +142,6 @@ export function StoreModal({
       PaymentType: data.PaymentType,
       receiptType: data.receiptType,
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
-      visitCycleWeeks: parseInt(data.visitCycleWeeks),
-      firstVisitDate: data.firstVisitDate,
       assignedUserId: data.assignedUserId || null,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
@@ -266,43 +255,6 @@ export function StoreModal({
               />
             </div>
           )}
-
-          {/* 방문 주기 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="visitCycleWeeks">방문 주기</Label>
-              <Select
-                value={watch("visitCycleWeeks")}
-                onValueChange={(value) =>
-                  setValue("visitCycleWeeks", value as "1" | "2" | "4", { shouldValidate: true })
-                }
-              >
-                <SelectTrigger id="visitCycleWeeks">
-                  <SelectValue placeholder="주기 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">매주 (1주)</SelectItem>
-                  <SelectItem value="2">격주 (2주)</SelectItem>
-                  <SelectItem value="4">월 1회 (4주)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="firstVisitDate">
-                첫 방문일 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="firstVisitDate"
-                type="date"
-                {...register("firstVisitDate")}
-                aria-invalid={!!errors.firstVisitDate}
-              />
-              {errors.firstVisitDate && (
-                <p className="text-sm text-red-500">{errors.firstVisitDate.message}</p>
-              )}
-            </div>
-          </div>
 
           {/* 담당직원 */}
           <div className="space-y-2">

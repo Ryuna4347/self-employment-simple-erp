@@ -30,7 +30,6 @@ async function fetchMonthlyData(year: number, month: number) {
       include: {
         items: { select: { amount: true } },
         user: { select: { id: true, name: true } },
-        store: { select: { visitCycleWeeks: true } },
       },
       orderBy: { date: "asc" },
     }),

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard";
 import { apiSuccess, ApiErrors } from "@/lib/api-response";
-import { dateToKSTMidnight } from "@/lib/date-utils";
 
 // 매장 수정 스키마
 const updateStoreSchema = z.object({
@@ -14,13 +13,6 @@ const updateStoreSchema = z.object({
   kakaoPlaceId: z.string().nullable().optional(),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
-  visitCycleWeeks: z
-    .union([z.literal(1), z.literal(2), z.literal(4)])
-    .optional(),
-  firstVisitDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다")
-    .optional(),
   items: z
     .array(
       z.object({
@@ -99,19 +91,14 @@ export async function PUT(
       return ApiErrors.notFound("매장을 찾을 수 없습니다");
     }
 
-    const { items, firstVisitDate, ...storeData } = parseResult.data;
+    const { items, ...storeData } = parseResult.data;
 
     // 트랜잭션으로 매장과 품목 함께 수정
     const store = await prisma.$transaction(async (tx) => {
       // 매장 정보 수정
       const updatedStore = await tx.store.update({
         where: { id },
-        data: {
-          ...storeData,
-          ...(firstVisitDate && {
-            firstVisitDate: dateToKSTMidnight(firstVisitDate),
-          }),
-        },
+        data: storeData,
       });
 
       // 연결된 WorkRecord 스냅샷 필드 동기화 (물품 제외)
