@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       revenueByStatus,
       uniqueStoresResult,
       chartData,
-      topStoresData,
+      expenseChartData,
       outstandingRecords,
       expenseAggregate,
     ] = await Promise.all([
@@ -100,18 +100,13 @@ export async function GET(request: NextRequest) {
         GROUP BY period, wr."paymentTypeSnapshot" ORDER BY period
       `,
 
-      // 5) 매출 상위 5개 매장
-      prisma.$queryRaw<{ group_key: string; name: string; amount: bigint }[]>`
-        SELECT
-          COALESCE(wr."storeId", wr."storeNameSnapshot", '알 수 없음') as group_key,
-          MAX(COALESCE(wr."storeNameSnapshot", '알 수 없음')) as name,
-          COALESCE(SUM(ri.amount), 0) as amount
-        FROM "WorkRecord" wr
-        LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
-        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
-        GROUP BY group_key
-        ORDER BY amount DESC
-        LIMIT 5
+      // 5) 비용 추이 (항상 연도 전체 월별 집계)
+      prisma.$queryRaw<{ period: Date; amount: bigint }[]>`
+        SELECT DATE_TRUNC('month', e.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period,
+               COALESCE(SUM(e.amount), 0) as amount
+        FROM "Expense" e
+        WHERE e.date >= ${startOfMonthKST(year, 1)} AND e.date <= ${endOfMonthKST(year, 12)}
+        GROUP BY period ORDER BY period
       `,
 
       // 6) 최근 미수금 5건 (오늘 이전만)
@@ -203,10 +198,22 @@ export async function GET(request: NextRequest) {
       ...entry,
     }))
 
-    // === topStores 조립 ===
-    const topStores = topStoresData.map((row) => ({
-      name: row.name,
-      amount: Number(row.amount),
+    // === expenseChart 조립 (월별 빈 월 채우기) ===
+    const expenseChartMap = new Map<string, number>()
+    const yearMonths = eachMonthOfInterval({
+      start: toKSTLocal(startOfMonthKST(year, 1)),
+      end: toKSTLocal(endOfMonthKST(year, 12)),
+    })
+    for (const m of yearMonths) {
+      expenseChartMap.set(format(m, "M월"), 0)
+    }
+    for (const row of expenseChartData) {
+      const label = format(new Date(row.period), "M월")
+      expenseChartMap.set(label, (expenseChartMap.get(label) ?? 0) + Number(row.amount))
+    }
+    const expenseChart = Array.from(expenseChartMap.entries()).map(([label, amount]) => ({
+      label,
+      amount,
     }))
 
     // === recentOutstanding 조립 ===
@@ -226,7 +233,7 @@ export async function GET(request: NextRequest) {
     return apiSuccess({
       summary,
       chart,
-      topStores,
+      expenseChart,
       recentOutstanding,
       collectionStatus: {
         collected: statusMap.COLLECTED,

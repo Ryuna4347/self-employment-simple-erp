@@ -13,6 +13,8 @@ import {
   Pie,
   Cell,
   Legend,
+  LineChart,
+  Line,
 } from "recharts"
 import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -357,6 +359,40 @@ export function DashboardContent() {
               )}
             </div>
 
+            {/* 비용 추이 차트 (월별 모드에서만) */}
+            {period === "monthly" && (
+              <div className="bg-white rounded-lg shadow-sm p-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-4">비용 추이</h3>
+                {data.expenseChart.some((d) => d.amount > 0) ? (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={data.expenseChart}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        formatter={(value) => [
+                          `${Number(value).toLocaleString()}원`,
+                          "비용",
+                        ]}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="amount"
+                        stroke="#f97316"
+                        strokeWidth={2}
+                        dot={{ fill: "#f97316", r: 4 }}
+                        name="비용"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+                    데이터가 없습니다
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 수금 현황 파이차트 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
               <h3 className="text-sm font-medium text-gray-900 mb-4">수금 현황</h3>
@@ -396,39 +432,8 @@ export function DashboardContent() {
             </div>
           </div>
 
-          {/* 매출 상위 매장 + 최근 미수금 */}
+          {/* 최근 미수금 */}
           <div className="space-y-6">
-            {/* 매출 상위 매장 */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                매출 상위 매장
-              </h3>
-              {data.topStores.length > 0 ? (
-                <div className="space-y-3">
-                  {data.topStores.map((store, index) => (
-                    <div
-                      key={store.name}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium text-blue-600">
-                          {index + 1}
-                        </div>
-                        <span className="text-sm text-gray-900">{store.name}</span>
-                      </div>
-                      <span className="text-sm font-medium text-blue-600">
-                        {store.amount.toLocaleString()}원
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-sm text-gray-400">
-                  데이터가 없습니다
-                </div>
-              )}
-            </div>
-
             {/* 최근 미수금 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
               <div className="flex items-center justify-between mb-4">

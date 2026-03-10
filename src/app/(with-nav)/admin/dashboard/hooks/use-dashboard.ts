@@ -19,9 +19,9 @@ interface ChartDataPoint {
   card: number
 }
 
-// 매출 상위 매장
-interface TopStore {
-  name: string
+// 비용 추이 차트 데이터 포인트
+interface ExpenseChartDataPoint {
+  label: string
   amount: number
 }
 
@@ -44,7 +44,7 @@ interface CollectionStatus {
 export interface DashboardData {
   summary: DashboardSummary
   chart: ChartDataPoint[]
-  topStores: TopStore[]
+  expenseChart: ExpenseChartDataPoint[]
   recentOutstanding: RecentOutstanding[]
   collectionStatus: CollectionStatus
 }
