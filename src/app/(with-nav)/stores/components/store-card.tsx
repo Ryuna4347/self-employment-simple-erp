@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { format } from "date-fns"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Store } from "../hooks/use-stores"
@@ -90,7 +91,14 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
                 </span>
               )}
             </div>
-            <div className="flex items-start gap-1.5 text-sm text-gray-600">
+            <div
+              className="flex items-start gap-1.5 text-sm text-gray-600 cursor-pointer active:bg-gray-100 rounded"
+              onClick={(e) => {
+                e.stopPropagation()
+                navigator.clipboard.writeText(store.address)
+                toast.success("주소가 복사되었습니다")
+              }}
+            >
               <MapPin className="size-4 flex-shrink-0 mt-0.5" />
               <span className="line-clamp-1">{store.address}</span>
             </div>
