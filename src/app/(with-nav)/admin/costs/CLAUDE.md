@@ -30,6 +30,30 @@
 
 ---
 
+## 파일 구조
+
+```
+costs/
+├── page.tsx
+├── components/
+│   ├── costs-content.tsx       # 메인 컨텐츠
+│   ├── cost-card.tsx           # 비용 카드
+│   ├── cost-modal.tsx          # 비용 추가/수정 모달
+│   ├── delete-cost-modal.tsx   # 비용 삭제 확인 모달
+│   └── index.ts
+└── hooks/
+    └── use-costs.ts            # 비용 CRUD
+```
+
+---
+
+## 관련 API
+
+- `GET/POST /api/admin/costs` - 비용 목록/생성
+- `PUT/DELETE /api/admin/costs/[id]` - 비용 수정/삭제
+
+---
+
 ## 관련 페이지
 
 - `/admin/costs` - 비용 관리

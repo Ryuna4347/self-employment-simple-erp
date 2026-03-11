@@ -36,6 +36,32 @@
 
 ---
 
+## 파일 구조
+
+```
+collections/
+├── page.tsx
+├── components/
+│   ├── collections-content.tsx        # 메인 컨텐츠 (탭 구성)
+│   ├── collection-requests-tab.tsx    # 수금 확인 요청 탭
+│   ├── collection-request-card.tsx    # 요청 카드
+│   ├── collection-history-tab.tsx     # 수금 이력 탭
+│   └── collection-history-card.tsx    # 이력 카드
+└── hooks/
+    └── use-collections.ts             # 수금 관리 훅
+```
+
+---
+
+## 관련 API
+
+- `GET/POST /api/collection-requests` - 수금 요청 목록/생성
+- `POST /api/collection-requests/[id]/approve` - 승인
+- `POST /api/collection-requests/[id]/reject` - 거부
+- `GET /api/admin/collection-history` - 수금 이력
+
+---
+
 ## 관련 페이지
 
 - `/admin/collections` - 수금 관리

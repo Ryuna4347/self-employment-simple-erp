@@ -8,8 +8,11 @@
 - 근무/방문 기록 CRUD
 - 거래 품목 스냅샷 저장 (RecordItem)
 - 매장 정보 스냅샷 저장 (거래 시점 보존)
-- 수금 상태 관리
+- 수금 상태 관리 (미수금/수금완료/휴업&폐업)
+- 수금 확인 요청 (CollectionRequest)
+- 유류비 기록
 - 매장 템플릿 자동 로드
+- 일괄 수금처리
 
 ---
 
@@ -60,6 +63,36 @@
 
 ---
 
+## 파일 구조
+
+```
+work-records/
+├── page.tsx
+├── types.ts                         # DailySummary 등 타입 정의
+├── components/
+│   ├── work-records-client.tsx      # 메인 클라이언트 컴포넌트
+│   ├── calendar-header.tsx          # 캘린더 헤더 (날짜 선택)
+│   ├── work-record-list.tsx         # 근무기록 리스트
+│   ├── work-record-card.tsx         # 근무기록 카드 (아코디언)
+│   ├── work-record-modal.tsx        # 근무기록 추가/수정 모달
+│   ├── daily-stats.tsx              # 일별 통계 (방문수, 매출, 수금)
+│   ├── store-visit-history.tsx      # 매장 방문 이력 (lazy load)
+│   ├── fab-menu.tsx                 # FAB 메뉴 (추가 액션)
+│   ├── template-apply-modal.tsx     # 템플릿 적용 모달
+│   ├── collection-request-modal.tsx # 수금 확인 요청 모달
+│   ├── fuel-cost-modal.tsx          # 유류비 기록 모달
+│   └── user-filter.tsx              # 유저 필터 (관리자용)
+└── hooks/
+    ├── use-work-records.ts          # 근무기록 CRUD
+    ├── use-store-visits.ts          # 매장 방문 이력 조회
+    ├── use-store-uncollected.ts     # 매장별 미수금 조회
+    ├── use-batch-collect.ts         # 일괄 수금처리
+    ├── use-collection-request.ts    # 수금 확인 요청
+    └── use-fuel-cost.ts             # 유류비 기록
+```
+
+---
+
 ## 주요 컴포넌트/훅
 
 ### 매장 방문 이력 (StoreVisitHistory)
@@ -77,9 +110,36 @@
 - 관리자가 직원별 근무기록 필터링 가능
 - 공통 `UserFilter` 컴포넌트 사용 (`src/components/common/user-filter.tsx`)
 
+### 수금 확인 요청 (CollectionRequestModal)
+- 직원이 미수금 레코드를 선택하여 관리자에게 수금 확인 요청
+- Hook: `useCollectionRequest`
+
+### 유류비 기록 (FuelCostModal)
+- 유류비를 Expense로 기록
+- API: `POST /api/expenses/fuel-cost`
+- Hook: `useFuelCost`
+
+---
+
+## 관련 API
+
+- `GET/POST /api/work-records` - 목록/생성
+- `GET/PUT/DELETE /api/work-records/[id]` - CRUD
+- `POST /api/work-records/[id]/save-store` - 매장 저장
+- `GET /api/work-records/store-visits` - 방문 이력
+- `GET /api/work-records/store-uncollected` - 미수금 조회
+- `PATCH /api/work-records/batch-collect` - 일괄 수금
+- `GET/POST /api/collection-requests` - 수금 요청
+- `POST /api/collection-requests/[id]/approve` - 승인
+- `POST /api/collection-requests/[id]/reject` - 거부
+- `POST /api/expenses/fuel-cost` - 유류비
+
 ---
 
 ## 관련 페이지
 
 - `/work-records` - 근무기록 메인 (캘린더 + 리스트)
 - 근무 추가/수정 모달
+- 수금 확인 요청 모달
+- 유류비 기록 모달
+- 템플릿 적용 모달

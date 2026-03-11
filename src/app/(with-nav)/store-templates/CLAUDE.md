@@ -45,6 +45,30 @@
 
 ---
 
+## 파일 구조
+
+```
+store-templates/
+├── page.tsx
+├── components/
+│   ├── store-templates-client.tsx  # 메인 클라이언트 컴포넌트
+│   ├── store-template-card.tsx     # 템플릿 카드
+│   ├── store-template-modal.tsx    # 템플릿 추가/수정 모달
+│   └── index.ts
+└── hooks/
+    └── use-store-templates.ts      # 템플릿 CRUD
+```
+
+---
+
+## 관련 API
+
+- `GET/POST /api/store-templates` - 템플릿 목록/생성
+- `GET/PUT/DELETE /api/store-templates/[id]` - 템플릿 CRUD
+- `POST /api/store-templates/[id]/apply` - 템플릿 적용 (일괄 생성)
+
+---
+
 ## 관련 페이지
 
 - `/store-templates` - 템플릿 목록
