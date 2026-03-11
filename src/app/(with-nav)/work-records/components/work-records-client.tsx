@@ -14,6 +14,7 @@ import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
 import { CollectionRequestModal } from "./collection-request-modal"
 import { FuelCostModal } from "./fuel-cost-modal"
+import { NoticeBanner } from "./notice-banner"
 import { useFuelCost } from "../hooks/use-fuel-cost"
 import {
   useWorkRecords,
@@ -154,6 +155,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           </div>
           <p className="text-gray-600 text-sm mt-1">일별 방문 기록과 거래 내역을 관리합니다</p>
         </div>
+
+        <NoticeBanner />
 
         <CalendarHeader selectedDate={selectedDate} onDateChange={setSelectedDate} />
 

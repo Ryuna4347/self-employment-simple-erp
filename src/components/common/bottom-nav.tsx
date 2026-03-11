@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Receipt,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +74,11 @@ const ADMIN_NAV_ITEMS = [
     href: "/admin/costs",
     label: "비용 관리",
     icon: Receipt,
+  },
+  {
+    href: "/admin/notices",
+    label: "공지",
+    icon: Megaphone,
   },
 ] as const;
 
