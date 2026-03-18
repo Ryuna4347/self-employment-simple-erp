@@ -25,6 +25,7 @@ model User {
   assignedStores               Store[]                @relation("assignedStores")
   collectionRequests           CollectionRequest[]    @relation("collectionRequester")
   reviewedCollectionRequests   CollectionRequest[]    @relation("collectionReviewer")
+  notices                      Notice[]
 }
 
 model Store {
@@ -147,6 +148,19 @@ model RefreshToken {
   @@index([expiresAt])
   @@index([familyId])
   @@index([userId])
+}
+
+model Notice {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  expiresAt DateTime? // 만료일 (null = 무기한)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id])
+
+  @@index([createdAt])
 }
 
 /// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
