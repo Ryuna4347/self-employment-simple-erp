@@ -36,8 +36,17 @@
 
 ## 구현 상태
 
-> **미구현**: 사용자용 `/expenses` 페이지 UI와 API 라우트는 아직 구현되지 않음.
+> **미구현**: 사용자용 `/expenses` 페이지 UI는 아직 구현되지 않음 (CLAUDE.md만 존재).
+> 유류비 기록은 `/work-records`의 유류비 모달에서 `POST /api/expenses/fuel-cost`로 처리.
 > 관리자용 비용 관리는 `/admin/costs`에서 구현됨.
+
+---
+
+## 관련 API
+
+- `POST /api/expenses/fuel-cost` - 유류비 기록 (구현됨)
+
+---
 
 ## 관련 페이지
 

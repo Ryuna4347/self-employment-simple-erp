@@ -19,6 +19,27 @@
 
 ---
 
+## 파일 구조
+
+```
+profile/
+├── page.tsx
+├── components/
+│   ├── profile-content.tsx         # 프로필 메인 컨텐츠
+│   ├── change-password-modal.tsx   # 비밀번호 변경 모달
+│   └── index.ts
+└── hooks/
+    └── use-change-password.ts      # 비밀번호 변경
+```
+
+---
+
+## 관련 API
+
+- `POST /api/profile/password` - 비밀번호 변경
+
+---
+
 ## 관련 페이지
 
 - `/profile` - 프로필 페이지 (비밀번호 변경)

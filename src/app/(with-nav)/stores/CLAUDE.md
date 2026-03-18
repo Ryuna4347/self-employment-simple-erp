@@ -40,6 +40,28 @@
 
 ---
 
+## 파일 구조
+
+```
+stores/
+├── page.tsx
+├── components/
+│   ├── store-card.tsx      # 매장 카드 (아코디언)
+│   ├── store-modal.tsx     # 매장 추가/수정 모달
+│   └── index.ts
+└── hooks/
+    └── use-stores.ts       # 매장 CRUD
+```
+
+---
+
+## 관련 API
+
+- `GET/POST /api/stores` - 매장 목록/생성
+- `GET/PUT/DELETE /api/stores/[id]` - 매장 CRUD
+
+---
+
 ## 관련 페이지
 
 - `/stores` - 매장 목록 (아코디언 카드, 인라인 수정)

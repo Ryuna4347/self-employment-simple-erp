@@ -10,6 +10,7 @@
 - 미수금 관리: 미수금 추적 및 완납 처리
 - 수금 관리: 수금 확인 요청 승인/거부, 수금 이력 조회
 - 비용 관리: 월별 비용 CRUD, 대시보드 연동
+- 엑셀 내보내기: 월간 리포트 출력
 
 ---
 
@@ -17,6 +18,61 @@
 
 - Role이 `ADMIN`인 사용자만 접근 가능
 - 미들웨어에서 `/admin/*` 경로 보호
+
+---
+
+## 파일 구조
+
+```
+admin/
+├── page.tsx                           # 관리자 랜딩 페이지
+├── dashboard/
+│   ├── page.tsx
+│   ├── components/
+│   │   ├── dashboard-content.tsx
+│   │   └── index.ts
+│   └── hooks/
+│       └── use-dashboard.ts
+├── staff/
+│   ├── page.tsx
+│   ├── components/
+│   │   ├── staff-content.tsx
+│   │   ├── staff-card.tsx
+│   │   ├── invite-modal.tsx
+│   │   ├── remove-staff-modal.tsx
+│   │   └── index.ts
+│   └── hooks/
+│       └── use-staff.ts
+├── outstanding/
+│   ├── page.tsx
+│   ├── components/
+│   │   ├── outstanding-content.tsx
+│   │   ├── outstanding-card.tsx
+│   │   ├── store-outstanding-card.tsx
+│   │   └── index.ts
+│   └── hooks/
+│       └── use-outstanding.ts
+├── collections/
+│   ├── page.tsx
+│   ├── components/
+│   │   ├── collections-content.tsx
+│   │   ├── collection-requests-tab.tsx
+│   │   ├── collection-request-card.tsx
+│   │   ├── collection-history-tab.tsx
+│   │   └── collection-history-card.tsx
+│   └── hooks/
+│       └── use-collections.ts
+└── costs/
+    ├── page.tsx
+    ├── components/
+    │   ├── costs-content.tsx
+    │   ├── cost-card.tsx
+    │   ├── cost-modal.tsx
+    │   ├── delete-cost-modal.tsx
+    │   └── index.ts
+    └── hooks/
+        └── use-costs.ts
+```
 
 ---
 
@@ -50,8 +106,24 @@
 
 ---
 
+## 관련 API
+
+- `GET /api/admin/dashboard` - 대시보드 데이터
+- `GET/POST /api/admin/staff` - 직원 목록/초대
+- `PUT/DELETE /api/admin/staff/[id]` - 직원 수정/삭제
+- `POST /api/admin/create-invite` - 초대 코드 생성
+- `GET /api/admin/outstanding` - 미수금 목록
+- `PATCH /api/admin/outstanding/batch-collect` - 일괄 수금
+- `GET /api/admin/collection-history` - 수금 이력
+- `GET/POST /api/admin/costs` - 비용 목록/생성
+- `PUT/DELETE /api/admin/costs/[id]` - 비용 수정/삭제
+- `POST /api/admin/export/monthly` - 월간 엑셀 내보내기
+
+---
+
 ## 관련 페이지
 
+- `/admin` - 관리자 랜딩
 - `/admin/dashboard` - 대시보드
 - `/admin/staff` - 직원 관리
 - `/admin/outstanding` - 미수금 관리
