@@ -42,8 +42,8 @@ export function CollectionRequestModal({
   const createMutation = useCreateCollectionRequest()
   const batchCollectMutation = useBatchCollect()
 
-  // 가장 최근(마지막) 기록 ID - 항상 선택 고정 (유저 모드만)
-  const latestId = !isAdmin ? uncollectedRecords?.[uncollectedRecords.length - 1]?.id : undefined
+  // 가장 최근(마지막) 기록 ID - 항상 선택 고정
+  const latestId = uncollectedRecords?.[uncollectedRecords.length - 1]?.id
 
   // 데이터 로드 시 전체 선택 초기화
   if (uncollectedRecords && !initialized) {
