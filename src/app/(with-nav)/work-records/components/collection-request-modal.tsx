@@ -17,35 +17,33 @@ import {
 import { useStoreUncollected } from "../hooks/use-store-uncollected"
 import { useCreateCollectionRequest } from "../hooks/use-collection-request"
 import { useBatchCollect } from "../hooks/use-batch-collect"
-import type { WorkRecordResponse } from "../hooks/use-work-records"
 
 interface CollectionRequestModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  record: WorkRecordResponse | null
+  storeId: string | null
+  storeName: string
   userRole: "ADMIN" | "USER"
 }
 
 export function CollectionRequestModal({
   open,
   onOpenChange,
-  record,
+  storeId,
+  storeName,
   userRole,
 }: CollectionRequestModalProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [note, setNote] = useState("")
   const [initialized, setInitialized] = useState(false)
 
-  const storeId = record?.storeId
-  const storeName = record?.storeNameSnapshot ?? record?.store?.name ?? "알 수 없음"
-
   const isAdmin = userRole === "ADMIN"
   const { data: uncollectedRecords, isLoading } = useStoreUncollected(open ? storeId : null)
   const createMutation = useCreateCollectionRequest()
   const batchCollectMutation = useBatchCollect()
 
-  // 가장 최근(마지막) 기록 ID - 항상 선택 고정
-  const latestId = uncollectedRecords?.[uncollectedRecords.length - 1]?.id
+  // 가장 최근(마지막) 기록 ID - 항상 선택 고정 (유저 모드만)
+  const latestId = !isAdmin ? uncollectedRecords?.[uncollectedRecords.length - 1]?.id : undefined
 
   // 데이터 로드 시 전체 선택 초기화
   if (uncollectedRecords && !initialized) {

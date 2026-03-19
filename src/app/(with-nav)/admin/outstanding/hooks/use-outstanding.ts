@@ -7,6 +7,7 @@ import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-w
 export interface OutstandingRecord {
   id: string
   date: string
+  storeId: string | null
   storeNameSnapshot: string | null
   storeAddressSnapshot: string | null
   managerNameSnapshot: string | null

@@ -23,6 +23,7 @@ export interface StoreGroupRecord {
 
 export interface StoreGroup {
   storeName: string
+  storeId: string | null
   storeAddress: string | null
   paymentType: PaymentType
   managerName: string | null

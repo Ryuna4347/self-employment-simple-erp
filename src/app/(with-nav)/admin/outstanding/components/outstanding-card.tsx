@@ -15,6 +15,7 @@ const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
 export interface OutstandingRecord {
   id: string
   date: string
+  storeId: string | null
   storeNameSnapshot: string | null
   storeAddressSnapshot: string | null
   managerNameSnapshot: string | null

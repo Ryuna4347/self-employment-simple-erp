@@ -21,7 +21,7 @@ import { OutstandingCard } from "./outstanding-card";
 import type { OutstandingRecord } from "./outstanding-card";
 import { StoreOutstandingCard } from "./store-outstanding-card";
 import type { StoreGroup } from "./store-outstanding-card";
-import { BulkPaymentModal, type BulkPaymentRecord } from "./bulk-payment-modal";
+import { CollectionRequestModal } from "@/app/(with-nav)/work-records/components/collection-request-modal";
 
 type ViewMode = "date" | "store";
 
@@ -136,6 +136,7 @@ export function OutstandingContent() {
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           storeName: key,
+          storeId: record.storeId,
           storeAddress: record.storeAddressSnapshot,
           paymentType: record.paymentTypeSnapshot,
           managerName: record.managerNameSnapshot,
@@ -189,42 +190,29 @@ export function OutstandingContent() {
 
   // 일괄 수금 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalStoreId, setModalStoreId] = useState<string | null>(null);
   const [modalStoreName, setModalStoreName] = useState("");
-  const [modalRecords, setModalRecords] = useState<BulkPaymentRecord[]>([]);
 
   // 매장별 뷰에서 수금처리 클릭
   const handleStoreCollect = useCallback(
     (group: StoreGroup) => {
+      if (!group.storeId) return;
+      setModalStoreId(group.storeId);
       setModalStoreName(group.storeName);
-      setModalRecords(
-        group.records.map((r) => ({
-          id: r.id,
-          date: r.date,
-          totalAmount: r.totalAmount,
-        }))
-      );
       setModalOpen(true);
     },
     []
   );
 
-  // 날짜별 뷰에서 수금처리 클릭 - 같은 매장의 전체 미수금을 모달에 표시
+  // 날짜별 뷰에서 수금처리 클릭
   const handleRecordCollect = useCallback(
     (record: OutstandingRecord) => {
-      const storeName = record.storeNameSnapshot ?? "-";
-      const sameStoreRecords = allRecords
-        .filter((r) => (r.storeNameSnapshot ?? "-") === storeName)
-        .map((r) => ({
-          id: r.id,
-          date: r.date,
-          totalAmount: r.totalAmount,
-        }));
-
-      setModalStoreName(storeName);
-      setModalRecords(sameStoreRecords);
+      if (!record.storeId) return;
+      setModalStoreId(record.storeId);
+      setModalStoreName(record.storeNameSnapshot ?? "-");
       setModalOpen(true);
     },
-    [allRecords]
+    []
   );
 
   // 매장명 검색 실행
@@ -400,11 +388,12 @@ export function OutstandingContent() {
       )}
 
       {/* 일괄 수금 처리 모달 */}
-      <BulkPaymentModal
+      <CollectionRequestModal
         open={modalOpen}
         onOpenChange={setModalOpen}
+        storeId={modalStoreId}
         storeName={modalStoreName}
-        records={modalRecords}
+        userRole="ADMIN"
       />
     </div>
   );
