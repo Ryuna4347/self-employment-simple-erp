@@ -39,7 +39,13 @@ export async function PUT(
       data: {
         title,
         content,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        expiresAt: expiresAt
+          ? (() => {
+              const d = new Date(expiresAt)
+              d.setHours(23, 59, 59, 999)
+              return d
+            })()
+          : null,
       },
       include: {
         author: { select: { name: true } },
