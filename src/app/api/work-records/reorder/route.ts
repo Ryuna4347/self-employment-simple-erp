@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import { dateToKSTMidnight, dateToKSTEndOfDay } from "@/lib/date-utils"
 import { z } from "zod"
 
 const reorderSchema = z.object({
@@ -41,12 +42,13 @@ export async function PATCH(request: Request) {
     return ApiErrors.notFound("일부 근무 기록을 찾을 수 없습니다")
   }
 
-  // 모든 레코드가 본인 소유이고 해당 날짜인지 확인
-  const targetDate = new Date(date + "T00:00:00.000Z")
+  // 모든 레코드가 본인 소유이고 해당 날짜인지 확인 (KST 기준 범위 비교)
+  const dateStart = dateToKSTMidnight(date)
+  const dateEnd = dateToKSTEndOfDay(date)
   const invalid = existingRecords.find(
     (r) =>
       r.userId !== user.id ||
-      r.date.toISOString().slice(0, 10) !== targetDate.toISOString().slice(0, 10)
+      r.date < dateStart || r.date > dateEnd
   )
 
   if (invalid) {

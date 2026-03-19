@@ -6,7 +6,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -58,10 +59,13 @@ export function WorkRecordList({
     setLocalRecords(records);
   }, [records]);
 
-  // 3초 롱프레스로 드래그 활성화
+  // 1.5초 롱프레스로 드래그 활성화 (MouseSensor + TouchSensor 분리로 클릭 이벤트 정상 동작)
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { delay: 3000, tolerance: 5 },
+    useSensor(MouseSensor, {
+      activationConstraint: { delay: 1000, tolerance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 1000, tolerance: 5 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -71,14 +75,12 @@ export function WorkRecordList({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setLocalRecords((items) => {
-        const oldIndex = items.findIndex((r) => r.id === active.id);
-        const newIndex = items.findIndex((r) => r.id === over.id);
-        const reordered = arrayMove(items, oldIndex, newIndex);
-        // 서버에 순서 저장 요청
-        onReorder?.(reordered.map((r, i) => ({ id: r.id, sortOrder: i })));
-        return reordered;
-      });
+      const oldIndex = localRecords.findIndex((r) => r.id === active.id);
+      const newIndex = localRecords.findIndex((r) => r.id === over.id);
+      const reordered = arrayMove(localRecords, oldIndex, newIndex);
+      setLocalRecords(reordered);
+      // 서버에 순서 저장 요청
+      onReorder?.(reordered.map((r, i) => ({ id: r.id, sortOrder: i })));
     }
   };
 
