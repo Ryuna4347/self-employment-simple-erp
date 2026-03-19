@@ -1,8 +1,24 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { FileX } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import type { WorkRecordResponse } from "../hooks/use-work-records";
-import { WorkRecordCard } from "./work-record-card";
+import { WorkRecordCard, SortableWorkRecordCard } from "./work-record-card";
 
 interface WorkRecordListProps {
   records: WorkRecordResponse[];
@@ -13,15 +29,60 @@ interface WorkRecordListProps {
   userRole: "ADMIN" | "USER";
   deletingId?: string | null;
   collectingId?: string | null;
+  canReorder?: boolean;
+  onReorder?: (records: { id: string; sortOrder: number }[]) => void;
 }
 
 /**
  * 근무 기록 리스트 컴포넌트
  * - 카드 목록 렌더링
  * - 빈 상태 처리
+ * - 드래그앤드롭 순서 변경 (canReorder=true 시, 3초 롱프레스로 활성화)
  */
-export function WorkRecordList({ records, onEdit, onDelete, onCollect, onRequestCollect, userRole, deletingId, collectingId }: WorkRecordListProps) {
-  if (records.length === 0) {
+export function WorkRecordList({
+  records,
+  onEdit,
+  onDelete,
+  onCollect,
+  onRequestCollect,
+  userRole,
+  deletingId,
+  collectingId,
+  canReorder = false,
+  onReorder,
+}: WorkRecordListProps) {
+  // 낙관적 업데이트를 위한 로컬 상태
+  const [localRecords, setLocalRecords] = useState(records);
+
+  useEffect(() => {
+    setLocalRecords(records);
+  }, [records]);
+
+  // 3초 롱프레스로 드래그 활성화
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 3000, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setLocalRecords((items) => {
+        const oldIndex = items.findIndex((r) => r.id === active.id);
+        const newIndex = items.findIndex((r) => r.id === over.id);
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        // 서버에 순서 저장 요청
+        onReorder?.(reordered.map((r, i) => ({ id: r.id, sortOrder: i })));
+        return reordered;
+      });
+    }
+  };
+
+  if (localRecords.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12 text-center">
         <FileX className="size-12 text-gray-300 mx-auto mb-3" />
@@ -35,17 +96,50 @@ export function WorkRecordList({ records, onEdit, onDelete, onCollect, onRequest
     );
   }
 
+  const cardProps = {
+    onEdit,
+    onDelete,
+    onCollect,
+    onRequestCollect,
+    userRole,
+  };
+
+  // 드래그앤드롭 활성화 시
+  if (canReorder) {
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={localRecords.map((r) => r.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-3">
+            {localRecords.map((record) => (
+              <SortableWorkRecordCard
+                key={record.id}
+                record={record}
+                {...cardProps}
+                isDeleting={deletingId === record.id}
+                isCollecting={collectingId === record.id}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    );
+  }
+
+  // 기본 렌더링 (드래그 비활성화)
   return (
     <div className="space-y-3">
-      {records.map((record) => (
+      {localRecords.map((record) => (
         <WorkRecordCard
           key={record.id}
           record={record}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onCollect={onCollect}
-          onRequestCollect={onRequestCollect}
-          userRole={userRole}
+          {...cardProps}
           isDeleting={deletingId === record.id}
           isCollecting={collectingId === record.id}
         />
