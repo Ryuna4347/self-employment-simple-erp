@@ -20,6 +20,7 @@ import {
   useWorkRecords,
   useDeleteWorkRecord,
   useUpdateWorkRecord,
+  useReorderWorkRecords,
   type WorkRecordResponse,
 } from "../hooks/use-work-records"
 
@@ -81,6 +82,14 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()
+  const reorderMutation = useReorderWorkRecords()
+
+  // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중에는 비활성화)
+  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName
+
+  const handleReorder = useCallback((reorderedRecords: { id: string; sortOrder: number }[]) => {
+    reorderMutation.mutate({ date: dateString, records: reorderedRecords })
+  }, [dateString, reorderMutation])
 
   // 삭제/수금처리 진행 중인 레코드 ID
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
@@ -191,7 +200,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} onRequestCollect={handleRequestCollect} userRole={userRole} deletingId={deletingId} collectingId={collectingId} />
+          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} onRequestCollect={handleRequestCollect} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
         )}
 
         {/* 무한 스크롤 트리거 */}

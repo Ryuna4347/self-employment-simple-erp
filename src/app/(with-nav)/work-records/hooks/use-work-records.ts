@@ -196,6 +196,24 @@ export function useDeleteWorkRecord() {
   })
 }
 
+// 근무기록 순서 변경 훅
+export function useReorderWorkRecords() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: { date: string; records: { id: string; sortOrder: number }[] }) => {
+      await apiClient("/api/work-records/reorder", {
+        method: "PATCH",
+        json: data,
+      })
+    },
+    onError: () => {
+      // 실패 시 서버 상태로 복원
+      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+    },
+  })
+}
+
 // 직접 입력한 매장을 Store DB에 저장하는 훅
 export function useSaveStoreFromWorkRecord() {
   const queryClient = useQueryClient()

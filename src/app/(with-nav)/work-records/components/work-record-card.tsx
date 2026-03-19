@@ -22,9 +22,11 @@ import type {
   CollectionStatus,
 } from "../hooks/use-work-records";
 import type { PaymentType } from "@/generated/prisma/client";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 
-interface WorkRecordCardProps {
+export interface WorkRecordCardProps {
   record: WorkRecordResponse;
   onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
@@ -33,6 +35,7 @@ interface WorkRecordCardProps {
   userRole: "ADMIN" | "USER";
   isDeleting?: boolean;
   isCollecting?: boolean;
+  isDragging?: boolean;
 }
 
 // 유틸리티 함수: 총 금액 계산
@@ -105,6 +108,7 @@ export function WorkRecordCard({
   userRole,
   isDeleting,
   isCollecting,
+  isDragging,
 }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
@@ -141,6 +145,7 @@ export function WorkRecordCard({
       className={cn(
         "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all flex",
         "hover:shadow-md",
+        isDragging && "opacity-50 shadow-lg border-blue-400 scale-[1.02]",
       )}
     >
       {/* 수금 상태 컬러 바 - 전체 높이 */}
@@ -453,6 +458,33 @@ export function WorkRecordCard({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 드래그앤드롭 정렬을 위한 래퍼 컴포넌트
+ * - useSortable 훅으로 드래그 기능 연결
+ * - 드래그 중 시각적 피드백 (isDragging)
+ */
+export function SortableWorkRecordCard(props: WorkRecordCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.record.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <WorkRecordCard {...props} isDragging={isDragging} />
     </div>
   );
 }

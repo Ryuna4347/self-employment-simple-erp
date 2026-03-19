@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         user: { select: { id: true, name: true } },
         collectedBy: { select: { id: true, name: true } },
       },
-      orderBy: [{ createdAt: "asc" }, { sortOrder: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       skip: (page - 1) * limit,
       take: limit,
     }),
