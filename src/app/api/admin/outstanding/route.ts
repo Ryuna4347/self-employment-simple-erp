@@ -117,6 +117,7 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
   const records = pageRecords.map((record) => ({
     id: record.id,
     date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
+    storeId: record.storeId,
     storeNameSnapshot: record.storeNameSnapshot,
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,
@@ -218,6 +219,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const records = pageRecords.map((record) => ({
     id: record.id,
     date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
+    storeId: record.storeId,
     storeNameSnapshot: record.storeNameSnapshot,
     storeAddressSnapshot: record.storeAddressSnapshot,
     managerNameSnapshot: record.managerNameSnapshot,

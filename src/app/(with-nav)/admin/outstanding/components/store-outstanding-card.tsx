@@ -1,5 +1,7 @@
 "use client"
 
+import { Banknote } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 
@@ -21,6 +23,7 @@ export interface StoreGroupRecord {
 
 export interface StoreGroup {
   storeName: string
+  storeId: string | null
   storeAddress: string | null
   paymentType: PaymentType
   managerName: string | null
@@ -30,6 +33,7 @@ export interface StoreGroup {
 
 interface StoreOutstandingCardProps {
   group: StoreGroup
+  onCollect?: (group: StoreGroup) => void
 }
 
 /**
@@ -37,7 +41,7 @@ interface StoreOutstandingCardProps {
  *
  * 동일 매장의 미수금 레코드를 묶어서 표시한다.
  */
-export function StoreOutstandingCard({ group }: StoreOutstandingCardProps) {
+export function StoreOutstandingCard({ group, onCollect }: StoreOutstandingCardProps) {
   return (
     <div className="rounded-lg shadow-sm p-4 border-l-4 border-red-500 bg-white">
       {/* Row 1: 매장명 + 지불방식 뱃지 */}
@@ -77,7 +81,7 @@ export function StoreOutstandingCard({ group }: StoreOutstandingCardProps) {
         ))}
       </div>
 
-      {/* 구분선 + 합계 */}
+      {/* 구분선 + 합계 + 수금처리 버튼 */}
       <div className="border-t mt-3 pt-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">미수금 합계</span>
@@ -85,6 +89,17 @@ export function StoreOutstandingCard({ group }: StoreOutstandingCardProps) {
             {group.totalAmount.toLocaleString()}원
           </span>
         </div>
+        {onCollect && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-3"
+            onClick={() => onCollect(group)}
+          >
+            <Banknote className="size-4" />
+            수금처리
+          </Button>
+        )}
       </div>
     </div>
   )

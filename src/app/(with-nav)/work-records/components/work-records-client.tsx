@@ -232,7 +232,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
       <CollectionRequestModal
         open={collectionRequestModalOpen}
         onOpenChange={setCollectionRequestModalOpen}
-        record={collectionRequestTarget}
+        storeId={collectionRequestTarget?.storeId ?? null}
+        storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
         userRole={userRole}
       />
     </div>

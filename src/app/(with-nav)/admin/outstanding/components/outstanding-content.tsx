@@ -18,8 +18,10 @@ import {
   type OutstandingParams,
 } from "../hooks/use-outstanding";
 import { OutstandingCard } from "./outstanding-card";
+import type { OutstandingRecord } from "./outstanding-card";
 import { StoreOutstandingCard } from "./store-outstanding-card";
 import type { StoreGroup } from "./store-outstanding-card";
+import { CollectionRequestModal } from "@/app/(with-nav)/work-records/components/collection-request-modal";
 
 type ViewMode = "date" | "store";
 
@@ -134,6 +136,7 @@ export function OutstandingContent() {
       if (!groupMap.has(key)) {
         groupMap.set(key, {
           storeName: key,
+          storeId: record.storeId,
           storeAddress: record.storeAddressSnapshot,
           paymentType: record.paymentTypeSnapshot,
           managerName: record.managerNameSnapshot,
@@ -184,6 +187,33 @@ export function OutstandingContent() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // 일괄 수금 모달 상태
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalStoreId, setModalStoreId] = useState<string | null>(null);
+  const [modalStoreName, setModalStoreName] = useState("");
+
+  // 매장별 뷰에서 수금처리 클릭
+  const handleStoreCollect = useCallback(
+    (group: StoreGroup) => {
+      if (!group.storeId) return;
+      setModalStoreId(group.storeId);
+      setModalStoreName(group.storeName);
+      setModalOpen(true);
+    },
+    []
+  );
+
+  // 날짜별 뷰에서 수금처리 클릭
+  const handleRecordCollect = useCallback(
+    (record: OutstandingRecord) => {
+      if (!record.storeId) return;
+      setModalStoreId(record.storeId);
+      setModalStoreName(record.storeNameSnapshot ?? "-");
+      setModalOpen(true);
+    },
+    []
+  );
 
   // 매장명 검색 실행
   const handleStoreSearch = useCallback(() => {
@@ -326,6 +356,7 @@ export function OutstandingContent() {
                 <OutstandingCard
                   key={record.id}
                   record={record}
+                  onCollect={handleRecordCollect}
                 />
               ))
             ) : (
@@ -339,6 +370,7 @@ export function OutstandingContent() {
               <StoreOutstandingCard
                 key={group.storeName}
                 group={group}
+                onCollect={handleStoreCollect}
               />
             ))
           ) : (
@@ -354,6 +386,15 @@ export function OutstandingContent() {
       {isFetchingNextPage && (
         <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
       )}
+
+      {/* 일괄 수금 처리 모달 */}
+      <CollectionRequestModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        storeId={modalStoreId}
+        storeName={modalStoreName}
+        userRole="ADMIN"
+      />
     </div>
   );
 }

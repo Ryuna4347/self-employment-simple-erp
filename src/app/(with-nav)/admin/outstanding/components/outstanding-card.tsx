@@ -1,5 +1,7 @@
 "use client"
 
+import { Banknote } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 
@@ -13,6 +15,7 @@ const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
 export interface OutstandingRecord {
   id: string
   date: string
+  storeId: string | null
   storeNameSnapshot: string | null
   storeAddressSnapshot: string | null
   managerNameSnapshot: string | null
@@ -26,6 +29,7 @@ export interface OutstandingRecord {
 
 interface OutstandingCardProps {
   record: OutstandingRecord
+  onCollect?: (record: OutstandingRecord) => void
 }
 
 /**
@@ -33,7 +37,7 @@ interface OutstandingCardProps {
  *
  * 개별 미수금 레코드를 카드 형태로 표시한다.
  */
-export function OutstandingCard({ record }: OutstandingCardProps) {
+export function OutstandingCard({ record, onCollect }: OutstandingCardProps) {
   return (
     <div className="rounded-lg shadow-sm p-4 border-l-4 border-red-500 bg-white">
       {/* Row 1: 가게명 + 날짜 */}
@@ -61,11 +65,21 @@ export function OutstandingCard({ record }: OutstandingCardProps) {
         )}
       </div>
 
-      {/* Row 4: 금액 */}
-      <div className="mt-3">
+      {/* Row 4: 금액 + 수금처리 버튼 */}
+      <div className="flex items-center justify-between mt-3">
         <span className="text-red-600 font-semibold">
           {record.totalAmount.toLocaleString()}원
         </span>
+        {onCollect && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onCollect(record)}
+          >
+            <Banknote className="size-4" />
+            수금처리
+          </Button>
+        )}
       </div>
     </div>
   )
