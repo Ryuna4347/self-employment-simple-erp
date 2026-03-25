@@ -46,7 +46,8 @@ src/app/
 │       ├── staff/       # 직원 관리
 │       ├── outstanding/ # 미수금 관리
 │       ├── collections/ # 수금 관리
-│       └── costs/       # 비용 관리
+│       ├── costs/       # 비용 관리
+│       └── notices/     # 공지 관리
 ├── register/            # 회원가입
 ├── api/                 # API 라우트
 ├── layout.tsx           # 루트 레이아웃 (fonts, providers)
@@ -126,7 +127,8 @@ src/app/api/
 │   │   └── save-store/route.ts        # POST 매장 저장
 │   ├── store-visits/route.ts          # GET 매장 방문 이력
 │   ├── store-uncollected/route.ts     # GET 매장별 미수금
-│   └── batch-collect/route.ts         # PATCH 일괄 수금처리
+│   ├── batch-collect/route.ts         # PATCH 일괄 수금처리
+│   └── reorder/route.ts              # PATCH 근무기록 순서 변경
 ├── collection-requests/
 │   ├── route.ts                        # GET/POST 수금 요청 목록/생성
 │   └── [id]/
@@ -135,6 +137,8 @@ src/app/api/
 │       └── reject/route.ts            # POST 거부
 ├── expenses/
 │   └── fuel-cost/route.ts             # POST 유류비 기록
+├── notices/
+│   └── latest/route.ts                # GET 최신 공지 조회
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
     ├── dashboard/route.ts              # GET 대시보드 데이터
@@ -149,6 +153,9 @@ src/app/api/
     ├── costs/
     │   ├── route.ts                    # GET/POST 비용 목록/생성
     │   └── [id]/route.ts              # PUT/DELETE 비용 수정/삭제
+    ├── notices/
+    │   ├── route.ts                    # GET/POST 공지 목록/생성
+    │   └── [id]/route.ts              # PUT/DELETE 공지 수정/삭제
     └── export/monthly/route.ts         # POST 월간 엑셀 내보내기
 ```
 
@@ -162,7 +169,7 @@ src/app/api/
 | 순회 템플릿 | `/store-templates` | 매장 그룹/코스 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 (미구현) |
 | 프로필 | `/profile` | 비밀번호 변경 |
-| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 엑셀 내보내기 |
+| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 공지, 엑셀 내보내기 |
 
 ## 데이터 모델 (Prisma)
 
@@ -177,6 +184,7 @@ src/app/api/
 - **StoreTemplateMember**: 코스 매장 (templateId, storeId, order)
 - **CollectionRequest**: 수금 확인 요청 (storeId, requesterId, status, reviewerId)
 - **CollectionRequestItem**: 요청 대상 레코드 (collectionRequestId, workRecordId)
+- **Notice**: 공지사항 (title, content, expiresAt, authorId)
 - **RefreshToken**: 리프레시 토큰 (userId, tokenHash, familyId, expiresAt)
 
 ### Enum

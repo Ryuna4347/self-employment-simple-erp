@@ -10,6 +10,7 @@
 - 미수금 관리: 미수금 추적 및 완납 처리
 - 수금 관리: 수금 확인 요청 승인/거부, 수금 이력 조회
 - 비용 관리: 월별 비용 CRUD, 대시보드 연동
+- 공지 관리: 공지 CRUD, 만료일 설정
 - 엑셀 내보내기: 월간 리포트 출력
 
 ---
@@ -62,16 +63,26 @@ admin/
 │   │   └── collection-history-card.tsx
 │   └── hooks/
 │       └── use-collections.ts
-└── costs/
+├── costs/
+│   ├── page.tsx
+│   ├── components/
+│   │   ├── costs-content.tsx
+│   │   ├── cost-card.tsx
+│   │   ├── cost-modal.tsx
+│   │   ├── delete-cost-modal.tsx
+│   │   └── index.ts
+│   └── hooks/
+│       └── use-costs.ts
+└── notices/
     ├── page.tsx
     ├── components/
-    │   ├── costs-content.tsx
-    │   ├── cost-card.tsx
-    │   ├── cost-modal.tsx
-    │   ├── delete-cost-modal.tsx
+    │   ├── notices-content.tsx
+    │   ├── notice-card.tsx
+    │   ├── notice-modal.tsx
+    │   ├── delete-notice-modal.tsx
     │   └── index.ts
     └── hooks/
-        └── use-costs.ts
+        └── use-notices.ts
 ```
 
 ---
@@ -104,6 +115,11 @@ admin/
 - 비용 CRUD (날짜, 제목, 금액, 비고)
 - 대시보드 총 비용 카드에 합산 반영
 
+### 6. 공지 관리
+- 공지 CRUD (제목, 내용, 만료일)
+- 만료일 설정 (null = 무기한, 설정 시 해당일 23:59:59까지 유효)
+- 만료되지 않은 최신 공지 1건이 근무기록 페이지에 배너로 표시
+
 ---
 
 ## 관련 API
@@ -117,6 +133,9 @@ admin/
 - `GET /api/admin/collection-history` - 수금 이력
 - `GET/POST /api/admin/costs` - 비용 목록/생성
 - `PUT/DELETE /api/admin/costs/[id]` - 비용 수정/삭제
+- `GET/POST /api/admin/notices` - 공지 목록/생성
+- `PUT/DELETE /api/admin/notices/[id]` - 공지 수정/삭제
+- `GET /api/notices/latest` - 최신 공지 조회 (사용자용)
 - `POST /api/admin/export/monthly` - 월간 엑셀 내보내기
 
 ---
@@ -129,3 +148,4 @@ admin/
 - `/admin/outstanding` - 미수금 관리
 - `/admin/collections` - 수금 관리
 - `/admin/costs` - 비용 관리
+- `/admin/notices` - 공지 관리

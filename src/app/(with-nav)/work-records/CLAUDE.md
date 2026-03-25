@@ -13,6 +13,8 @@
 - 유류비 기록
 - 매장 템플릿 자동 로드
 - 일괄 수금처리
+- 드래그앤드롭 순서 변경 (@dnd-kit)
+- 공지 배너 표시 (최신 공지 1건)
 
 ---
 
@@ -60,6 +62,8 @@
 
 ### 정렬
 - 코스 적용 시 `sortOrder`에 `StoreTemplateMember.order` 값 반영
+- 드래그앤드롭으로 본인의 해당 날짜 근무기록 순서 변경 가능
+- 트랜잭션으로 일괄 업데이트
 
 ---
 
@@ -81,6 +85,7 @@ work-records/
 │   ├── template-apply-modal.tsx     # 템플릿 적용 모달
 │   ├── collection-request-modal.tsx # 수금 확인 요청 모달
 │   ├── fuel-cost-modal.tsx          # 유류비 기록 모달
+│   ├── notice-banner.tsx            # 공지 배너 (최신 공지 표시)
 │   └── user-filter.tsx              # 유저 필터 (관리자용)
 └── hooks/
     ├── use-work-records.ts          # 근무기록 CRUD
@@ -88,7 +93,8 @@ work-records/
     ├── use-store-uncollected.ts     # 매장별 미수금 조회
     ├── use-batch-collect.ts         # 일괄 수금처리
     ├── use-collection-request.ts    # 수금 확인 요청
-    └── use-fuel-cost.ts             # 유류비 기록
+    ├── use-fuel-cost.ts             # 유류비 기록
+    └── use-latest-notice.ts         # 최신 공지 조회
 ```
 
 ---
@@ -119,6 +125,16 @@ work-records/
 - API: `POST /api/expenses/fuel-cost`
 - Hook: `useFuelCost`
 
+### 공지 배너 (NoticeBanner)
+- 만료되지 않은 최신 공지 1건을 리스트 상단에 배너로 표시
+- API: `GET /api/notices/latest`
+- Hook: `useLatestNotice`
+
+### 드래그앤드롭 정렬
+- @dnd-kit 사용하여 근무기록 순서 변경
+- 본인의 해당 날짜 레코드만 변경 가능
+- API: `PATCH /api/work-records/reorder`
+
 ---
 
 ## 관련 API
@@ -129,10 +145,12 @@ work-records/
 - `GET /api/work-records/store-visits` - 방문 이력
 - `GET /api/work-records/store-uncollected` - 미수금 조회
 - `PATCH /api/work-records/batch-collect` - 일괄 수금
+- `PATCH /api/work-records/reorder` - 순서 변경
 - `GET/POST /api/collection-requests` - 수금 요청
 - `POST /api/collection-requests/[id]/approve` - 승인
 - `POST /api/collection-requests/[id]/reject` - 거부
 - `POST /api/expenses/fuel-cost` - 유류비
+- `GET /api/notices/latest` - 최신 공지
 
 ---
 
