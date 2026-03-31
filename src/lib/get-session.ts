@@ -1,59 +1,24 @@
 import { cookies } from "next/headers"
-import { decode } from "next-auth/jwt"
-
-// Auth.js 쿠키 이름
-const AUTH_COOKIE_NAME = process.env.NODE_ENV === "production"
-  ? "__Secure-authjs.session-token"
-  : "authjs.session-token"
-
-// JWT 페이로드 타입
-interface JWTPayload {
-  id?: string
-  name?: string
-  loginId?: string
-  role?: "ADMIN" | "USER"
-}
+import { ACCESS_TOKEN_COOKIE, verifyAccessToken } from "@/lib/jwt"
+import type { AuthSession } from "@/types/auth"
 
 /**
- * JWT 쿠키를 직접 디코딩하여 세션 정보 반환
- * - auth() 호출 없이 JWT 읽기만 수행
- * - JWT 콜백 실행 안 됨
+ * 서버 컴포넌트에서 세션 정보 조회
+ * - accessToken 쿠키를 읽고 JWT 검증
+ * - 유효하면 세션 반환, 아니면 null
  */
-export async function getSessionFromJWT(): Promise<{
-  user: { id: string; name: string; loginId: string; role: "ADMIN" | "USER" }
-} | null> {
+export async function getSessionFromJWT(): Promise<AuthSession | null> {
   try {
     const cookieStore = await cookies()
-    const token = cookieStore.get(AUTH_COOKIE_NAME)
+    const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
 
-    if (!token?.value) return null
+    if (!token) return null
 
-    const secret = process.env.AUTH_SECRET
-    if (!secret) throw new Error("AUTH_SECRET not set")
+    const user = await verifyAccessToken(token)
+    if (!user) return null
 
-    const decoded = await decode({
-      token: token.value,
-      secret,
-      salt: AUTH_COOKIE_NAME,
-    })
-
-    if (!decoded) return null
-
-    const data = decoded as JWTPayload
-
-    // user.id 없음
-    if (!data.id) return null
-
-    return {
-      user: {
-        id: data.id,
-        name: data.name || "",
-        loginId: data.loginId || "",
-        role: data.role || "USER",
-      },
-    }
+    return { user }
   } catch {
-    // JWT 디코딩 실패 (만료, 변조 등)
     return null
   }
 }

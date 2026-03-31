@@ -11,39 +11,38 @@ import { ApiError } from "./api-client";
  * - QueryCache.onError에서 401 에러 감지
  * - 로그인 페이지로 리다이렉트 (세션 만료 표시)
  *
+ * **403 처리**:
+ * - api-client에서 자동 갱신 + 재시도를 수행
+ * - 갱신 실패 시 403이 그대로 올라오면 401과 동일하게 처리
+ *
  * **전역 에러 토스트**:
- * - MutationCache.onError에서 401 외 에러 시 toast.error 표시
- *
- * **세션 처리 방식**:
- * - 서버 컴포넌트에서 세션 유효성 검사 (layout.tsx)
- * - 클라이언트에서 API 호출 시 401 발생하면 페이지 리다이렉트
- *
- * **참고**: 컴포넌트 외부에서 생성하면 SSR 시 클라이언트 간 공유 문제 발생
- * → 반드시 useState 또는 useRef로 인스턴스 관리 필요
+ * - MutationCache.onError에서 401/403 외 에러 시 toast.error 표시
  */
 export function createQueryClient(): QueryClient {
-  const handle401 = () => {
-    // 클라이언트에서 401 발생 시 로그인 페이지로 이동
+  const handleAuthError = () => {
     if (typeof window !== "undefined") {
       window.location.href = "/?sessionExpired=true";
     }
   };
 
+  const isAuthError = (error: unknown) =>
+    error instanceof ApiError && (error.status === 401 || error.status === 403);
+
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error) => {
-        if (error instanceof ApiError && error.status === 401) {
-          handle401();
+        if (isAuthError(error)) {
+          handleAuthError();
         }
       },
     }),
     mutationCache: new MutationCache({
       onError: (error) => {
-        if (error instanceof ApiError && error.status === 401) {
-          handle401();
+        if (isAuthError(error)) {
+          handleAuthError();
           return;
         }
-        // 401 외 모든 mutation 에러에 대해 토스트 표시
+        // 인증 에러 외 모든 mutation 에러에 대해 토스트 표시
         toast.error(
           error instanceof ApiError ? error.message : "오류가 발생했습니다"
         );
@@ -51,9 +50,9 @@ export function createQueryClient(): QueryClient {
     }),
     defaultOptions: {
       queries: {
-        // 세션 체크 실패 시 불필요한 재시도 방지
+        // 인증 에러 시 불필요한 재시도 방지
         retry: (failureCount, error) => {
-          if (error instanceof ApiError && error.status === 401) {
+          if (isAuthError(error)) {
             return false;
           }
           return failureCount < 3;
