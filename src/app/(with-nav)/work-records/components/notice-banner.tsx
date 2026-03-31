@@ -63,19 +63,19 @@ function NoticeBannerInner({ notice }: { notice: NoticeData }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={handleOpenChange} className="mb-4">
-      <CollapsibleTrigger className="flex items-center gap-2 w-full rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-left hover:bg-amber-100/80 transition-colors">
-        <Megaphone className="size-4 text-amber-600 shrink-0" />
-        <span className="flex-1 text-sm font-medium text-amber-900 truncate">
+      <CollapsibleTrigger className="flex items-center gap-2 w-full rounded-lg bg-red-50/80 border border-red-200 px-3 py-2.5 text-left hover:bg-red-100/80 transition-colors">
+        <Megaphone className="size-4 text-red-600 shrink-0" />
+        <span className="flex-1 text-sm font-medium text-red-900 truncate">
           {notice.title}
         </span>
         {isOpen ? (
-          <ChevronUp className="size-4 text-amber-500 shrink-0" />
+          <ChevronUp className="size-4 text-red-500 shrink-0" />
         ) : (
-          <ChevronDown className="size-4 text-amber-500 shrink-0" />
+          <ChevronDown className="size-4 text-red-500 shrink-0" />
         )}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="rounded-b-lg bg-amber-50/50 border border-t-0 border-amber-200 px-3 py-3">
+        <div className="rounded-b-lg bg-red-50/50 border border-t-0 border-red-200 px-3 py-3">
           <p className="text-sm text-gray-700 whitespace-pre-wrap">
             {notice.content}
           </p>
