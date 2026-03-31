@@ -16,7 +16,7 @@ pnpm prisma studio    # DB GUI
 - **Frontend**: React 19, TypeScript, Tailwind CSS 4, shadcn/ui
 - **Backend**: Next.js API routes
 - **Database**: PostgreSQL + Prisma 7
-- **Auth**: Auth.js v5 (Credentials + JWT)
+- **Auth**: 커스텀 JWT (jose) + RefreshToken
 - **Storage**: Supabase Storage (이미지 업로드)
 - **Forms**: react-hook-form + zod
 - **Data Fetching**: TanStack Query (react-query) - 401 전역 처리
@@ -58,9 +58,7 @@ src/app/
 
 ```
 src/
-├── auth.ts              # NextAuth.js 메인 설정 (Credentials, JWT, Prisma adapter)
-├── auth.config.ts       # NextAuth.js Edge 설정 (authorized 콜백, 리다이렉트)
-├── middleware.ts         # Edge 미들웨어 (인증 라우트 보호)
+├── middleware.ts         # Edge 미들웨어 (JWT 서명 검증, 라우트 보호)
 ├── components/
 │   ├── ui/              # shadcn/ui 컴포넌트 (14개)
 │   ├── common/          # 공통 레이아웃 컴포넌트
@@ -78,17 +76,20 @@ src/
 │   ├── use-session-sync.ts
 │   └── use-users.ts
 ├── lib/                 # 유틸리티 & 라이브러리
-│   ├── api-client.ts        # API fetch 래퍼 (인증 헤더)
+│   ├── api-client.ts        # API fetch 래퍼 (토큰 갱신 + 403 자동 재시도)
 │   ├── api-response.ts      # API 응답 헬퍼 (success/error)
-│   ├── auth-guard.ts        # 인증 검증 유틸
+│   ├── auth-guard.ts        # API 라우트 인증 검증 (JWT 검증)
+│   ├── jwt.ts               # JWT 서명/검증 (jose, Edge 호환)
+│   ├── token-service.ts     # RefreshToken DB 관리
+│   ├── token-expiry.ts      # 클라이언트 토큰 만료시간 관리
 │   ├── collection-utils.ts  # 수금 관련 계산
 │   ├── date-utils.ts        # 날짜 포매팅
 │   ├── excel/               # 엑셀 내보내기
 │   │   ├── monthly-report.ts
 │   │   ├── utils.ts
 │   │   └── types.ts
-│   ├── get-session.ts       # 서버사이드 세션 조회
-│   ├── get-token.ts         # JWT 토큰 조회
+│   ├── get-session.ts       # 서버 컴포넌트 세션 조회 (JWT 검증)
+│   ├── get-token.ts         # JWT 토큰 직접 조회
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
@@ -97,7 +98,7 @@ src/
 │   ├── utils.ts             # 범용 유틸리티
 │   └── validations.ts       # Zod 검증 스키마
 └── types/
-    └── next-auth.d.ts       # NextAuth 타입 확장
+    └── auth.ts              # 인증 관련 타입 (AuthUser, AuthSession 등)
 ```
 
 ## API 라우트
@@ -105,7 +106,9 @@ src/
 ```
 src/app/api/
 ├── auth/
-│   ├── [...nextauth]/route.ts          # NextAuth 핸들러
+│   ├── login/route.ts                  # POST 로그인 (토큰 발급)
+│   ├── refresh/route.ts                # POST 토큰 갱신
+│   ├── logout/route.ts                 # POST 로그아웃 (토큰 삭제)
 │   └── session/route.ts                # GET 세션 조회
 ├── register/
 │   ├── verify/route.ts                 # POST 초대 코드 검증
@@ -185,7 +188,7 @@ src/app/api/
 - **CollectionRequest**: 수금 확인 요청 (storeId, requesterId, status, reviewerId)
 - **CollectionRequestItem**: 요청 대상 레코드 (collectionRequestId, workRecordId)
 - **Notice**: 공지사항 (title, content, expiresAt, authorId)
-- **RefreshToken**: 리프레시 토큰 (userId, tokenHash, familyId, expiresAt)
+- **RefreshToken**: 리프레시 토큰 (userId, tokenHash, rememberMe, expiresAt)
 
 ### Enum
 - **Role**: ADMIN, USER
@@ -196,18 +199,29 @@ src/app/api/
 
 ## 인증 시스템
 
-- **JWT 세션**: Access Token 12시간 (Auth.js 기본 JWT 전략)
-- **세션 검증**: 미들웨어(auth 콜백) → layout.tsx(user.id 체크) 2단계
+- **JWT**: jose 라이브러리 (HS256, Edge Runtime 호환)
+- **Access Token**: 30분 만료, httpOnly 쿠키 (`access-token`)
+- **Refresh Token**: 7일 만료, httpOnly 쿠키 (`refresh-token`, Path=/api/auth), DB에 해시 저장
+- **Auth**: 커스텀 JWT 시스템 (Auth.js 미사용)
 
-### 세션 처리 흐름 (2단계)
+### 토큰 갱신 흐름
 
-1. **미들웨어 (auth.config.ts)**: `auth?.user` 존재 여부 (비로그인 차단)
-2. **layout.tsx**: `user.id` 체크 (무효 세션 차단)
+1. **사전 갱신**: 프론트가 메모리에 만료시간 저장, 요청 전 10분 이내면 `/api/auth/refresh` 호출
+2. **403 폴백**: API에서 토큰 만료 시 403 반환 → 프론트가 자동 갱신 후 재시도
+3. **자동로그인 (rememberMe)**: refreshToken 만료 3일 이내 시 accessToken 갱신과 함께 refreshToken도 회전
 
-### 향후 구현 예정 (미구현)
-- 로그인 상태 유지 (Remember Me): Refresh Token + iron-session 이중 쿠키 시스템
-- Sliding Session: Access Token 자동 갱신
-- Token Rotation: Refresh Token 사용 시마다 새 토큰 발급
+### 세션 처리 흐름
+
+1. **미들웨어 (middleware.ts)**: accessToken 서명만 검증 (만료 무시), 무효 시 로그인 리다이렉트
+2. **API 라우트 (auth-guard.ts)**: accessToken 서명 + 만료 검증, 만료 시 403 반환
+3. **서버 컴포넌트 (get-session.ts)**: accessToken 검증하여 세션 반환
+
+### 인증 API
+
+- `POST /api/auth/login` - 로그인 (accessToken + refreshToken 발급)
+- `POST /api/auth/refresh` - 토큰 갱신
+- `POST /api/auth/logout` - 로그아웃 (토큰 삭제)
+- `GET /api/auth/session` - 세션 정보 조회
 
 ## 규칙
 

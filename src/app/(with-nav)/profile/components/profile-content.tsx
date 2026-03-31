@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
 import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { broadcastSignOut } from "@/hooks/use-session-sync";
+import { performSignOut } from "@/hooks/use-session-sync";
 import { ChangePasswordModal } from "./change-password-modal";
 import type { Role } from "@/generated/prisma/client";
 
@@ -23,8 +22,7 @@ export function ProfileContent({ user }: ProfileContentProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
-    broadcastSignOut();
-    await signOut({ callbackUrl: "/" });
+    await performSignOut();
   };
 
   return (

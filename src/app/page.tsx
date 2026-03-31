@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
 import {
   Form,
   FormControl,
@@ -20,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Store } from "lucide-react";
 import { koreanToEnglish } from "@/lib/korean-to-english";
+import { setTokenExpiry } from "@/lib/token-expiry";
+import type { LoginResponse } from "@/types/auth";
 
 // 로그인 폼 스키마
 const loginSchema = z.object({
@@ -60,22 +61,30 @@ function LoginForm() {
     setErrorMessage("");
 
     try {
-      const result = await signIn("credentials", {
-        id: values.loginId,
-        password: values.password,
-        rememberMe: values.rememberMe ? "true" : "false",
-        redirect: false,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          loginId: values.loginId,
+          password: values.password,
+          rememberMe: values.rememberMe,
+        }),
       });
 
-      if (result?.error) {
-        // 로그인 실패
-        setErrorMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
+      const data: LoginResponse | { error: { message: string } } = await response.json();
+
+      if (!response.ok) {
+        const errorData = data as { error: { message: string } };
+        setErrorMessage(errorData.error?.message || "아이디 또는 비밀번호가 올바르지 않습니다.");
         setIsSubmitting(false);
-      } else if (result?.ok) {
-        // 로그인 성공 - 바로 리다이렉트
-        router.push("/work-records");
-        router.refresh();
+        return;
       }
+
+      // 로그인 성공
+      const loginData = data as LoginResponse;
+      setTokenExpiry(loginData.data.expiresAt);
+      router.push("/work-records");
+      router.refresh();
     } catch {
       setErrorMessage("로그인 처리 중 오류가 발생했습니다.");
       setIsSubmitting(false);
