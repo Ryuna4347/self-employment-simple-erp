@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     prisma.workRecord.findMany({
       where: pageWhere,
       include: {
-        store: { select: { id: true, name: true, address: true, managerName: true } },
+        store: { select: { id: true, name: true, address: true, managerName: true, note: true } },
         items: { select: { id: true, name: true, amount: true, quantity: true } },
         user: { select: { id: true, name: true } },
         collectedBy: { select: { id: true, name: true } },
@@ -408,7 +408,7 @@ export async function POST(request: NextRequest) {
       }),
     },
     include: {
-      store: { select: { id: true, name: true, address: true, managerName: true } },
+      store: { select: { id: true, name: true, address: true, managerName: true, note: true } },
       items: { select: { id: true, name: true, amount: true, quantity: true } },
       user: { select: { id: true, name: true } },
       collectedBy: { select: { id: true, name: true } },

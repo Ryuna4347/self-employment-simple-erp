@@ -47,6 +47,7 @@ export interface WorkRecordStore {
   name: string
   address: string
   managerName: string | null
+  note: string | null
 }
 
 export interface WorkRecordUser {

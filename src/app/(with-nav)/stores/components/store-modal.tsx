@@ -41,6 +41,7 @@ const storeSchema = z.object({
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]),
   managerName: z.string().optional(),
   assignedUserId: z.string().optional(),
+  note: z.string().optional(),
   items: z.array(storeItemSchema).optional(),
 })
 
@@ -89,6 +90,7 @@ export function StoreModal({
       receiptType: "NONE",
       managerName: "",
       assignedUserId: "",
+      note: "",
       items: [],
     },
   })
@@ -114,6 +116,7 @@ export function StoreModal({
           receiptType: editStore.receiptType ?? "NONE",
           managerName: editStore.managerName ?? "",
           assignedUserId: editStore.assignedUserId ?? "",
+          note: editStore.note ?? "",
           items: editStore.storeItems.map((item) => ({
             name: item.name,
             amount: item.amount,
@@ -128,6 +131,7 @@ export function StoreModal({
           receiptType: "NONE",
           managerName: "",
           assignedUserId: "",
+          note: "",
           items: [],
         })
       }
@@ -143,6 +147,7 @@ export function StoreModal({
       receiptType: data.receiptType,
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       assignedUserId: data.assignedUserId || null,
+      note: data.note || null,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
     }
@@ -291,6 +296,16 @@ export function StoreModal({
                 </Button>
               )}
             </div>
+          </div>
+
+          {/* 특이사항 */}
+          <div className="space-y-2">
+            <Label htmlFor="note">특이사항</Label>
+            <Input
+              id="note"
+              placeholder="미수인 경우 '미수 액수'로 입력 (예: 미수 50000)"
+              {...register("note")}
+            />
           </div>
 
           {/* 코스 선택 (생성 모드에서만) */}

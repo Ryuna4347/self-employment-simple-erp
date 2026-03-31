@@ -25,6 +25,7 @@ const createStoreSchema = z.object({
   templateId: z.string().nullish(),
   assignedUserId: z.string().nullish(),
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
+  note: z.string().nullish(),
 })
 
 // 매장 목록 조회 쿼리 스키마

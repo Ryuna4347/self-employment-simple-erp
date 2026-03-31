@@ -23,6 +23,7 @@ export interface Store {
   latitude: number | null
   longitude: number | null
   assignedUserId: string | null
+  note: string | null
   assignedUser: { id: string; name: string } | null
   storeItems: StoreItem[]
 }
@@ -38,6 +39,7 @@ export interface StoreInput {
   latitude?: number | null
   longitude?: number | null
   assignedUserId?: string | null
+  note?: string | null
   items?: {
     name: string
     amount: number

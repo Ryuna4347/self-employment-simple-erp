@@ -38,6 +38,7 @@ model Store {
   latitude        Float?
   longitude       Float?
   receiptType     ReceiptType       @default(NONE)  // 영수증 발급 종류
+  note            String?           // 특이사항
   assignedUserId  String?
   isDeleted       Boolean               @default(false)
   createdAt       DateTime              @default(now())

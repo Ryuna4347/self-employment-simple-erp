@@ -26,6 +26,7 @@ const updateStoreSchema = z.object({
   receiptType: z
     .enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"])
     .optional(),
+  note: z.string().nullable().optional(),
 });
 
 /**

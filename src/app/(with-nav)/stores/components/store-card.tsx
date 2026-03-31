@@ -148,6 +148,16 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
               </div>
             </div>
 
+            {/* 특이사항 */}
+            {store.note && (
+              <div className="text-sm">
+                <span className="text-gray-600">특이사항</span>
+                <p className="font-medium text-gray-900 mt-0.5">
+                  {store.note}
+                </p>
+              </div>
+            )}
+
             {/* 품목 테이블 */}
             <div>
               <h4 className="text-sm font-medium text-gray-900 mb-2">

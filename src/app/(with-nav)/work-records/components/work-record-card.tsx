@@ -178,6 +178,18 @@ export function WorkRecordCard({
                       {record.storeOutstanding.totalAmount.toLocaleString()}원
                     </span>
                   )}
+                {(() => {
+                  const note = record.store?.note
+                  if (!note) return null
+                  const match = note.match(/^미수\s+([\d,]+)\s*원?/)
+                  if (!match) return null
+                  const amount = match[1]
+                  return (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-orange-100 text-orange-700 border border-orange-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
+                      전 미수: {Number(amount.replace(/,/g, "")).toLocaleString()}원
+                    </span>
+                  )
+                })()}
               </div>
               <div
                 className="flex items-start gap-1.5 text-sm text-gray-600 cursor-pointer active:bg-gray-100 rounded"
