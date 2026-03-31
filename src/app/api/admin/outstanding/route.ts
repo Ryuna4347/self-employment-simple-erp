@@ -86,7 +86,10 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
     collectionStatus: "UNCOLLECTED",
     date: { gte: dateStart, lte: dateEnd, lt: today },
     ...(userId ? { userId } : {}),
-    ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" } } : {}),
+    ...(search ? { OR: [
+      { storeNameSnapshot: { contains: search, mode: "insensitive" } },
+      { managerNameSnapshot: { contains: search, mode: "insensitive" } },
+    ] } : {}),
   }
 
   // 요약 쿼리 + 페이지 쿼리 병렬 실행
@@ -161,9 +164,10 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
     date: { lt: today },
-    storeNameSnapshot: storeName
-      ? { contains: storeName, mode: "insensitive" }
-      : { not: null },
+    ...(storeName ? { OR: [
+      { storeNameSnapshot: { contains: storeName, mode: "insensitive" } },
+      { managerNameSnapshot: { contains: storeName, mode: "insensitive" } },
+    ] } : { storeNameSnapshot: { not: null } }),
     ...(userId ? { userId } : {}),
   }
 

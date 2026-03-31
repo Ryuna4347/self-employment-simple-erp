@@ -319,7 +319,7 @@ export function OutstandingContent() {
       <div className="flex gap-1.5 mb-6">
         <Input
           className="h-8 text-sm"
-          placeholder="매장명 검색"
+          placeholder="매장명/입금자 검색"
           value={storeName}
           onChange={(e) => setStoreName(e.target.value)}
           onKeyDown={(e) => {
