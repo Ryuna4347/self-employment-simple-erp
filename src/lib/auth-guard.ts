@@ -1,50 +1,65 @@
-import { cookies } from "next/headers"
-import { ACCESS_TOKEN_COOKIE, verifyAccessToken } from "@/lib/jwt"
-import { ApiErrors, apiError, ErrorCode } from "@/lib/api-response"
+import { auth } from "@/auth"
+import { ApiErrors } from "@/lib/api-response"
 import type { Role } from "@/generated/prisma/client"
-import type { AuthUser, AuthSession } from "@/types/auth"
+import type { Session } from "next-auth"
+
+// 세션에서 user 타입 추출
+type SessionUser = NonNullable<Session["user"]>
 
 interface AuthResult {
-  session: AuthSession
-  user: AuthUser
+  session: Session
+  user: SessionUser
 }
 
 /**
  * API 라우트에서 인증 확인 헬퍼
  *
- * - accessToken 쿠키를 읽고 JWT 검증
- * - 토큰 없음 → 401
- * - 토큰 만료/무효 → 403 (프론트에서 갱신 트리거)
+ * 사용 예시:
+ * ```ts
+ * export async function GET() {
+ *   const authResult = await requireAuth()
+ *   if (authResult instanceof NextResponse) return authResult
+ *
+ *   const { user } = authResult
+ *   // user.id, user.role 등 사용 가능
+ * }
+ * ```
  */
-export async function requireAuth(): Promise<AuthResult | Response> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
+export async function requireAuth(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized>> {
+  const session = await auth()
 
-  if (!token) {
+  if (!session?.user) {
     return ApiErrors.unauthorized("로그인이 필요합니다")
   }
 
-  const user = await verifyAccessToken(token)
-  if (!user) {
-    // 토큰 만료 또는 무효 → 403 (프론트에서 refresh 시도)
-    return apiError(ErrorCode.SESSION_EXPIRED, "인증이 만료되었습니다", 403)
-  }
-
-  return { session: { user }, user }
+  return { session, user: session.user }
 }
 
 /**
  * API 라우트에서 관리자 권한 확인 헬퍼
+ *
+ * 사용 예시:
+ * ```ts
+ * export async function POST() {
+ *   const authResult = await requireAdmin()
+ *   if (authResult instanceof NextResponse) return authResult
+ *
+ *   // 관리자만 접근 가능한 로직
+ * }
+ * ```
  */
-export async function requireAdmin(): Promise<AuthResult | Response> {
-  const result = await requireAuth()
-  if (result instanceof Response) return result
+export async function requireAdmin(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.adminRequired>> {
+  const session = await auth()
 
-  if (result.user.role !== "ADMIN") {
+  if (!session?.user) {
+    return ApiErrors.unauthorized("로그인이 필요합니다")
+  }
+
+  if (session.user.role !== "ADMIN") {
     return ApiErrors.adminRequired("관리자 권한이 필요합니다")
   }
 
-  return result
+  return { session, user: session.user }
 }
 
 /**
@@ -52,22 +67,25 @@ export async function requireAdmin(): Promise<AuthResult | Response> {
  */
 export async function requireRole(
   allowedRoles: Role[]
-): Promise<AuthResult | Response> {
-  const result = await requireAuth()
-  if (result instanceof Response) return result
+): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.forbidden>> {
+  const session = await auth()
 
-  if (!allowedRoles.includes(result.user.role)) {
+  if (!session?.user) {
+    return ApiErrors.unauthorized("로그인이 필요합니다")
+  }
+
+  if (!allowedRoles.includes(session.user.role)) {
     return ApiErrors.forbidden("접근 권한이 없습니다")
   }
 
-  return result
+  return { session, user: session.user }
 }
 
 /**
- * Response 인스턴스인지 확인하는 타입 가드
+ * NextResponse 인스턴스인지 확인하는 타입 가드
  */
 export function isErrorResponse(
-  result: AuthResult | Response
-): result is Response {
+  result: AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.adminRequired> | ReturnType<typeof ApiErrors.forbidden>
+): result is ReturnType<typeof ApiErrors.unauthorized> {
   return result instanceof Response
 }

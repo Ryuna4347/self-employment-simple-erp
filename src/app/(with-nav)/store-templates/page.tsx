@@ -1,9 +1,9 @@
-import { getSessionFromJWT } from "@/lib/get-session"
+import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { StoreTemplatesClient } from "./components/store-templates-client"
 
 export default async function StoreTemplatesPage() {
-  const session = await getSessionFromJWT()
+  const session = await auth()
 
   if (!session?.user) {
     redirect("/?sessionExpired=true")

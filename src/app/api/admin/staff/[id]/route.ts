@@ -32,14 +32,20 @@ export async function DELETE(
     return ApiErrors.validationError("관리자 계정은 삭제할 수 없습니다")
   }
 
-  // 트랜잭션: soft delete + 리프레시 토큰 전체 삭제
+  // 트랜잭션: soft delete + 리프레시 토큰 전체 폐기
   await prisma.$transaction([
     prisma.user.update({
       where: { id },
       data: { isDeleted: true },
     }),
-    prisma.refreshToken.deleteMany({
-      where: { userId: id },
+    prisma.refreshToken.updateMany({
+      where: {
+        userId: id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
     }),
   ])
 

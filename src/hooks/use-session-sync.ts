@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { clearTokenExpiry } from "@/lib/token-expiry"
+import { signOut } from "next-auth/react"
 
 const CHANNEL_NAME = "auth-session-sync"
 
@@ -13,8 +13,7 @@ export function useSessionSync() {
 
     channel.onmessage = (event) => {
       if (event.data.type === "SIGN_OUT") {
-        clearTokenExpiry()
-        window.location.href = "/"
+        signOut({ callbackUrl: "/" })
       }
     }
 
@@ -28,20 +27,4 @@ export function broadcastSignOut() {
   const channel = new BroadcastChannel(CHANNEL_NAME)
   channel.postMessage({ type: "SIGN_OUT" })
   channel.close()
-}
-
-/**
- * 로그아웃 처리 (API 호출 + 쿠키 삭제 + 리다이렉트)
- */
-export async function performSignOut() {
-  broadcastSignOut()
-  clearTokenExpiry()
-
-  try {
-    await fetch("/api/auth/logout", { method: "POST" })
-  } catch {
-    // 실패해도 리다이렉트
-  }
-
-  window.location.href = "/"
 }

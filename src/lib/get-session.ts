@@ -1,44 +1,59 @@
 import { cookies } from "next/headers"
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, verifyAccessToken } from "@/lib/jwt"
-import { validateRefreshToken } from "@/lib/token-service"
-import type { AuthSession } from "@/types/auth"
+import { decode } from "next-auth/jwt"
+
+// Auth.js 쿠키 이름
+const AUTH_COOKIE_NAME = process.env.NODE_ENV === "production"
+  ? "__Secure-authjs.session-token"
+  : "authjs.session-token"
+
+// JWT 페이로드 타입
+interface JWTPayload {
+  id?: string
+  name?: string
+  loginId?: string
+  role?: "ADMIN" | "USER"
+}
 
 /**
- * 서버 컴포넌트에서 세션 정보 조회
- *
- * 1. accessToken 유효 → 세션 반환
- * 2. accessToken 만료/없음 → refreshToken으로 DB 조회하여 세션 복구
- *    (서버 컴포넌트에서는 쿠키 설정 불가 → 실제 accessToken 갱신은 클라이언트 첫 API 호출 시 403 폴백으로 처리)
- * 3. 둘 다 없거나 무효 → null (로그인 페이지 리다이렉트)
+ * JWT 쿠키를 직접 디코딩하여 세션 정보 반환
+ * - auth() 호출 없이 JWT 읽기만 수행
+ * - JWT 콜백 실행 안 됨
  */
-export async function getSessionFromJWT(): Promise<AuthSession | null> {
+export async function getSessionFromJWT(): Promise<{
+  user: { id: string; name: string; loginId: string; role: "ADMIN" | "USER" }
+} | null> {
   try {
     const cookieStore = await cookies()
-    const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
+    const token = cookieStore.get(AUTH_COOKIE_NAME)
 
-    // 1. accessToken 유효하면 바로 반환
-    if (accessToken) {
-      const user = await verifyAccessToken(accessToken)
-      if (user) return { user }
-    }
+    if (!token?.value) return null
 
-    // 2. accessToken 만료/없음 → refreshToken으로 세션 복구 시도
-    const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value
-    if (!refreshToken) return null
+    const secret = process.env.AUTH_SECRET
+    if (!secret) throw new Error("AUTH_SECRET not set")
 
-    const record = await validateRefreshToken(refreshToken)
-    if (!record) return null
+    const decoded = await decode({
+      token: token.value,
+      secret,
+      salt: AUTH_COOKIE_NAME,
+    })
 
-    // DB에서 가져온 최신 유저 정보로 세션 구성
+    if (!decoded) return null
+
+    const data = decoded as JWTPayload
+
+    // user.id 없음
+    if (!data.id) return null
+
     return {
       user: {
-        id: record.User.id,
-        name: record.User.name,
-        loginId: record.User.loginId,
-        role: record.User.role,
+        id: data.id,
+        name: data.name || "",
+        loginId: data.loginId || "",
+        role: data.role || "USER",
       },
     }
   } catch {
+    // JWT 디코딩 실패 (만료, 변조 등)
     return null
   }
 }
