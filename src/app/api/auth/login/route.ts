@@ -63,7 +63,8 @@ export async function POST(request: Request) {
     response.cookies.set(refreshOpts.name, refreshToken, refreshOpts)
 
     return response
-  } catch {
+  } catch (error) {
+    console.error("[POST /api/auth/login] 에러:", error)
     return apiError(ErrorCode.INTERNAL_ERROR, "로그인 처리 중 오류가 발생했습니다", 500)
   }
 }

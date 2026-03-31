@@ -5,9 +5,9 @@ import type { AuthUser } from "@/types/auth"
 export const ACCESS_TOKEN_COOKIE = "access-token"
 export const REFRESH_TOKEN_COOKIE = "refresh-token"
 
-export const ACCESS_TOKEN_MAX_AGE = 30 * 60           // 30분 (초)
+export const ACCESS_TOKEN_MAX_AGE = 1 * 60             // TODO: 테스트용 1분 (원래 30 * 60)
 export const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 // 7일 (초)
-export const REFRESH_RENEW_THRESHOLD = 3 * 24 * 60 * 60 // refreshToken 갱신 임계값 3일 (초)
+// export const REFRESH_RENEW_THRESHOLD = 3 * 24 * 60 * 60 // refreshToken 갱신 임계값 3일 (초) — 테스트용 주석처리
 
 const IS_PRODUCTION = process.env.NODE_ENV === "production"
 

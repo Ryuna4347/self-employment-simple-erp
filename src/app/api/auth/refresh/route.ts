@@ -8,7 +8,7 @@ import {
 } from "@/lib/jwt"
 import {
   validateRefreshToken,
-  needsRefreshTokenRotation,
+  // needsRefreshTokenRotation, // TODO: 테스트용 주석처리
   generateRefreshToken,
   createRefreshToken,
 } from "@/lib/token-service"
@@ -42,12 +42,12 @@ export async function POST() {
     let refreshTokenRotated = false
     let newRefreshTokenValue: string | null = null
 
-    if (needsRefreshTokenRotation(record.expiresAt, record.rememberMe)) {
-      // 새 refreshToken 생성 + DB 저장 (기존 토큰은 만료일까지 자연 소멸)
-      newRefreshTokenValue = generateRefreshToken()
-      await createRefreshToken(record.userId, newRefreshTokenValue, record.rememberMe)
-      refreshTokenRotated = true
-    }
+    // TODO: 테스트용 주석처리 — 원복 필요
+    // if (needsRefreshTokenRotation(record.expiresAt, record.rememberMe)) {
+    //   newRefreshTokenValue = generateRefreshToken()
+    //   await createRefreshToken(record.userId, newRefreshTokenValue, record.rememberMe)
+    //   refreshTokenRotated = true
+    // }
 
     // 응답 생성
     const response = NextResponse.json({

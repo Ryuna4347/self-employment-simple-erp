@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "crypto"
 import { prisma } from "@/lib/prisma"
-import { REFRESH_TOKEN_MAX_AGE, REFRESH_RENEW_THRESHOLD } from "@/lib/jwt"
+import { REFRESH_TOKEN_MAX_AGE } from "@/lib/jwt"
 
 /**
  * 랜덤 refreshToken 생성
@@ -72,14 +72,15 @@ export async function validateRefreshToken(token: string) {
 /**
  * refreshToken 갱신이 필요한지 확인 (만료까지 3일 이내)
  */
-export function needsRefreshTokenRotation(
-  expiresAt: Date,
-  rememberMe: boolean
-): boolean {
-  if (!rememberMe) return false
-  const remainingMs = expiresAt.getTime() - Date.now()
-  return remainingMs < REFRESH_RENEW_THRESHOLD * 1000
-}
+// TODO: 테스트용 주석처리 — 원복 필요
+// export function needsRefreshTokenRotation(
+//   expiresAt: Date,
+//   rememberMe: boolean
+// ): boolean {
+//   if (!rememberMe) return false
+//   const remainingMs = expiresAt.getTime() - Date.now()
+//   return remainingMs < REFRESH_RENEW_THRESHOLD * 1000
+// }
 
 /**
  * 특정 refreshToken 삭제 (해시 기반)
