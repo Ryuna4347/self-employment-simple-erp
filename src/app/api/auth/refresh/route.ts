@@ -9,7 +9,6 @@ import {
 import {
   validateRefreshToken,
   needsRefreshTokenRotation,
-  deleteRefreshToken,
   generateRefreshToken,
   createRefreshToken,
 } from "@/lib/token-service"
@@ -44,10 +43,7 @@ export async function POST() {
     let newRefreshTokenValue: string | null = null
 
     if (needsRefreshTokenRotation(record.expiresAt, record.rememberMe)) {
-      // 기존 refreshToken 삭제
-      await deleteRefreshToken(record.tokenHash)
-
-      // 새 refreshToken 생성 + DB 저장
+      // 새 refreshToken 생성 + DB 저장 (기존 토큰은 만료일까지 자연 소멸)
       newRefreshTokenValue = generateRefreshToken()
       await createRefreshToken(record.userId, newRefreshTokenValue, record.rememberMe)
       refreshTokenRotated = true
