@@ -30,6 +30,7 @@ export interface CostInput {
 // 쿼리 키
 const COSTS_KEY = ["admin", "costs"] as const
 const DASHBOARD_KEY = ["admin", "dashboard"] as const
+const DAILY_COST_KEY = ["daily-cost"] as const
 
 /**
  * 비용 목록 조회 훅
@@ -65,6 +66,7 @@ export function useCreateCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: COSTS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
     },
   })
 }
@@ -84,6 +86,7 @@ export function useUpdateCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: COSTS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
     },
   })
 }
@@ -102,6 +105,7 @@ export function useDeleteCost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: COSTS_KEY })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
     },
   })
 }

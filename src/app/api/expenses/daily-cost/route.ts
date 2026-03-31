@@ -5,21 +5,25 @@ import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight } from "@/lib/date-utils"
 
-const FUEL_COST_TITLE = "주유비"
+// 허용 비용 타입
+const ALLOWED_TITLES = ["주유비", "차량수리비"] as const
+type AllowedTitle = (typeof ALLOWED_TITLES)[number]
 
 // GET 쿼리 파라미터 스키마
 const querySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다"),
+  title: z.enum(ALLOWED_TITLES, { error: "허용되지 않는 비용 타입입니다" }),
   userId: z.string().optional(),
 })
 
 // POST 바디 스키마
-const fuelCostSchema = z.object({
+const dailyCostSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "날짜 형식이 올바르지 않습니다"),
+  title: z.enum(ALLOWED_TITLES, { error: "허용되지 않는 비용 타입입니다" }),
   amount: z.coerce.number().int().min(0, "금액은 0원 이상이어야 합니다"),
 })
 
-// GET: 특정 날짜의 주유비 조회
+// GET: 특정 날짜의 비용 조회
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
@@ -28,6 +32,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const parseResult = querySchema.safeParse({
       date: searchParams.get("date"),
+      title: searchParams.get("title"),
       userId: searchParams.get("userId") || undefined,
     })
 
@@ -35,17 +40,17 @@ export async function GET(request: NextRequest) {
       return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
-    const { date, userId } = parseResult.data
+    const { date, title, userId } = parseResult.data
     const kstDate = dateToKSTMidnight(date)
 
-    // 어드민은 다른 유저의 주유비 조회 가능, 일반 유저는 자기 것만
+    // 어드민은 다른 유저의 비용 조회 가능, 일반 유저는 자기 것만
     const targetUserId = (authResult.user.role === "ADMIN" && userId)
       ? userId
       : authResult.user.id
 
     const expense = await prisma.expense.findFirst({
       where: {
-        title: FUEL_COST_TITLE,
+        title,
         userId: targetUserId,
         date: kstDate,
       },
@@ -53,30 +58,30 @@ export async function GET(request: NextRequest) {
 
     return apiSuccess({ amount: expense?.amount ?? null })
   } catch (error) {
-    console.error("주유비 조회 오류:", error)
-    return ApiErrors.internalError("주유비 조회 중 오류가 발생했습니다")
+    console.error("비용 조회 오류:", error)
+    return ApiErrors.internalError("비용 조회 중 오류가 발생했습니다")
   }
 }
 
-// POST: 주유비 입력 (동일 날짜 존재 시 덮어쓰기)
+// POST: 비용 입력 (동일 날짜 존재 시 덮어쓰기)
 export async function POST(request: NextRequest) {
   const authResult = await requireAuth()
   if (isErrorResponse(authResult)) return authResult
 
   try {
     const body = await request.json()
-    const parseResult = fuelCostSchema.safeParse(body)
+    const parseResult = dailyCostSchema.safeParse(body)
 
     if (!parseResult.success) {
       return ApiErrors.validationError(parseResult.error.issues[0].message)
     }
 
-    const { date, amount } = parseResult.data
+    const { date, title, amount } = parseResult.data
     const kstDate = dateToKSTMidnight(date)
 
     const existing = await prisma.expense.findFirst({
       where: {
-        title: FUEL_COST_TITLE,
+        title,
         userId: authResult.user.id,
         date: kstDate,
       },
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
     const created = await prisma.expense.create({
       data: {
         date: kstDate,
-        title: FUEL_COST_TITLE,
+        title,
         amount,
         userId: authResult.user.id,
       },
@@ -110,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess({ amount: created.amount }, 201)
   } catch (error) {
-    console.error("주유비 저장 오류:", error)
-    return ApiErrors.internalError("주유비 저장 중 오류가 발생했습니다")
+    console.error("비용 저장 오류:", error)
+    return ApiErrors.internalError("비용 저장 중 오류가 발생했습니다")
   }
 }

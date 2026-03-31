@@ -15,31 +15,32 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useUpsertFuelCost } from "../hooks/use-fuel-cost"
+import { useUpsertDailyCost } from "../hooks/use-daily-cost"
 
-const fuelCostFormSchema = z.object({
+const dailyCostFormSchema = z.object({
   amount: z.number().int().min(1, "금액은 1원 이상이어야 합니다"),
 })
 
-type FuelCostFormData = z.infer<typeof fuelCostFormSchema>
+type DailyCostFormData = z.infer<typeof dailyCostFormSchema>
 
-interface FuelCostModalProps {
+interface DailyCostModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   date: string
+  title: string
   currentAmount: number | null
 }
 
-export function FuelCostModal({ open, onOpenChange, date, currentAmount }: FuelCostModalProps) {
-  const upsertMutation = useUpsertFuelCost()
+export function DailyCostModal({ open, onOpenChange, date, title, currentAmount }: DailyCostModalProps) {
+  const upsertMutation = useUpsertDailyCost()
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors, isValid },
-  } = useForm<FuelCostFormData>({
-    resolver: zodResolver(fuelCostFormSchema),
+  } = useForm<DailyCostFormData>({
+    resolver: zodResolver(dailyCostFormSchema),
     mode: "onChange",
     defaultValues: { amount: 0 },
   })
@@ -58,9 +59,9 @@ export function FuelCostModal({ open, onOpenChange, date, currentAmount }: FuelC
     onOpenChange(newOpen)
   }
 
-  const onSubmit = (data: FuelCostFormData) => {
+  const onSubmit = (data: DailyCostFormData) => {
     upsertMutation.mutate(
-      { date, amount: Number(data.amount) },
+      { date, title, amount: Number(data.amount) },
       { onSuccess: () => handleOpenChange(false) }
     )
   }
@@ -72,10 +73,10 @@ export function FuelCostModal({ open, onOpenChange, date, currentAmount }: FuelC
       <ResponsiveModalContent className="sm:max-w-sm max-h-[90vh] overflow-hidden flex flex-col">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
-            {currentAmount != null ? "주유비 수정" : "주유비 입력"}
+            {currentAmount != null ? `${title} 수정` : `${title} 입력`}
           </ResponsiveModalTitle>
           <ResponsiveModalDescription>
-            {date} 주유비를 입력하세요
+            {date} {title}를 입력하세요
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
@@ -85,9 +86,9 @@ export function FuelCostModal({ open, onOpenChange, date, currentAmount }: FuelC
         >
           <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
             <div className="space-y-2">
-              <Label htmlFor="fuel-cost-amount">금액 (원)</Label>
+              <Label htmlFor="daily-cost-amount">금액 (원)</Label>
               <Input
-                id="fuel-cost-amount"
+                id="daily-cost-amount"
                 type="number"
                 inputMode="numeric"
                 placeholder="0"
