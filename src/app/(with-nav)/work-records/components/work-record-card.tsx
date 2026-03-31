@@ -172,7 +172,7 @@ export function WorkRecordCard({
                 </h3>
                 {record.storeOutstanding &&
                   record.storeOutstanding.count > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-amber-100 text-amber-700 border border-amber-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
                       <AlertTriangle className="size-3" />
                       미수 {record.storeOutstanding.count}건{" "}
                       {record.storeOutstanding.totalAmount.toLocaleString()}원
