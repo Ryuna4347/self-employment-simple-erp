@@ -164,6 +164,17 @@ model Notice {
   @@index([createdAt])
 }
 
+model RecurringCost {
+  id              String                  @id @default(cuid())
+  name            String
+  amount          Int
+  frequency       RecurringCostFrequency
+  isActive        Boolean                 @default(true)
+  lastGeneratedAt DateTime?               // 크론용: 마지막 자동 생성 시점
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+}
+
 /// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
 enum Role {
   ADMIN
@@ -186,6 +197,11 @@ enum CollectionStatus {
   UNCOLLECTED  // 미수
   COLLECTED    // 수금완료
   CLOSED       // 휴업&폐업
+}
+
+enum RecurringCostFrequency {
+  WEEKLY    // 매주 월요일 자동 생성
+  MONTHLY   // 매월 1일 자동 생성
 }
 
 enum CollectionRequestStatus {

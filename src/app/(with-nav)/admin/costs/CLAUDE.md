@@ -7,6 +7,7 @@
 ### 핵심 기능
 - 월별 비용 목록 조회 (연/월 필터)
 - 비용 CRUD (날짜, 제목, 금액, 비고)
+- 고정비용 관리 (이름, 금액, 주기) — 향후 크론으로 자동 Expense 생성 예정
 - 대시보드 총 비용 카드에 합산 반영
 
 ---
@@ -20,6 +21,14 @@
 - `amount`: 금액
 - `description`: 비고 (선택)
 - `createdAt`, `updatedAt`: 자동 관리 (목록에 미노출)
+
+### RecurringCost (고정비용)
+- `name`: 고정비용 이름
+- `amount`: 금액
+- `frequency`: 주기 (WEEKLY=매주 월요일, MONTHLY=매월 1일)
+- `isActive`: 활성 상태 (크론 대비)
+- `lastGeneratedAt`: 마지막 자동 생성 시점 (크론용)
+- `createdAt`, `updatedAt`: 자동 관리
 
 ---
 
@@ -36,13 +45,16 @@
 costs/
 ├── page.tsx
 ├── components/
-│   ├── costs-content.tsx       # 메인 컨텐츠
-│   ├── cost-card.tsx           # 비용 카드
-│   ├── cost-modal.tsx          # 비용 추가/수정 모달
-│   ├── delete-cost-modal.tsx   # 비용 삭제 확인 모달
+│   ├── costs-content.tsx           # 메인 컨텐츠
+│   ├── cost-card.tsx               # 비용 카드
+│   ├── cost-modal.tsx              # 비용 추가/수정 모달
+│   ├── delete-cost-modal.tsx       # 비용 삭제 확인 모달
+│   ├── recurring-cost-card.tsx     # 고정비용 인라인 카드 (view/edit/create)
+│   ├── recurring-cost-modal.tsx    # 고정비용 관리 모달
 │   └── index.ts
 └── hooks/
-    └── use-costs.ts            # 비용 CRUD
+    ├── use-costs.ts                # 비용 CRUD
+    └── use-recurring-costs.ts      # 고정비용 CRUD
 ```
 
 ---
@@ -51,6 +63,8 @@ costs/
 
 - `GET/POST /api/admin/costs` - 비용 목록/생성
 - `PUT/DELETE /api/admin/costs/[id]` - 비용 수정/삭제
+- `GET/POST /api/admin/recurring-costs` - 고정비용 목록/생성
+- `PUT/DELETE /api/admin/recurring-costs/[id]` - 고정비용 수정/삭제
 
 ---
 

@@ -14,6 +14,7 @@ import { useCosts, type CostRecord } from "../hooks/use-costs"
 import { CostCard } from "./cost-card"
 import { CostModal } from "./cost-modal"
 import { DeleteCostModal } from "./delete-cost-modal"
+import { RecurringCostModal } from "./recurring-cost-modal"
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
@@ -37,6 +38,7 @@ export function CostsContent() {
   const [editingCost, setEditingCost] = useState<CostRecord | null>(null)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletingCost, setDeletingCost] = useState<CostRecord | null>(null)
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false)
 
   const { data, isLoading, isError } = useCosts(year, month)
   const yearOptions = getYearOptions()
@@ -97,7 +99,14 @@ export function CostsContent() {
 
         <Button
           size="sm"
+          variant="outline"
           className="ml-auto"
+          onClick={() => setRecurringModalOpen(true)}
+        >
+          고정비용
+        </Button>
+        <Button
+          size="sm"
           onClick={() => setCostModalOpen(true)}
         >
           <Plus className="size-4" />
@@ -175,6 +184,12 @@ export function CostsContent() {
           cost={deletingCost}
         />
       )}
+
+      {/* 고정비용 관리 모달 */}
+      <RecurringCostModal
+        open={recurringModalOpen}
+        onOpenChange={setRecurringModalOpen}
+      />
     </div>
   )
 }

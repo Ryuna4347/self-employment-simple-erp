@@ -133,6 +133,8 @@ admin/
 - `GET /api/admin/collection-history` - 수금 이력
 - `GET/POST /api/admin/costs` - 비용 목록/생성
 - `PUT/DELETE /api/admin/costs/[id]` - 비용 수정/삭제
+- `GET/POST /api/admin/recurring-costs` - 고정비용 목록/생성
+- `PUT/DELETE /api/admin/recurring-costs/[id]` - 고정비용 수정/삭제
 - `GET/POST /api/admin/notices` - 공지 목록/생성
 - `PUT/DELETE /api/admin/notices/[id]` - 공지 수정/삭제
 - `GET /api/notices/latest` - 최신 공지 조회 (사용자용)
