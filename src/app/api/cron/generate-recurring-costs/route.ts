@@ -41,26 +41,40 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date()
     const todayMidnight = startOfDayKST(now)
+    const todayEnd = new Date(todayMidnight.getTime() + 24 * 60 * 60 * 1000)
 
-    // 3. 활성 고정비용 중 해당 주기의 생성 대상 조회
+    // 3. 활성 고정비용 중 해당 주기 조회
     const recurringCosts = await prisma.recurringCost.findMany({
-      where: {
-        isActive: true,
-        frequency,
-        OR: [
-          { lastGeneratedAt: null },
-          { lastGeneratedAt: { lt: todayMidnight } },
-        ],
-      },
+      where: { isActive: true, frequency },
     })
 
     if (recurringCosts.length === 0) {
       return apiSuccess({ generated: 0, date: toKSTDateString(now), items: [] })
     }
 
-    // 4. 트랜잭션으로 Expense 일괄 생성 + lastGeneratedAt 업데이트
-    const results = await prisma.$transaction(
-      recurringCosts.flatMap((rc) => [
+    // 4. 오늘 이미 생성된 자동생성 Expense 조회 (중복 방지)
+    const existingExpenses = await prisma.expense.findMany({
+      where: {
+        date: { gte: todayMidnight, lt: todayEnd },
+        title: { startsWith: "[자동생성]" },
+      },
+      select: { title: true },
+    })
+
+    const existingTitles = new Set(existingExpenses.map((e) => e.title))
+
+    // 5. 아직 생성되지 않은 고정비용만 필터
+    const toGenerate = recurringCosts.filter(
+      (rc) => !existingTitles.has(`[자동생성] ${rc.name}`)
+    )
+
+    if (toGenerate.length === 0) {
+      return apiSuccess({ generated: 0, date: toKSTDateString(now), items: [] })
+    }
+
+    // 6. 트랜잭션으로 Expense 일괄 생성
+    await prisma.$transaction(
+      toGenerate.map((rc) =>
         prisma.expense.create({
           data: {
             date: todayMidnight,
@@ -69,21 +83,17 @@ export async function GET(request: NextRequest) {
             description: "고정비용 자동 생성",
             userId: rc.userId,
           },
-        }),
-        prisma.recurringCost.update({
-          where: { id: rc.id },
-          data: { lastGeneratedAt: now },
-        }),
-      ])
+        })
+      )
     )
 
-    const generatedCount = recurringCosts.length
+    const generatedCount = toGenerate.length
     console.log(`[크론] 고정비용 자동 생성 완료: ${generatedCount}건 [${frequency}] (${toKSTDateString(now)})`)
 
     return apiSuccess({
       generated: generatedCount,
       date: toKSTDateString(now),
-      items: recurringCosts.map((rc) => ({ name: rc.name, amount: rc.amount })),
+      items: toGenerate.map((rc) => ({ name: rc.name, amount: rc.amount })),
     })
   } catch (error) {
     console.error("고정비용 자동 생성 크론 오류:", error)
