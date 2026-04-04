@@ -19,6 +19,7 @@ export async function GET() {
 
   try {
     const records = await prisma.recurringCost.findMany({
+      include: { user: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
     })
 
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     const { name, amount, frequency } = parseResult.data
 
     const created = await prisma.recurringCost.create({
-      data: { name, amount, frequency },
+      data: { name, amount, frequency, userId: authResult.user.id },
     })
 
     return apiSuccess(created, 201)

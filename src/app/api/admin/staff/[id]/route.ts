@@ -38,14 +38,8 @@ export async function DELETE(
       where: { id },
       data: { isDeleted: true },
     }),
-    prisma.refreshToken.updateMany({
-      where: {
-        userId: id,
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
+    prisma.refreshToken.deleteMany({
+      where: { userId: id },
     }),
   ])
 
