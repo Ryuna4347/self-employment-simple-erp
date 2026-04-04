@@ -20,6 +20,13 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization")
   const cronSecret = process.env.CRON_SECRET
 
+  console.log("[크론 디버그]", {
+    hasCronSecret: !!cronSecret,
+    cronSecretLength: cronSecret?.length,
+    authHeader: authHeader?.substring(0, 20) + "...",
+    match: authHeader === `Bearer ${cronSecret}`,
+  })
+
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return ApiErrors.unauthorized("유효하지 않은 크론 인증입니다")
   }
