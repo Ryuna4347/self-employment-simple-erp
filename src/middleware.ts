@@ -17,6 +17,6 @@ export const config = {
      * - _next/static, _next/image (Next.js 정적 파일)
      * - favicon.ico, 이미지 등 정적 리소스
      */
-    "/((?!api/auth|api/register|register|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
+    "/((?!api/auth|api/register|api/cron|register|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
   ],
 }
