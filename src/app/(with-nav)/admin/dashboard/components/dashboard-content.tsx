@@ -16,8 +16,14 @@ import {
   LineChart,
   Line,
 } from "recharts"
-import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt } from "lucide-react"
+import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt, Store as StoreIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@/components/ui/responsive-modal"
 import {
   Select,
   SelectContent,
@@ -68,6 +74,7 @@ export function DashboardContent() {
 
   const [isExporting, setIsExporting] = useState(false)
   const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null)
+  const [isDeletedStoresModalOpen, setIsDeletedStoresModalOpen] = useState(false)
 
   // 기간 변경 시 선택 해제
   useEffect(() => {
@@ -271,6 +278,21 @@ export function DashboardContent() {
                 </p>
               </div>
             </div>
+
+            {/* 제거된 매장 */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-600">제거된 매장</p>
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                    <StoreIcon className="w-4 h-4 text-gray-500" />
+                  </div>
+                </div>
+                <p className="text-lg font-semibold text-gray-700">
+                  {data.summary.deletedStoresCount}곳
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* 결제유형별 매출 상세 (차트 클릭 시) */}
@@ -432,8 +454,50 @@ export function DashboardContent() {
             </div>
           </div>
 
-          {/* 최근 미수금 */}
+          {/* 제거된 매장 + 최근 미수금 */}
           <div className="space-y-6">
+            {/* 제거된 매장 */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-gray-900">제거된 매장</h3>
+                {data.deletedStores.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDeletedStoresModalOpen(true)}
+                    className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                  >
+                    더보기
+                  </button>
+                )}
+              </div>
+              <div className="space-y-3">
+                {data.deletedStores.length > 0 ? (
+                  data.deletedStores.slice(0, 5).map((store) => (
+                    <div
+                      key={store.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded border-l-4 border-gray-400"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {store.name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {store.address}
+                        </p>
+                      </div>
+                      <span className="text-xs text-gray-500 ml-3 shrink-0">
+                        {store.deletedAt}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-sm text-gray-400">
+                    제거된 매장이 없습니다
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* 최근 미수금 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
               <div className="flex items-center justify-between mb-4">
@@ -474,6 +538,40 @@ export function DashboardContent() {
               </div>
             </div>
           </div>
+
+          {/* 제거된 매장 전체 목록 모달 */}
+          <ResponsiveModal
+            open={isDeletedStoresModalOpen}
+            onOpenChange={setIsDeletedStoresModalOpen}
+          >
+            <ResponsiveModalContent className="sm:max-w-md">
+              <ResponsiveModalHeader>
+                <ResponsiveModalTitle>
+                  제거된 매장 ({data.deletedStores.length}곳)
+                </ResponsiveModalTitle>
+              </ResponsiveModalHeader>
+              <div className="px-4 sm:px-6 pb-4 max-h-[60vh] overflow-y-auto space-y-2">
+                {data.deletedStores.map((store) => (
+                  <div
+                    key={store.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded border-l-4 border-gray-400"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {store.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {store.address}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 ml-3 shrink-0">
+                      {store.deletedAt}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </ResponsiveModalContent>
+          </ResponsiveModal>
         </>
       )}
     </div>

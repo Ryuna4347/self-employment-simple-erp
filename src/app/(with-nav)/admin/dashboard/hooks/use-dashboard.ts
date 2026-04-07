@@ -8,6 +8,15 @@ interface DashboardSummary {
   outstandingAmount: number
   totalVisits: number
   uniqueStores: number
+  deletedStoresCount: number
+}
+
+// 제거된 매장
+export interface DeletedStore {
+  id: string
+  name: string
+  address: string
+  deletedAt: string
 }
 
 // 차트 데이터 포인트
@@ -46,6 +55,7 @@ export interface DashboardData {
   chart: ChartDataPoint[]
   expenseChart: ExpenseChartDataPoint[]
   recentOutstanding: RecentOutstanding[]
+  deletedStores: DeletedStore[]
   collectionStatus: CollectionStatus
 }
 
