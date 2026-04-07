@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, PenLine, FileText, RefreshCw } from "lucide-react";
+import { Plus, PenLine, FileText, RefreshCw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FabMenuProps {
   onAddRecord: () => void;
   onApplyTemplate: () => void;
+  onBulkDelete: () => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  hasRecords: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ interface FabMenuProps {
  * - 근무 기록 추가
  * - 코스 적용
  */
-export function FabMenu({ onAddRecord, onApplyTemplate, onRefresh, isRefreshing }: FabMenuProps) {
+export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh, isRefreshing, hasRecords }: FabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleToggle = () => {
@@ -31,6 +33,11 @@ export function FabMenu({ onAddRecord, onApplyTemplate, onRefresh, isRefreshing 
   const handleApplyTemplate = () => {
     setIsOpen(false);
     onApplyTemplate();
+  };
+
+  const handleBulkDelete = () => {
+    setIsOpen(false);
+    onBulkDelete();
   };
 
   return (
@@ -67,12 +74,26 @@ export function FabMenu({ onAddRecord, onApplyTemplate, onRefresh, isRefreshing 
         </div>
       )}
 
+      {/* 전체 삭제 버튼 (FAB과 새로고침 사이, 목록이 있을 때만) */}
+      {!isOpen && hasRecords && (
+        <button
+          onClick={handleBulkDelete}
+          className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          aria-label="전체 삭제"
+        >
+          <Trash2 className="size-5" />
+        </button>
+      )}
+
       {/* 새로고침 버튼 */}
       {!isOpen && (
         <button
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          className={cn(
+            "fixed right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary",
+            hasRecords ? "bottom-52" : "bottom-[9.5rem]",
+          )}
           aria-label="새로고침"
         >
           <RefreshCw className={`size-5 ${isRefreshing ? "animate-spin" : ""}`} />
