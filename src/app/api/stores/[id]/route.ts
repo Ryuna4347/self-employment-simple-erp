@@ -168,7 +168,7 @@ export async function DELETE(
 
     await prisma.store.update({
       where: { id },
-      data: { isDeleted: true },
+      data: { isDeleted: true, deletedAt: new Date() },
     });
 
     return apiSuccess({ deleted: true });
