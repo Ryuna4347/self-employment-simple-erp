@@ -12,6 +12,7 @@ import { FabMenu } from "./fab-menu"
 import { UserFilter } from "./user-filter"
 import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
+import { BulkDeleteModal } from "./bulk-delete-modal"
 import { CollectionRequestModal } from "./collection-request-modal"
 import { DailyCostModal } from "./daily-cost-modal"
 import { NoticeBanner } from "./notice-banner"
@@ -38,6 +39,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
   const [collectionRequestModalOpen, setCollectionRequestModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<WorkRecordResponse | null>(null)
   const [collectionRequestTarget, setCollectionRequestTarget] = useState<WorkRecordResponse | null>(null)
@@ -62,6 +64,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
   const records = useMemo(() => data?.pages.flatMap((page) => page.records) ?? [], [data])
   const summary = data?.pages[0]?.summary
+  const totalCount = data?.pages[0]?.pagination.totalCount ?? 0
 
   // 무한 스크롤 트리거
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -225,7 +228,14 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
         )}
 
-        <FabMenu onAddRecord={handleAddRecord} onApplyTemplate={handleApplyTemplate} onRefresh={() => refetch()} isRefreshing={isFetching} />
+        <FabMenu
+          onAddRecord={handleAddRecord}
+          onApplyTemplate={handleApplyTemplate}
+          onBulkDelete={() => setBulkDeleteModalOpen(true)}
+          onRefresh={() => refetch()}
+          isRefreshing={isFetching}
+          hasRecords={records.length > 0}
+        />
       </div>
 
       {/* 근무기록 추가/수정 모달 */}
@@ -243,6 +253,16 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         onOpenChange={setTemplateModalOpen}
         selectedDate={selectedDate}
         userId={userId}
+      />
+
+      {/* 근무기록 전체 삭제 모달 */}
+      <BulkDeleteModal
+        open={bulkDeleteModalOpen}
+        onOpenChange={setBulkDeleteModalOpen}
+        selectedDate={selectedDate}
+        userId={isAdmin ? selectedUserId : undefined}
+        search={searchStoreName || undefined}
+        estimatedCount={totalCount}
       />
 
       {/* 주유비 입력 모달 */}

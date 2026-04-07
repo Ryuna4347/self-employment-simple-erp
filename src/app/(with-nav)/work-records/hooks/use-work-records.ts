@@ -197,6 +197,42 @@ export function useDeleteWorkRecord() {
   })
 }
 
+// 근무기록 일괄 삭제 입력
+export interface BulkDeleteInput {
+  date: string
+  userId?: string
+  search?: string
+}
+
+// 근무기록 일괄 삭제 응답
+export interface BulkDeleteResult {
+  deleted: number
+  skipped: number
+}
+
+// 근무기록 일괄 삭제 훅
+export function useBulkDeleteWorkRecords() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: BulkDeleteInput) => {
+      const params = new URLSearchParams({ date: input.date })
+      if (input.userId) params.set("userId", input.userId)
+      if (input.search) params.set("search", input.search)
+      const response = await apiClient<{ data: BulkDeleteResult }>(
+        `/api/work-records/bulk?${params.toString()}`,
+        { method: "DELETE" }
+      )
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+    },
+  })
+}
+
 // 근무기록 순서 변경 훅
 export function useReorderWorkRecords() {
   const queryClient = useQueryClient()
