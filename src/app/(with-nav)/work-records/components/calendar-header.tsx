@@ -12,6 +12,7 @@ import {
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { toKSTDateString } from "@/lib/date-utils"
 
 interface CalendarHeaderProps {
   selectedDate: Date
@@ -25,6 +26,10 @@ export function CalendarHeader({ selectedDate, onDateChange }: CalendarHeaderPro
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
+      // 미래 날짜 선택 차단 (KST 기준)
+      if (toKSTDateString(date) > toKSTDateString(new Date())) {
+        return
+      }
       onDateChange(date)
       setIsOpen(false)
     }
@@ -54,6 +59,7 @@ export function CalendarHeader({ selectedDate, onDateChange }: CalendarHeaderPro
               selected={selectedDate}
               onSelect={handleDateSelect}
               defaultMonth={selectedDate}
+              disabled={{ after: new Date() }}
               locale={ko}
               className="w-full"
             />
