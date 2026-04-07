@@ -3,7 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { dateToKSTMidnight, dateToKSTEndOfDay } from "@/lib/date-utils"
+import { dateToKSTMidnight, dateToKSTEndOfDay, toKSTDateString } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
@@ -67,6 +67,12 @@ export async function GET(request: NextRequest) {
   }
 
   const { date, userId: requestedUserId, search, page, limit } = parseResult.data
+
+  // 미래 날짜 조회 차단 (KST 기준)
+  if (date > toKSTDateString(new Date())) {
+    return ApiErrors.validationError("미래 날짜의 근무기록은 조회할 수 없습니다")
+  }
+
   const isAdmin = user.role === "ADMIN"
 
   // 권한 체크
@@ -346,6 +352,11 @@ export async function POST(request: NextRequest) {
   }
 
   const { date, storeId, storeName, storeAddress, paymentType, managerName, collectionStatus, imageUrl, note, items } = parseResult.data
+
+  // 미래 날짜 등록 차단 (KST 기준)
+  if (date > toKSTDateString(new Date())) {
+    return ApiErrors.validationError("미래 날짜에는 근무기록을 등록할 수 없습니다")
+  }
 
   // storeId가 있으면 매장 존재 여부 확인 + 동일 날짜 중복 체크
   if (storeId) {
