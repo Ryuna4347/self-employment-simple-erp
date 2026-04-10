@@ -10,7 +10,8 @@
 - 매장 정보 스냅샷 저장 (거래 시점 보존)
 - 수금 상태 관리 (미수금/수금완료/휴업&폐업)
 - 수금 확인 요청 (CollectionRequest)
-- 유류비 기록
+- 일일 비용 기록
+- 일괄 삭제
 - 매장 템플릿 자동 로드
 - 일괄 수금처리
 - 드래그앤드롭 순서 변경 (@dnd-kit)
@@ -84,7 +85,8 @@ work-records/
 │   ├── fab-menu.tsx                 # FAB 메뉴 (추가 액션)
 │   ├── template-apply-modal.tsx     # 템플릿 적용 모달
 │   ├── collection-request-modal.tsx # 수금 확인 요청 모달
-│   ├── fuel-cost-modal.tsx          # 유류비 기록 모달
+│   ├── daily-cost-modal.tsx         # 일일 비용 기록 모달
+│   ├── bulk-delete-modal.tsx        # 일괄 삭제 모달
 │   ├── notice-banner.tsx            # 공지 배너 (최신 공지 표시)
 │   └── user-filter.tsx              # 유저 필터 (관리자용)
 └── hooks/
@@ -93,7 +95,7 @@ work-records/
     ├── use-store-uncollected.ts     # 매장별 미수금 조회
     ├── use-batch-collect.ts         # 일괄 수금처리
     ├── use-collection-request.ts    # 수금 확인 요청
-    ├── use-fuel-cost.ts             # 유류비 기록
+    ├── use-daily-cost.ts            # 일일 비용 기록
     └── use-latest-notice.ts         # 최신 공지 조회
 ```
 
@@ -120,10 +122,14 @@ work-records/
 - 직원이 미수금 레코드를 선택하여 관리자에게 수금 확인 요청
 - Hook: `useCollectionRequest`
 
-### 유류비 기록 (FuelCostModal)
-- 유류비를 Expense로 기록
-- API: `POST /api/expenses/fuel-cost`
-- Hook: `useFuelCost`
+### 일일 비용 기록 (DailyCostModal)
+- 일일 비용(유류비 등)을 Expense로 기록
+- API: `POST /api/expenses/daily-cost`
+- Hook: `useDailyCost`
+
+### 일괄 삭제 (BulkDeleteModal)
+- 선택한 근무기록을 일괄 삭제
+- API: `POST /api/work-records/bulk`
 
 ### 공지 배너 (NoticeBanner)
 - 만료되지 않은 최신 공지 1건을 리스트 상단에 배너로 표시
@@ -149,7 +155,8 @@ work-records/
 - `GET/POST /api/collection-requests` - 수금 요청
 - `POST /api/collection-requests/[id]/approve` - 승인
 - `POST /api/collection-requests/[id]/reject` - 거부
-- `POST /api/expenses/fuel-cost` - 유류비
+- `POST /api/work-records/bulk` - 일괄 삭제
+- `POST /api/expenses/daily-cost` - 일일 비용
 - `GET /api/notices/latest` - 최신 공지
 
 ---
@@ -159,5 +166,6 @@ work-records/
 - `/work-records` - 근무기록 메인 (캘린더 + 리스트)
 - 근무 추가/수정 모달
 - 수금 확인 요청 모달
-- 유류비 기록 모달
+- 일일 비용 기록 모달
+- 일괄 삭제 모달
 - 템플릿 적용 모달

@@ -70,9 +70,12 @@ admin/
 │   │   ├── cost-card.tsx
 │   │   ├── cost-modal.tsx
 │   │   ├── delete-cost-modal.tsx
+│   │   ├── recurring-cost-card.tsx
+│   │   ├── recurring-cost-modal.tsx
 │   │   └── index.ts
 │   └── hooks/
-│       └── use-costs.ts
+│       ├── use-costs.ts
+│       └── use-recurring-costs.ts
 └── notices/
     ├── page.tsx
     ├── components/
@@ -113,6 +116,8 @@ admin/
 ### 5. 비용 관리
 - 연/월별 비용 목록 조회
 - 비용 CRUD (날짜, 제목, 금액, 비고)
+- 고정비용 관리 (이름, 금액, 주기 설정)
+- 고정비용 크론 자동 생성 (WEEKLY: 매주 월요일, MONTHLY: 매월 1일)
 - 대시보드 총 비용 카드에 합산 반영
 
 ### 6. 공지 관리
@@ -137,6 +142,7 @@ admin/
 - `PUT/DELETE /api/admin/recurring-costs/[id]` - 고정비용 수정/삭제
 - `GET/POST /api/admin/notices` - 공지 목록/생성
 - `PUT/DELETE /api/admin/notices/[id]` - 공지 수정/삭제
+- `POST /api/cron/generate-recurring-costs` - 고정비용 자동 생성 (크론)
 - `GET /api/notices/latest` - 최신 공지 조회 (사용자용)
 - `POST /api/admin/export/monthly` - 월간 엑셀 내보내기
 
