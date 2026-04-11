@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
+import { hasAdminAccess } from "@/lib/role-utils"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight } from "@/lib/date-utils"
 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     const kstDate = dateToKSTMidnight(date)
 
     // 어드민은 다른 유저의 비용 조회 가능, 일반 유저는 자기 것만
-    const targetUserId = (authResult.user.role === "ADMIN" && userId)
+    const targetUserId = (hasAdminAccess(authResult.user.role) && userId)
       ? userId
       : authResult.user.id
 
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
 // POST: 비용 입력 (동일 날짜 존재 시 덮어쓰기)
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   try {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireAdmin, requireAdminRead, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 수금 확인 요청 생성 스키마
@@ -14,7 +14,7 @@ const createSchema = z.object({
 
 // 수금 확인 요청 생성
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult
@@ -88,9 +88,9 @@ export async function POST(request: NextRequest) {
   return apiSuccess(collectionRequest, 201)
 }
 
-// 수금 확인 요청 목록 조회 (관리자용)
+// 수금 확인 요청 목록 조회 (관리자 + 열람자)
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   const searchParams = request.nextUrl.searchParams

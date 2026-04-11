@@ -1,41 +1,33 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { Plus, Search, LayoutTemplate, RefreshCw } from "lucide-react"
+import { Plus, Search, Store as StoreIcon, RefreshCw } from "lucide-react"
+import { useUser } from "@/components/providers/app-providers"
+import { canWrite } from "@/lib/role-utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { UserFilter } from "@/components/common/user-filter"
-import { StoreTemplateCard, StoreTemplateModal } from "./index"
+import { StoreCard, StoreModal } from "./index"
 import {
-  useStoreTemplatesInfinite,
-  useCreateStoreTemplate,
-  useUpdateStoreTemplate,
-  useDeleteStoreTemplate,
-  type StoreTemplate,
-  type StoreTemplateInput,
-} from "../hooks/use-store-templates"
-import type { Role } from "@/generated/prisma/client"
-import { canWrite } from "@/lib/role-utils"
-
-interface StoreTemplatesClientProps {
-  userId: string
-  userRole: Role
-}
+  useStoresInfinite,
+  useCreateStore,
+  useUpdateStore,
+  useDeleteStore,
+  type Store,
+  type StoreInput,
+} from "../hooks/use-stores"
 
 /**
- * 매장 코스 관리 클라이언트 컴포넌트
+ * 매장 관리 클라이언트 컴포넌트
  */
-export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [searchTemplateName, setSearchTemplateName] = useState("")
-  const [selectedUserId, setSelectedUserId] = useState<string>(userId)
+export function StoresClient() {
+  const { role } = useUser()
+  const writable = canWrite(role)
+  const [storeName, setStoreName] = useState("")
+  const [searchStoreName, setSearchStoreName] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<StoreTemplate | null>(null)
+  const [editingStore, setEditingStore] = useState<Store | null>(null)
 
-  const isAdmin = userRole === "ADMIN"
-  const writable = canWrite(userRole)
-
-  // react-query 훅 - selectedUserId로 필터링
+  // react-query 훅
   const {
     data,
     isLoading,
@@ -44,14 +36,14 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useStoreTemplatesInfinite(selectedUserId, searchTemplateName || undefined)
-  const createMutation = useCreateStoreTemplate()
-  const updateMutation = useUpdateStoreTemplate()
-  const deleteMutation = useDeleteStoreTemplate()
+  } = useStoresInfinite(searchStoreName || undefined)
+  const createMutation = useCreateStore()
+  const updateMutation = useUpdateStore()
+  const deleteMutation = useDeleteStore()
 
   // 페이지 플래튼
-  const templates = useMemo(
-    () => data?.pages.flatMap((page) => page.templates) ?? [],
+  const stores = useMemo(
+    () => data?.pages.flatMap((page) => page.stores) ?? [],
     [data]
   )
 
@@ -76,35 +68,35 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
 
   // 검색 실행
   const handleSearch = useCallback(() => {
-    setSearchTemplateName(searchTerm.trim())
-  }, [searchTerm])
+    setSearchStoreName(storeName.trim())
+  }, [storeName])
 
-  // 코스 추가 버튼 핸들러
-  const handleAddTemplate = () => {
-    setEditingTemplate(null)
+  // 매장 추가 버튼 핸들러
+  const handleAddStore = () => {
+    setEditingStore(null)
     setIsModalOpen(true)
   }
 
-  // 코스 수정 버튼 핸들러
-  const handleEditTemplate = (template: StoreTemplate) => {
-    setEditingTemplate(template)
+  // 매장 수정 버튼 핸들러
+  const handleEditStore = (store: Store) => {
+    setEditingStore(store)
     setIsModalOpen(true)
   }
 
-  // 코스 삭제 핸들러
-  const handleDeleteTemplate = (id: string) => {
+  // 매장 삭제 핸들러
+  const handleDeleteStore = (id: string) => {
     deleteMutation.mutate(id)
   }
 
   // 모달 제출 핸들러
-  const handleModalSubmit = (data: StoreTemplateInput) => {
-    if (editingTemplate) {
+  const handleModalSubmit = (data: StoreInput) => {
+    if (editingStore) {
       updateMutation.mutate(
-        { id: editingTemplate.id, ...data },
+        { id: editingStore.id, ...data },
         {
           onSuccess: () => {
             setIsModalOpen(false)
-            setEditingTemplate(null)
+            setEditingStore(null)
           },
         }
       )
@@ -117,7 +109,7 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
     }
   }
 
-  // 삭제 진행 중인 코스 ID
+  // 삭제 진행 중인 매장 ID
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
@@ -126,63 +118,55 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
     <div className="max-w-4xl mx-auto px-4 py-4 pb-24">
       {/* 헤더 */}
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">매장 코스 관리</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">매장 관리</h1>
         <p className="text-gray-600 text-sm">
-          자주 방문하는 매장 그룹을 코스으로 저장하여 빠르게 근무를 등록하세요
+          매장 정보와 기본 품목을 관리합니다
         </p>
       </div>
-
-      {/* 사용자 필터 */}
-      <UserFilter
-        selectedUserId={selectedUserId}
-        onUserChange={setSelectedUserId}
-        currentUserId={userId}
-      />
 
       {/* 검색 */}
       <div className="flex gap-1.5 mb-4">
         <Input
           className="h-8 text-sm"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          value={storeName}
+          onChange={(e) => setStoreName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSearch()
           }}
-          placeholder="코스 검색..."
+          placeholder="매장명, 주소, 담당자 검색..."
         />
         <Button variant="outline" size="sm" onClick={handleSearch}>
           <Search className="size-4" />
         </Button>
       </div>
 
-      {/* 코스 목록 */}
+      {/* 매장 목록 */}
       <div className="space-y-3">
         {isLoading ? (
           // 로딩 상태
           <div className="text-center py-12 text-gray-400">로딩 중...</div>
-        ) : templates.length === 0 ? (
+        ) : stores.length === 0 ? (
           // 빈 상태
           <div className="text-center py-12">
-            <LayoutTemplate className="size-12 mx-auto text-gray-300 mb-3" />
+            <StoreIcon className="size-12 mx-auto text-gray-300 mb-3" />
             <p className="text-gray-400">
-              {searchTemplateName ? "검색 결과가 없습니다" : "등록된 코스이 없습니다"}
+              {searchStoreName ? "검색 결과가 없습니다" : "등록된 매장이 없습니다"}
             </p>
-            {!searchTemplateName && (
+            {!searchStoreName && (
               <p className="text-gray-400 text-sm mt-1">
-                우측 하단 버튼을 눌러 코스을 추가하세요
+                우측 하단 버튼을 눌러 매장을 추가하세요
               </p>
             )}
           </div>
         ) : (
-          // 코스 리스트
-          templates.map((template) => (
-            <StoreTemplateCard
-              key={template.id}
-              template={template}
-              onEdit={writable ? handleEditTemplate : undefined}
-              onDelete={writable ? handleDeleteTemplate : undefined}
-              isAdmin={isAdmin}
-              isDeleting={deletingId === template.id}
+          // 매장 리스트
+          stores.map((store) => (
+            <StoreCard
+              key={store.id}
+              store={store}
+              onEdit={writable ? handleEditStore : undefined}
+              onDelete={writable ? handleDeleteStore : undefined}
+              isDeleting={deletingId === store.id}
             />
           ))
         )}
@@ -207,24 +191,24 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
       {/* FAB (Floating Action Button) */}
       {writable && (
         <button
-          onClick={handleAddTemplate}
+          onClick={handleAddStore}
           className="fixed bottom-[5.75rem] right-6 size-14 rounded-full shadow-lg transition-all z-40 flex items-center justify-center bg-primary hover:bg-primary/90 text-primary-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-          aria-label="코스 추가"
+          aria-label="매장 추가"
         >
           <Plus className="size-6" />
         </button>
       )}
 
-      {/* 코스 추가/수정 모달 */}
+      {/* 매장 추가/수정 모달 */}
       {writable && (
-        <StoreTemplateModal
+        <StoreModal
           open={isModalOpen}
           onOpenChange={(open) => {
             setIsModalOpen(open)
-            if (!open) setEditingTemplate(null)
+            if (!open) setEditingStore(null)
           }}
           onSubmit={handleModalSubmit}
-          editTemplate={editingTemplate}
+          editStore={editingStore}
           isLoading={isSubmitting}
         />
       )}

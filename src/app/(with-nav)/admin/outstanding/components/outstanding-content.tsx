@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useUser } from "@/components/providers/app-providers";
+import { canWrite } from "@/lib/role-utils";
 import { useUsers } from "@/hooks/use-users";
 import {
   useOutstanding,
@@ -44,6 +46,8 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
  * 날짜별/매장별 필터를 전환하며 미수금 목록을 표시한다.
  */
 export function OutstandingContent() {
+  const { role } = useUser();
+  const writable = canWrite(role);
   const searchParams = useSearchParams();
   const router = useRouter();
   const now = new Date();
@@ -356,7 +360,7 @@ export function OutstandingContent() {
                 <OutstandingCard
                   key={record.id}
                   record={record}
-                  onCollect={handleRecordCollect}
+                  onCollect={writable ? handleRecordCollect : undefined}
                 />
               ))
             ) : (
@@ -370,7 +374,7 @@ export function OutstandingContent() {
               <StoreOutstandingCard
                 key={group.storeName}
                 group={group}
-                onCollect={handleStoreCollect}
+                onCollect={writable ? handleStoreCollect : undefined}
               />
             ))
           ) : (
@@ -388,13 +392,15 @@ export function OutstandingContent() {
       )}
 
       {/* 일괄 수금 처리 모달 */}
-      <CollectionRequestModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        storeId={modalStoreId}
-        storeName={modalStoreName}
-        userRole="ADMIN"
-      />
+      {writable && (
+        <CollectionRequestModal
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          storeId={modalStoreId}
+          storeName={modalStoreName}
+          userRole="ADMIN"
+        />
+      )}
     </div>
   );
 }

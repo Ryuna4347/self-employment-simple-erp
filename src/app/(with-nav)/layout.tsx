@@ -35,7 +35,7 @@ export default async function WithNavLayout({
   }
 
   return (
-    <AppProviders>
+    <AppProviders user={session.user}>
       <Header user={session.user} />
       <main className="pb-20">{children}</main>
       <BottomNav />

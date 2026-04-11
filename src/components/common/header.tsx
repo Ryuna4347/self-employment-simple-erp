@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Role } from "@/generated/prisma/client";
+import { hasAdminAccess, isViewer } from "@/lib/role-utils";
 
 interface HeaderProps {
   user: {
@@ -36,7 +37,8 @@ interface HeaderProps {
 export function Header({ user }: HeaderProps) {
   const pathname = usePathname();
 
-  const isAdmin = user.role === "ADMIN";
+  const isAdmin = hasAdminAccess(user.role);
+  const viewer = isViewer(user.role);
   const isOnAdminPage = pathname.startsWith("/admin");
 
   return (
@@ -47,8 +49,8 @@ export function Header({ user }: HeaderProps) {
 
         {/* 우측: 네비게이션 및 프로필 */}
         <div className="flex items-center gap-3">
-          {/* 관리자 메뉴 버튼 (ADMIN만 표시) */}
-          {isAdmin && (
+          {/* 관리자 메뉴 버튼 (ADMIN만 표시, VIEWER는 일반 콘솔 접근 불가로 토글 숨김) */}
+          {isAdmin && !viewer && (
             <Button
               asChild
               variant="outline"

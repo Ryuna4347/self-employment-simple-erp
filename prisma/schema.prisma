@@ -184,6 +184,7 @@ model RecurringCost {
 enum Role {
   ADMIN
   USER
+  VIEWER
 }
 
 enum PaymentType {

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay } from "@/lib/date-utils"
 import { z } from "zod"
@@ -18,7 +18,7 @@ const reorderSchema = z.object({
 
 // 근무기록 순서 일괄 변경
 export async function PATCH(request: Request) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult

@@ -19,6 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import type { WorkRecordResponse } from "../hooks/use-work-records";
+import type { Role } from "@/generated/prisma/client";
 import { WorkRecordCard, SortableWorkRecordCard } from "./work-record-card";
 
 interface WorkRecordListProps {
@@ -27,7 +28,7 @@ interface WorkRecordListProps {
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
   onRequestCollect?: (record: WorkRecordResponse) => void;
-  userRole: "ADMIN" | "USER";
+  userRole: Role;
   deletingId?: string | null;
   collectingId?: string | null;
   canReorder?: boolean;

@@ -24,10 +24,12 @@ import {
   useReorderWorkRecords,
   type WorkRecordResponse,
 } from "../hooks/use-work-records"
+import type { Role } from "@/generated/prisma/client"
+import { canWrite } from "@/lib/role-utils"
 
 interface WorkRecordsClientProps {
   userId: string
-  userRole: "ADMIN" | "USER"
+  userRole: Role
 }
 
 export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) {
@@ -47,6 +49,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [repairCostModalOpen, setRepairCostModalOpen] = useState(false)
 
   const isAdmin = userRole === "ADMIN"
+  const writable = canWrite(userRole)
   const dateString = format(selectedDate, "yyyy-MM-dd")
 
   // 비용: "전체"가 아닌 경우에만 조회
@@ -54,7 +57,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const costUserId = isAdmin ? selectedUserId : undefined
   const { data: fuelCost } = useDailyCost("주유비", dateString, isAllUsers ? undefined : costUserId)
   const { data: repairCost } = useDailyCost("차량수리비", dateString, isAllUsers ? undefined : costUserId)
-  const canEditCost = !isAdmin || selectedUserId === userId
+  const canEditCost = writable && (!isAdmin || selectedUserId === userId)
 
   const { data, isLoading, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useWorkRecords(
     dateString,
@@ -219,7 +222,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={handleEditRecord} onDelete={handleDeleteRecord} onCollect={handleCollectRecord} onRequestCollect={handleRequestCollect} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
+          <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
         )}
 
         {/* 무한 스크롤 트리거 */}
@@ -228,69 +231,75 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
         )}
 
-        <FabMenu
-          onAddRecord={handleAddRecord}
-          onApplyTemplate={handleApplyTemplate}
-          onBulkDelete={() => setBulkDeleteModalOpen(true)}
-          onRefresh={() => refetch()}
-          isRefreshing={isFetching}
-          hasRecords={records.length > 0}
-        />
+        {writable && (
+          <FabMenu
+            onAddRecord={handleAddRecord}
+            onApplyTemplate={handleApplyTemplate}
+            onBulkDelete={() => setBulkDeleteModalOpen(true)}
+            onRefresh={() => refetch()}
+            isRefreshing={isFetching}
+            hasRecords={records.length > 0}
+          />
+        )}
       </div>
 
-      {/* 근무기록 추가/수정 모달 */}
-      <WorkRecordModal
-        open={workRecordModalOpen}
-        onOpenChange={setWorkRecordModalOpen}
-        selectedDate={selectedDate}
-        editRecord={editingRecord}
-        userRole={userRole}
-      />
+      {writable && (
+        <>
+          {/* 근무기록 추가/수정 모달 */}
+          <WorkRecordModal
+            open={workRecordModalOpen}
+            onOpenChange={setWorkRecordModalOpen}
+            selectedDate={selectedDate}
+            editRecord={editingRecord}
+            userRole={userRole}
+          />
 
-      {/* 코스 적용 모달 */}
-      <TemplateApplyModal
-        open={templateModalOpen}
-        onOpenChange={setTemplateModalOpen}
-        selectedDate={selectedDate}
-        userId={userId}
-      />
+          {/* 코스 적용 모달 */}
+          <TemplateApplyModal
+            open={templateModalOpen}
+            onOpenChange={setTemplateModalOpen}
+            selectedDate={selectedDate}
+            userId={userId}
+          />
 
-      {/* 근무기록 전체 삭제 모달 */}
-      <BulkDeleteModal
-        open={bulkDeleteModalOpen}
-        onOpenChange={setBulkDeleteModalOpen}
-        selectedDate={selectedDate}
-        userId={isAdmin ? selectedUserId : undefined}
-        search={searchStoreName || undefined}
-        estimatedCount={totalCount}
-      />
+          {/* 근무기록 전체 삭제 모달 */}
+          <BulkDeleteModal
+            open={bulkDeleteModalOpen}
+            onOpenChange={setBulkDeleteModalOpen}
+            selectedDate={selectedDate}
+            userId={isAdmin ? selectedUserId : undefined}
+            search={searchStoreName || undefined}
+            estimatedCount={totalCount}
+          />
 
-      {/* 주유비 입력 모달 */}
-      <DailyCostModal
-        open={fuelCostModalOpen}
-        onOpenChange={setFuelCostModalOpen}
-        date={dateString}
-        title="주유비"
-        currentAmount={fuelCost?.amount ?? null}
-      />
+          {/* 주유비 입력 모달 */}
+          <DailyCostModal
+            open={fuelCostModalOpen}
+            onOpenChange={setFuelCostModalOpen}
+            date={dateString}
+            title="주유비"
+            currentAmount={fuelCost?.amount ?? null}
+          />
 
-      {/* 차량수리비 입력 모달 */}
-      <DailyCostModal
-        open={repairCostModalOpen}
-        onOpenChange={setRepairCostModalOpen}
-        date={dateString}
-        title="차량수리비"
-        currentAmount={repairCost?.amount ?? null}
-      />
+          {/* 차량수리비 입력 모달 */}
+          <DailyCostModal
+            open={repairCostModalOpen}
+            onOpenChange={setRepairCostModalOpen}
+            date={dateString}
+            title="차량수리비"
+            currentAmount={repairCost?.amount ?? null}
+          />
 
-      {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
-      <CollectionRequestModal
-        open={collectionRequestModalOpen}
-        onOpenChange={setCollectionRequestModalOpen}
-        storeId={collectionRequestTarget?.storeId ?? null}
-        storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
-        userRole={userRole}
-      />
+          {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
+          <CollectionRequestModal
+            open={collectionRequestModalOpen}
+            onOpenChange={setCollectionRequestModalOpen}
+            storeId={collectionRequestTarget?.storeId ?? null}
+            storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
+            userRole={userRole}
+          />
+        </>
+      )}
     </div>
   )
 }

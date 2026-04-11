@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUser } from "@/components/providers/app-providers";
+import { isViewer } from "@/lib/role-utils";
 import {
   Home,
   Store,
@@ -101,7 +103,9 @@ const ADMIN_NAV_ITEMS = [
  */
 export function BottomNav() {
   const pathname = usePathname();
-  const isAdminMode = pathname.startsWith("/admin");
+  const { role } = useUser();
+  // VIEWER는 일반 콘솔 접근이 차단되므로 항상 관리자 네비게이션 표시
+  const isAdminMode = isViewer(role) || pathname.startsWith("/admin");
   const navItems = isAdminMode ? ADMIN_NAV_ITEMS : NAV_ITEMS;
 
   return (

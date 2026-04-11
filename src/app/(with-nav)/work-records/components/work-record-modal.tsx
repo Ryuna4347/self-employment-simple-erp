@@ -29,6 +29,7 @@ import {
 import { SearchableDropdown } from "@/components/common"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
+import type { Role } from "@/generated/prisma/client"
 import {
   useCreateWorkRecord,
   useUpdateWorkRecord,
@@ -69,7 +70,7 @@ interface WorkRecordModalProps {
   onOpenChange: (open: boolean) => void
   selectedDate: Date
   editRecord?: WorkRecordResponse | null
-  userRole: "ADMIN" | "USER"
+  userRole: Role
 }
 
 // 결제방식 한글 변환

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdmin, requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 공지 생성 스키마
@@ -13,9 +13,9 @@ const noticeSchema = z.object({
 
 export type NoticeFormData = z.infer<typeof noticeSchema>
 
-// 공지 목록 조회 (어드민)
+// 공지 목록 조회 (어드민 + 열람자)
 export async function GET() {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   try {

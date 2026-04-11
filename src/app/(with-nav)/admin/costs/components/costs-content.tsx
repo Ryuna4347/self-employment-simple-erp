@@ -15,6 +15,8 @@ import { CostCard } from "./cost-card"
 import { CostModal } from "./cost-modal"
 import { DeleteCostModal } from "./delete-cost-modal"
 import { RecurringCostModal } from "./recurring-cost-modal"
+import { useUser } from "@/components/providers/app-providers"
+import { canWrite } from "@/lib/role-utils"
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
@@ -29,6 +31,8 @@ function getYearOptions(): number[] {
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export function CostsContent() {
+  const { role } = useUser()
+  const writable = canWrite(role)
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -97,21 +101,25 @@ export function CostsContent() {
           </SelectContent>
         </Select>
 
-        <Button
-          size="sm"
-          variant="outline"
-          className="ml-auto"
-          onClick={() => setRecurringModalOpen(true)}
-        >
-          고정비용
-        </Button>
-        <Button
-          size="sm"
-          onClick={() => setCostModalOpen(true)}
-        >
-          <Plus className="size-4" />
-          추가
-        </Button>
+        {writable && (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => setRecurringModalOpen(true)}
+            >
+              고정비용
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setCostModalOpen(true)}
+            >
+              <Plus className="size-4" />
+              추가
+            </Button>
+          </>
+        )}
       </div>
 
       {/* 요약 카드 */}
@@ -157,8 +165,8 @@ export function CostsContent() {
               <CostCard
                 key={cost.id}
                 cost={cost}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onEdit={writable ? handleEdit : undefined}
+                onDelete={writable ? handleDelete : undefined}
               />
             ))
           ) : (
@@ -170,14 +178,16 @@ export function CostsContent() {
       )}
 
       {/* 생성/수정 모달 */}
-      <CostModal
-        open={costModalOpen}
-        onOpenChange={handleModalClose}
-        editingCost={editingCost}
-      />
+      {writable && (
+        <CostModal
+          open={costModalOpen}
+          onOpenChange={handleModalClose}
+          editingCost={editingCost}
+        />
+      )}
 
       {/* 삭제 확인 모달 */}
-      {deletingCost && (
+      {writable && deletingCost && (
         <DeleteCostModal
           open={deleteModalOpen}
           onOpenChange={handleDeleteModalClose}
@@ -186,10 +196,12 @@ export function CostsContent() {
       )}
 
       {/* 고정비용 관리 모달 */}
-      <RecurringCostModal
-        open={recurringModalOpen}
-        onOpenChange={setRecurringModalOpen}
-      />
+      {writable && (
+        <RecurringCostModal
+          open={recurringModalOpen}
+          onOpenChange={setRecurringModalOpen}
+        />
+      )}
     </div>
   )
 }

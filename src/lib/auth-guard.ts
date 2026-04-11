@@ -63,6 +63,44 @@ export async function requireAdmin(): Promise<AuthResult | ReturnType<typeof Api
 }
 
 /**
+ * 관리자 수준 읽기 접근 헬퍼 (ADMIN + VIEWER 허용)
+ *
+ * Admin GET 라우트에서 사용 - VIEWER도 데이터 조회 가능
+ */
+export async function requireAdminRead(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.adminRequired>> {
+  const session = await auth()
+
+  if (!session?.user) {
+    return ApiErrors.unauthorized("로그인이 필요합니다")
+  }
+
+  if (session.user.role !== "ADMIN" && session.user.role !== "VIEWER") {
+    return ApiErrors.adminRequired("관리자 권한이 필요합니다")
+  }
+
+  return { session, user: session.user }
+}
+
+/**
+ * 쓰기 권한 확인 헬퍼 (VIEWER 차단)
+ *
+ * 쓰기 라우트에서 requireAuth() 대신 사용 - VIEWER는 읽기만 가능
+ */
+export async function requireWriteAccess(): Promise<AuthResult | ReturnType<typeof ApiErrors.unauthorized> | ReturnType<typeof ApiErrors.forbidden>> {
+  const session = await auth()
+
+  if (!session?.user) {
+    return ApiErrors.unauthorized("로그인이 필요합니다")
+  }
+
+  if (session.user.role === "VIEWER") {
+    return ApiErrors.forbidden("읽기 전용 계정은 수정할 수 없습니다")
+  }
+
+  return { session, user: session.user }
+}
+
+/**
  * 특정 역할 체크 헬퍼
  */
 export async function requireRole(

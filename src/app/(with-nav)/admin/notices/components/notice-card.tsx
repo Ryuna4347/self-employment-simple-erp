@@ -7,8 +7,8 @@ import type { NoticeRecord } from "../hooks/use-notices"
 
 interface NoticeCardProps {
   notice: NoticeRecord
-  onEdit: (notice: NoticeRecord) => void
-  onDelete: (notice: NoticeRecord) => void
+  onEdit?: (notice: NoticeRecord) => void
+  onDelete?: (notice: NoticeRecord) => void
 }
 
 export function NoticeCard({ notice, onEdit, onDelete }: NoticeCardProps) {
@@ -37,24 +37,30 @@ export function NoticeCard({ notice, onEdit, onDelete }: NoticeCardProps) {
             {notice.content}
           </p>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => onEdit(notice)}
-          >
-            <Pencil className="size-3.5 text-gray-400" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => onDelete(notice)}
-          >
-            <Trash2 className="size-3.5 text-gray-400" />
-          </Button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center gap-1 shrink-0">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => onEdit(notice)}
+              >
+                <Pencil className="size-3.5 text-gray-400" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => onDelete(notice)}
+              >
+                <Trash2 className="size-3.5 text-gray-400" />
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

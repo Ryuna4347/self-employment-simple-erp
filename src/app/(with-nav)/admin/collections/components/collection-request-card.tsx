@@ -5,6 +5,8 @@ import { ChevronDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useUser } from "@/components/providers/app-providers"
+import { canWrite } from "@/lib/role-utils"
 import {
   useApproveCollectionRequest,
   useRejectCollectionRequest,
@@ -22,6 +24,8 @@ const STATUS_BADGE: Record<string, { label: string; className: string }> = {
 }
 
 export function CollectionRequestCard({ request }: CollectionRequestCardProps) {
+  const { role } = useUser()
+  const writable = canWrite(role)
   const [expanded, setExpanded] = useState(false)
   const approveMutation = useApproveCollectionRequest()
   const rejectMutation = useRejectCollectionRequest()
@@ -107,8 +111,8 @@ export function CollectionRequestCard({ request }: CollectionRequestCardProps) {
               </div>
             )}
 
-            {/* 승인/거부 버튼 (PENDING일 때만) */}
-            {isPending && (
+            {/* 승인/거부 버튼 (PENDING이고 쓰기 권한이 있을 때만) */}
+            {isPending && writable && (
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"

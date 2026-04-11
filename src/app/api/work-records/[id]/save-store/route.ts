@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 interface RouteParams {
@@ -9,7 +9,7 @@ interface RouteParams {
 
 // 직접 입력한 매장 정보를 Store DB에 저장
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult
