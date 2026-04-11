@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight } from "@/lib/date-utils"
 
@@ -19,7 +19,7 @@ interface RouteParams {
  * 코스 적용 (WorkRecord 일괄 생성)
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult

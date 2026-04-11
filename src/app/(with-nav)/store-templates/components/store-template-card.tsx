@@ -8,8 +8,8 @@ import type { StoreTemplate } from "../hooks/use-store-templates"
 
 interface StoreTemplateCardProps {
   template: StoreTemplate
-  onEdit: (template: StoreTemplate) => void
-  onDelete: (id: string) => void
+  onEdit?: (template: StoreTemplate) => void
+  onDelete?: (id: string) => void
   isAdmin: boolean
   isDeleting?: boolean
 }
@@ -36,13 +36,13 @@ export function StoreTemplateCard({
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEdit(template)
+    onEdit?.(template)
   }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm("정말로 이 코스을 삭제하시겠습니까?")) {
-      onDelete(template.id)
+      onDelete?.(template.id)
     }
   }
 
@@ -125,8 +125,8 @@ export function StoreTemplateCard({
               </div>
             </div>
 
-            {/* 액션 버튼 (관리자만) */}
-            {isAdmin && (
+            {/* 액션 버튼 (관리자 + 쓰기 권한) */}
+            {isAdmin && onEdit && onDelete && (
               <div className="flex gap-2 pt-2">
                 <Button
                   variant="outline"

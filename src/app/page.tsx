@@ -72,7 +72,8 @@ function LoginForm() {
         setErrorMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
         setIsSubmitting(false);
       } else if (result?.ok) {
-        // 로그인 성공 - 바로 리다이렉트
+        // 로그인 성공 - /work-records 로 이동
+        // VIEWER 는 /work-records 의 서버 컴포넌트에서 /admin/dashboard 로 재리다이렉트된다
         router.push("/work-records");
         router.refresh();
       }

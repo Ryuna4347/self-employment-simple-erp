@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
 import { format } from "date-fns"
 import { startOfDayKST, startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
@@ -38,7 +38,7 @@ function calcTotalAmount(items: { amount: number }[]) {
 }
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   try {

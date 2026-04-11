@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard";
+import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard";
 import { apiSuccess, ApiErrors } from "@/lib/api-response";
 
 // 매장 수정 스키마
@@ -70,7 +70,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireAuth();
+  const authResult = await requireWriteAccess();
   if (isErrorResponse(authResult)) return authResult;
 
   try {
@@ -154,7 +154,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireAuth();
+  const authResult = await requireWriteAccess();
   if (isErrorResponse(authResult)) return authResult;
 
   try {

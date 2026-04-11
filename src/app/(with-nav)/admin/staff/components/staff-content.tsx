@@ -7,8 +7,12 @@ import { StaffCard } from "./staff-card"
 import { InviteModal } from "./invite-modal"
 import { RemoveStaffModal } from "./remove-staff-modal"
 import { useStaff, useDeleteStaff, type StaffMember } from "../hooks/use-staff"
+import { useUser } from "@/components/providers/app-providers"
+import { canWrite } from "@/lib/role-utils"
 
 export function StaffContent() {
+  const { role } = useUser()
+  const writable = canWrite(role)
   // 모달 상태
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null)
@@ -35,10 +39,12 @@ export function StaffContent() {
           <h1 className="text-xl font-bold text-gray-900 mb-2">직원 관리</h1>
           <p className="text-gray-600 text-sm">직원을 초대하고 관리합니다</p>
         </div>
-        <Button size="sm" onClick={() => setIsInviteModalOpen(true)}>
-          <UserPlus className="size-4" />
-          초대
-        </Button>
+        {writable && (
+          <Button size="sm" onClick={() => setIsInviteModalOpen(true)}>
+            <UserPlus className="size-4" />
+            초대
+          </Button>
+        )}
       </div>
 
       {/* 직원 목록 */}
@@ -58,20 +64,22 @@ export function StaffContent() {
             <StaffCard
               key={member.id}
               member={member}
-              onRemove={setRemoveTarget}
+              onRemove={writable ? setRemoveTarget : undefined}
             />
           ))
         )}
       </div>
 
       {/* 초대 모달 */}
-      <InviteModal
-        open={isInviteModalOpen}
-        onOpenChange={setIsInviteModalOpen}
-      />
+      {writable && (
+        <InviteModal
+          open={isInviteModalOpen}
+          onOpenChange={setIsInviteModalOpen}
+        />
+      )}
 
       {/* 삭제 확인 모달 */}
-      <RemoveStaffModal
+      {writable && <RemoveStaffModal
         key={removeTarget?.id}
         open={removeTarget !== null}
         onOpenChange={(open) => {
@@ -80,7 +88,7 @@ export function StaffContent() {
         memberName={removeTarget?.name ?? ""}
         onConfirm={handleRemoveConfirm}
         isLoading={deleteMutation.isPending}
-      />
+      />}
     </div>
   )
 }

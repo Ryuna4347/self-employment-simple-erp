@@ -1,9 +1,9 @@
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess } from "@/lib/api-response"
 
 export async function GET() {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   const staff = await prisma.user.findMany({

@@ -6,7 +6,7 @@ import type { StaffMember } from "../hooks/use-staff"
 
 interface StaffCardProps {
   member: StaffMember
-  onRemove: (member: StaffMember) => void
+  onRemove?: (member: StaffMember) => void
 }
 
 export function StaffCard({ member, onRemove }: StaffCardProps) {
@@ -42,7 +42,7 @@ export function StaffCard({ member, onRemove }: StaffCardProps) {
         </div>
 
         {/* 우측: 삭제 버튼 (관리자가 아닌 경우만) */}
-        {!isAdmin && (
+        {!isAdmin && onRemove && (
           <Button
             variant="ghost"
             size="icon-sm"

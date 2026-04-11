@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 근무기록 수정 스키마
@@ -42,7 +42,7 @@ interface RouteContext {
 
 // 근무기록 수정
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult
@@ -177,7 +177,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 // 근무기록 삭제
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdmin, requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // POST/PUT 바디 스키마
@@ -14,7 +14,7 @@ const recurringCostSchema = z.object({
 export type RecurringCostFormData = z.infer<typeof recurringCostSchema>
 
 export async function GET() {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   try {

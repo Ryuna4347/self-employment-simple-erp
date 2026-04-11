@@ -21,7 +21,8 @@ import type {
   WorkRecordItem,
   CollectionStatus,
 } from "../hooks/use-work-records";
-import type { PaymentType } from "@/generated/prisma/client";
+import type { PaymentType, Role } from "@/generated/prisma/client";
+import { canWrite } from "@/lib/role-utils";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -32,7 +33,7 @@ export interface WorkRecordCardProps {
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
   onRequestCollect?: (record: WorkRecordResponse) => void;
-  userRole: "ADMIN" | "USER";
+  userRole: Role;
   isDeleting?: boolean;
   isCollecting?: boolean;
   isDragging?: boolean;
@@ -113,9 +114,9 @@ export function WorkRecordCard({
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = calculateTotalAmount(record.items);
   const statusConfig = COLLECTION_STATUS_CONFIG[record.collectionStatus];
-  // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능
+  // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능, VIEWER는 수정 불가
   const canModify =
-    record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN";
+    (record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN") && canWrite(userRole);
   const isActionPending = isDeleting || isCollecting;
 
   const handleEdit = (e: React.MouseEvent) => {

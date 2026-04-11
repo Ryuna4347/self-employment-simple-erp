@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
@@ -16,7 +16,7 @@ const bulkDeleteSchema = z.object({
 // 현재 화면 필터(date, userId, search)에 매칭되는 근무기록을 일괄 삭제한다.
 // 일반 사용자는 본인의 UNCOLLECTED 기록만 삭제할 수 있고, 관리자는 모든 상태를 삭제할 수 있다.
 export async function DELETE(request: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult

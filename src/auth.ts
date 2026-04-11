@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
 import { authConfig } from "./auth.config"
+import type { Role } from "@/generated/prisma/client"
 // 타입 확장은 src/types/next-auth.d.ts에서 처리
 
 const ACCESS_TOKEN_MAX_AGE = 12 * 60 * 60  // 12시간 (초 단위)
@@ -77,7 +78,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.id = token.id as string
       session.user.name = token.name as string
       session.user.loginId = token.loginId as string
-      session.user.role = token.role as "ADMIN" | "USER"
+      session.user.role = token.role as Role
       return session
     },
   },

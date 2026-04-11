@@ -9,8 +9,8 @@ import type { Store } from "../hooks/use-stores"
 
 interface StoreCardProps {
   store: Store
-  onEdit: (store: Store) => void
-  onDelete: (id: string) => void
+  onEdit?: (store: Store) => void
+  onDelete?: (id: string) => void
   isDeleting?: boolean
 }
 
@@ -44,13 +44,13 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onEdit(store)
+    onEdit?.(store)
   }
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm("정말로 이 매장을 삭제하시겠습니까?")) {
-      onDelete(store.id)
+      onDelete?.(store.id)
     }
   }
 
@@ -204,28 +204,30 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
             </div>
 
             {/* 액션 버튼 */}
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEdit}
-                disabled={isDeleting}
-                className="flex-1"
-              >
-                <Pencil className="size-4" />
-                수정
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                {isDeleting ? "삭제 중..." : "삭제"}
-              </Button>
-            </div>
+            {(onEdit || onDelete) && (
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  disabled={isDeleting}
+                  className="flex-1"
+                >
+                  <Pencil className="size-4" />
+                  수정
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  {isDeleting ? "삭제 중..." : "삭제"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdmin, requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { format } from "date-fns"
 import { dateToKSTMidnight, startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
@@ -23,7 +23,7 @@ const costSchema = z.object({
 export type CostFormData = z.infer<typeof costSchema>
 
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   try {

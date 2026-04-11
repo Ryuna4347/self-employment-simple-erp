@@ -17,13 +17,14 @@ import {
 import { useStoreUncollected } from "../hooks/use-store-uncollected"
 import { useCreateCollectionRequest } from "../hooks/use-collection-request"
 import { useBatchCollect } from "../hooks/use-batch-collect"
+import type { Role } from "@/generated/prisma/client"
 
 interface CollectionRequestModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   storeId: string | null
   storeName: string
-  userRole: "ADMIN" | "USER"
+  userRole: Role
 }
 
 export function CollectionRequestModal({

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
 import { generateMonthlyReport } from "@/lib/excel/monthly-report"
 
@@ -11,7 +11,7 @@ const querySchema = z.object({
 
 export async function GET(request: NextRequest) {
   // 관리자 권한 확인
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   const searchParams = request.nextUrl.searchParams

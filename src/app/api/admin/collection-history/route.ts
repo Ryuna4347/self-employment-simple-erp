@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess } from "@/lib/api-response"
 import { format } from "date-fns"
 import { startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
 
 // 수금 이력 조회 (직접 수금 + 수금 확인 요청 승인 통합)
 export async function GET(request: NextRequest) {
-  const authResult = await requireAdmin()
+  const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
 
   const searchParams = request.nextUrl.searchParams

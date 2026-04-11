@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
+import { hasAdminAccess } from "@/lib/role-utils"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay, toKSTDateString } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
     return ApiErrors.validationError("미래 날짜의 근무기록은 조회할 수 없습니다")
   }
 
-  const isAdmin = user.role === "ADMIN"
+  const isAdmin = hasAdminAccess(user.role)
 
   // 권한 체크
   if (requestedUserId && requestedUserId !== user.id && requestedUserId !== "all" && !isAdmin) {
@@ -331,7 +332,7 @@ export async function GET(request: NextRequest) {
 
 // 근무기록 생성
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
   const { user } = authResult

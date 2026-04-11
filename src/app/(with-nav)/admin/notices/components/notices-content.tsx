@@ -3,12 +3,16 @@
 import { useState } from "react"
 import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useUser } from "@/components/providers/app-providers"
+import { canWrite } from "@/lib/role-utils"
 import { useNotices, type NoticeRecord } from "../hooks/use-notices"
 import { NoticeCard } from "./notice-card"
 import { NoticeModal } from "./notice-modal"
 import { DeleteNoticeModal } from "./delete-notice-modal"
 
 export function NoticesContent() {
+  const { role } = useUser()
+  const writable = canWrite(role)
   // 모달 상태
   const [noticeModalOpen, setNoticeModalOpen] = useState(false)
   const [editingNotice, setEditingNotice] = useState<NoticeRecord | null>(null)
@@ -46,13 +50,15 @@ export function NoticesContent() {
       {/* 상단: 제목 + 추가 버튼 */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-bold text-gray-900">공지 관리</h1>
-        <Button
-          size="sm"
-          onClick={() => setNoticeModalOpen(true)}
-        >
-          <Plus className="size-4" />
-          작성
-        </Button>
+        {writable && (
+          <Button
+            size="sm"
+            onClick={() => setNoticeModalOpen(true)}
+          >
+            <Plus className="size-4" />
+            작성
+          </Button>
+        )}
       </div>
 
       {/* 로딩 */}
@@ -79,8 +85,8 @@ export function NoticesContent() {
               <NoticeCard
                 key={notice.id}
                 notice={notice}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onEdit={writable ? handleEdit : undefined}
+                onDelete={writable ? handleDelete : undefined}
               />
             ))
           ) : (
@@ -92,14 +98,16 @@ export function NoticesContent() {
       )}
 
       {/* 생성/수정 모달 */}
-      <NoticeModal
-        open={noticeModalOpen}
-        onOpenChange={handleModalClose}
-        editingNotice={editingNotice}
-      />
+      {writable && (
+        <NoticeModal
+          open={noticeModalOpen}
+          onOpenChange={handleModalClose}
+          editingNotice={editingNotice}
+        />
+      )}
 
       {/* 삭제 확인 모달 */}
-      {deletingNotice && (
+      {writable && deletingNotice && (
         <DeleteNoticeModal
           open={deleteModalOpen}
           onOpenChange={handleDeleteModalClose}

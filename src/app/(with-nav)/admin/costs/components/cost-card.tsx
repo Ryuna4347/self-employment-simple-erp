@@ -6,8 +6,8 @@ import type { CostRecord } from "../hooks/use-costs"
 
 interface CostCardProps {
   cost: CostRecord
-  onEdit: (cost: CostRecord) => void
-  onDelete: (cost: CostRecord) => void
+  onEdit?: (cost: CostRecord) => void
+  onDelete?: (cost: CostRecord) => void
 }
 
 export function CostCard({ cost, onEdit, onDelete }: CostCardProps) {
@@ -43,22 +43,26 @@ export function CostCard({ cost, onEdit, onDelete }: CostCardProps) {
           <p className="text-sm font-semibold text-orange-600 mr-2">
             {cost.amount.toLocaleString()}원
           </p>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => onEdit(cost)}
-          >
-            <Pencil className="size-3.5 text-gray-400" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            onClick={() => onDelete(cost)}
-          >
-            <Trash2 className="size-3.5 text-gray-400" />
-          </Button>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => onEdit(cost)}
+            >
+              <Pencil className="size-3.5 text-gray-400" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => onDelete(cost)}
+            >
+              <Trash2 className="size-3.5 text-gray-400" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

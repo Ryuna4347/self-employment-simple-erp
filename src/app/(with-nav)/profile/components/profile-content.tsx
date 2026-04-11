@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { broadcastSignOut } from "@/hooks/use-session-sync";
 import { ChangePasswordModal } from "./change-password-modal";
 import type { Role } from "@/generated/prisma/client";
+import { getRoleLabel } from "@/lib/role-utils";
 
 interface ProfileContentProps {
   user: {
@@ -42,7 +43,7 @@ export function ProfileContent({ user }: ProfileContentProps) {
           <div>
             <p className="font-semibold text-gray-900">{user.name}</p>
             <p className="text-sm text-gray-500">
-              {user.role === "ADMIN" ? "관리자" : "직원"}
+              {getRoleLabel(user.role)}
             </p>
           </div>
         </div>
