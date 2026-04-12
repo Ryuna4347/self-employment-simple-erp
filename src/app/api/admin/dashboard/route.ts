@@ -93,8 +93,10 @@ export async function GET(request: NextRequest) {
       }),
 
       // 4) 기간별 + 결제유형별 매출 (차트) - KST 타임존 기준 DATE_TRUNC
+      // date 컬럼은 timestamp without time zone이므로
+      // AT TIME ZONE 'UTC'로 먼저 UTC 해석 → AT TIME ZONE 'Asia/Seoul'로 KST 변환
       prisma.$queryRaw<{ period: Date; paymentType: string; revenue: bigint }[]>`
-        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period, wr."paymentTypeSnapshot" as "paymentType", COALESCE(SUM(ri.amount), 0) as revenue
+        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'")}) as period, wr."paymentTypeSnapshot" as "paymentType", COALESCE(SUM(ri.amount), 0) as revenue
         FROM "WorkRecord" wr
         LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
         WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
@@ -102,8 +104,10 @@ export async function GET(request: NextRequest) {
       `,
 
       // 5) 비용 추이 (항상 연도 전체 월별 집계)
+      // date 컬럼은 timestamp without time zone이므로
+      // AT TIME ZONE 'UTC'로 먼저 UTC 해석 → AT TIME ZONE 'Asia/Seoul'로 KST 변환
       prisma.$queryRaw<{ period: Date; amount: bigint }[]>`
-        SELECT DATE_TRUNC('month', e.date ${Prisma.raw("AT TIME ZONE 'Asia/Seoul'")}) as period,
+        SELECT DATE_TRUNC('month', e.date ${Prisma.raw("AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'")}) as period,
                COALESCE(SUM(e.amount), 0) as amount
         FROM "Expense" e
         WHERE e.date >= ${startOfMonthKST(year, 1)} AND e.date <= ${endOfMonthKST(year, 12)}
