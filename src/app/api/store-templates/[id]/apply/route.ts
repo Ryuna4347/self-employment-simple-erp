@@ -96,8 +96,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
     const afterDeleteFilter = afterDuplicateFilter.filter((m) => !m.store.isDeleted)
 
+    // 1-2. 계좌이체인데 입금자 없는 매장 제외
+    const noManagerStoreIds = new Set(
+      afterDeleteFilter
+        .filter((m) => m.store.PaymentType === "ACCOUNT" && !m.store.managerName?.trim())
+        .map((m) => m.storeId)
+    )
+    const afterManagerFilter = afterDeleteFilter.filter((m) => !noManagerStoreIds.has(m.storeId))
+
     // 2. 생성 대상 확인
-    const membersToCreate = afterDeleteFilter
+    const membersToCreate = afterManagerFilter
 
     if (membersToCreate.length === 0) {
       return apiSuccess({

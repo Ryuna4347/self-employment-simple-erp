@@ -26,7 +26,10 @@ const createStoreSchema = z.object({
   assignedUserId: z.string().nullish(),
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
   note: z.string().nullish(),
-})
+}).refine(
+  (data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(),
+  { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }
+)
 
 // 매장 목록 조회 쿼리 스키마
 const querySchema = z.object({

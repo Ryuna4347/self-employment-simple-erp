@@ -55,13 +55,24 @@ const workRecordFormSchema = z.object({
   collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
   note: z.string().optional(),
   items: z.array(recordItemSchema),
-}).refine(
-  (data) => {
-    if (data.collectionStatus === "CLOSED") return true
-    return data.items.length >= 1
-  },
-  { message: "최소 1개 품목이 필요합니다", path: ["items"] }
-)
+}).superRefine((data, ctx) => {
+  // 품목 검증: 휴업&폐업이 아니면 최소 1개 필요
+  if (data.collectionStatus !== "CLOSED" && data.items.length < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "최소 1개 품목이 필요합니다",
+      path: ["items"],
+    })
+  }
+  // 입금자 검증: 계좌이체일 때 필수
+  if (data.paymentType === "ACCOUNT" && !data.managerName?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "계좌이체 결제 시 담당자를 입력해주세요",
+      path: ["managerName"],
+    })
+  }
+})
 
 type WorkRecordFormData = z.infer<typeof workRecordFormSchema>
 
@@ -536,12 +547,18 @@ export function WorkRecordModal({
                 {/* 담당자 (계좌이체일 때만) */}
                 {paymentType === "ACCOUNT" && (
                   <div className="space-y-1">
-                    <Label htmlFor="managerName" className="text-sm">담당자</Label>
+                    <Label htmlFor="managerName" className="text-sm">
+                      담당자 <span className="text-red-500">*</span>
+                    </Label>
                     <Input
                       id="managerName"
                       placeholder="담당자명을 입력하세요"
                       {...register("managerName")}
+                      aria-invalid={!!errors.managerName}
                     />
+                    {errors.managerName && (
+                      <p className="text-xs text-red-500">{errors.managerName.message}</p>
+                    )}
                   </div>
                 )}
 

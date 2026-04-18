@@ -43,7 +43,10 @@ const storeSchema = z.object({
   assignedUserId: z.string().optional(),
   note: z.string().optional(),
   items: z.array(storeItemSchema).optional(),
-})
+}).refine(
+  (data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(),
+  { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }
+)
 
 type StoreFormData = z.infer<typeof storeSchema>
 
@@ -252,12 +255,18 @@ export function StoreModal({
           {/* 입금자 (계좌일 때만) */}
           {paymentType === "ACCOUNT" && (
             <div className="space-y-2">
-              <Label htmlFor="managerName">입금자</Label>
+              <Label htmlFor="managerName">
+                입금자 <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="managerName"
                 placeholder="예: 김철수"
                 {...register("managerName")}
+                aria-invalid={!!errors.managerName}
               />
+              {errors.managerName && (
+                <p className="text-sm text-red-500">{errors.managerName.message}</p>
+              )}
             </div>
           )}
 

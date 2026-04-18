@@ -61,8 +61,16 @@ export function TemplateApplyModal({
     return templates.find((t) => t.id === selectedTemplateId)
   }, [templates, selectedTemplateId])
 
-  // 생성될 매장 수
-  const createCount = selectedTemplate?.memberCount ?? 0
+  // 입금자 미입력 매장 (계좌이체인데 managerName 없음)
+  const missingManagerStores = useMemo(() => {
+    if (!selectedTemplate) return []
+    return selectedTemplate.members.filter(
+      (m) => m.store.PaymentType === "ACCOUNT" && !m.store.managerName?.trim()
+    )
+  }, [selectedTemplate])
+
+  // 생성될 매장 수 (입금자 미입력 매장 제외)
+  const createCount = (selectedTemplate?.memberCount ?? 0) - missingManagerStores.length
 
   // 코스 적용 핸들러
   const handleApply = () => {
@@ -177,6 +185,23 @@ export function TemplateApplyModal({
             <div className="bg-blue-50 rounded-lg p-4">
               <p className="text-xs text-gray-500 mb-1">설명</p>
               <p className="text-sm text-gray-700">{selectedTemplate.description}</p>
+            </div>
+          )}
+
+          {/* 입금자 미입력 매장 경고 */}
+          {missingManagerStores.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-amber-800">
+                입금자 미입력 매장 ({missingManagerStores.length}개)
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                계좌이체 매장인데 입금자가 없어 건너뜁니다:
+              </p>
+              <ul className="text-xs text-amber-700 mt-1 list-disc list-inside">
+                {missingManagerStores.map((m) => (
+                  <li key={m.id}>{m.store.name}</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

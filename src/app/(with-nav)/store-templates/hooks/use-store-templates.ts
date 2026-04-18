@@ -6,6 +6,8 @@ interface MemberStore {
   id: string
   name: string
   address: string
+  PaymentType: "CASH" | "ACCOUNT" | "CARD"
+  managerName: string | null
 }
 
 // 코스 멤버 타입

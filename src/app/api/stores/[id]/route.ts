@@ -27,7 +27,14 @@ const updateStoreSchema = z.object({
     .enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"])
     .optional(),
   note: z.string().nullable().optional(),
-});
+}).refine(
+  (data) => {
+    // PaymentType이 전달되지 않은 경우는 검증 건너뛰기 (부분 업데이트)
+    if (!data.PaymentType) return true
+    return data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim()
+  },
+  { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }
+);
 
 /**
  * GET /api/stores/[id]

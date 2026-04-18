@@ -34,16 +34,24 @@ const createWorkRecordSchema = z.object({
         quantity: z.number().int().min(1, "수량은 1 이상이어야 합니다"),
       })
     ),
-}).refine(
-  (data) => {
-    // 휴업&폐업이면 빈 배열 허용, 아니면 최소 1개 필요
-    if (data.collectionStatus === "CLOSED") {
-      return true
-    }
-    return data.items.length >= 1
-  },
-  { message: "최소 1개 이상의 품목이 필요합니다", path: ["items"] }
-)
+}).superRefine((data, ctx) => {
+  // 휴업&폐업이면 빈 배열 허용, 아니면 최소 1개 필요
+  if (data.collectionStatus !== "CLOSED" && data.items.length < 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "최소 1개 이상의 품목이 필요합니다",
+      path: ["items"],
+    })
+  }
+  // 계좌이체일 때 입금자 필수
+  if (data.paymentType === "ACCOUNT" && !data.managerName?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "계좌이체 결제 시 입금자를 입력해주세요",
+      path: ["managerName"],
+    })
+  }
+})
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAuth()
