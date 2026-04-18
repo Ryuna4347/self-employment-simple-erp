@@ -50,7 +50,6 @@ staff/
 
 - `GET /api/admin/staff` - 직원 목록 (삭제되지 않은 직원)
 - `POST /api/admin/create-invite` - 초대 코드 생성
-- `PUT /api/admin/staff/[id]` - 직원 수정
 - `DELETE /api/admin/staff/[id]` - 직원 소프트 삭제
 
 ---

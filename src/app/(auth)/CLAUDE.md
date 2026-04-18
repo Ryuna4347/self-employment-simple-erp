@@ -7,7 +7,7 @@
 ### 핵심 기능
 - Auth.js v5 기반 ID/PW 인증 (Credentials Provider + JWT 세션)
 - 로그인 상태 유지 (Remember Me): Refresh Token + iron-session 이중 쿠키 시스템 (미구현)
-- 권한 분리: 관리자(ADMIN) / 일반 사원(USER)
+- 권한 분리: 관리자(ADMIN) / 일반 사원(USER) / 열람자(VIEWER)
 - 초대 시스템: 관리자가 생성한 초대 링크로 회원가입
 
 ---
@@ -18,7 +18,7 @@
 - `loginId`: 로그인 아이디 (최소 4자)
 - `name`: 사용자 이름
 - `password`: 비밀번호 (null이면 초대 대기 상태)
-- `role`: 권한 (ADMIN / USER)
+- `role`: 권한 (ADMIN / USER / VIEWER)
 - `inviteCode`: 초대 코드 (등록 완료 시 null)
 - `isDeleted`: 퇴사자 여부 (soft delete)
 
@@ -41,8 +41,9 @@
 3. loginId, password 설정 후 등록 완료
 
 ### 권한
-- **ADMIN**: 모든 기능 접근
+- **ADMIN**: 모든 기능 접근 (읽기/쓰기)
 - **USER**: 근무기록, 매장조회, 템플릿 관리
+- **VIEWER**: 읽기 전용 계정, 관리자 대시보드만 접근 가능 (쓰기 UI 숨김)
 
 ---
 

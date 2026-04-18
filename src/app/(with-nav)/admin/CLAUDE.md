@@ -17,7 +17,8 @@
 
 ## 접근 권한
 
-- Role이 `ADMIN`인 사용자만 접근 가능
+- Role이 `ADMIN` 또는 `VIEWER`인 사용자가 접근 가능
+- `VIEWER`는 읽기 전용 (쓰기 UI 숨김, `canWrite()` 체크)
 - 미들웨어에서 `/admin/*` 경로 보호
 
 ---
@@ -131,7 +132,7 @@ admin/
 
 - `GET /api/admin/dashboard` - 대시보드 데이터
 - `GET/POST /api/admin/staff` - 직원 목록/초대
-- `PUT/DELETE /api/admin/staff/[id]` - 직원 수정/삭제
+- `DELETE /api/admin/staff/[id]` - 직원 삭제 (soft delete)
 - `POST /api/admin/create-invite` - 초대 코드 생성
 - `GET /api/admin/outstanding` - 미수금 목록
 - `PATCH /api/admin/outstanding/batch-collect` - 일괄 수금

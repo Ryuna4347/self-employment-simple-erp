@@ -93,6 +93,7 @@ src/
 │   ├── korean-to-english.ts # 한글 입력 처리
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
 │   ├── query-client.ts      # React Query 클라이언트 설정
+│   ├── role-utils.ts        # 역할 권한 체크 유틸 (VIEWER 등)
 │   ├── supabase.ts          # Supabase 클라이언트 설정
 │   ├── utils.ts             # 범용 유틸리티
 │   └── validations.ts       # Zod 검증 스키마
@@ -111,7 +112,7 @@ src/app/api/
 │   ├── verify/route.ts                 # POST 초대 코드 검증
 │   └── complete/route.ts               # POST 회원가입 완료
 ├── users/route.ts                      # GET 사용자 목록
-├── profile/password/route.ts           # POST 비밀번호 변경
+├── profile/password/route.ts           # PATCH 비밀번호 변경
 ├── stores/
 │   ├── route.ts                        # GET/POST 매장 목록/생성
 │   └── [id]/route.ts                   # GET/PUT/DELETE 매장 CRUD
@@ -147,7 +148,7 @@ src/app/api/
     ├── dashboard/route.ts              # GET 대시보드 데이터
     ├── staff/
     │   ├── route.ts                    # GET/POST 직원 목록/초대
-    │   └── [id]/route.ts              # PUT/DELETE 직원 수정/삭제
+    │   └── [id]/route.ts              # DELETE 직원 삭제 (soft delete)
     ├── create-invite/route.ts          # POST 초대 코드 생성
     ├── outstanding/
     │   ├── route.ts                    # GET 미수금 목록
@@ -195,7 +196,7 @@ src/app/api/
 - **RefreshToken**: 리프레시 토큰 (userId, tokenHash, expiresAt, rememberMe)
 
 ### Enum
-- **Role**: ADMIN, USER
+- **Role**: ADMIN, USER, VIEWER
 - **PaymentType**: CASH, ACCOUNT, CARD
 - **ReceiptType**: NONE, SIMPLE_RECEIPT, TRANSACTION_STATEMENT
 - **CollectionStatus**: UNCOLLECTED, COLLECTED, CLOSED
@@ -211,6 +212,11 @@ src/app/api/
 
 1. **미들웨어 (auth.config.ts)**: `auth?.user` 존재 여부 (비로그인 차단)
 2. **layout.tsx**: `user.id` 체크 (무효 세션 차단)
+
+### 역할 (Role)
+- **ADMIN**: 모든 기능 접근 (읽기/쓰기)
+- **USER**: 근무기록, 매장, 템플릿 관리
+- **VIEWER**: 읽기 전용 계정, 관리자 대시보드만 접근 가능
 
 ### 향후 구현 예정 (미구현)
 - 로그인 상태 유지 (Remember Me): Refresh Token + iron-session 이중 쿠키 시스템
