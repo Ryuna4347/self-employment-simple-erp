@@ -16,7 +16,7 @@ import {
   LineChart,
   Line,
 } from "recharts"
-import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt, Store as StoreIcon } from "lucide-react"
+import { DollarSign, AlertCircle, TrendingUp, Users, Loader2, Download, Receipt, RefreshCw, Store as StoreIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   ResponsiveModal,
@@ -66,7 +66,7 @@ export function DashboardContent() {
   const [month, setMonth] = useState(now.getMonth() + 1)
 
   // 월별 모드에서는 month를 전달하지 않음
-  const { data, isLoading, isError } = useDashboard(
+  const { data, isLoading, isError, isFetching, refetch } = useDashboard(
     period,
     year,
     period === "daily" ? month : undefined
@@ -574,6 +574,16 @@ export function DashboardContent() {
           </ResponsiveModal>
         </>
       )}
+
+      {/* 새로고침 버튼 */}
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        aria-label="새로고침"
+      >
+        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   )
 }
