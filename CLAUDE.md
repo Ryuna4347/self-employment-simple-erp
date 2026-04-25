@@ -230,3 +230,35 @@ src/app/api/
 - zod 유효성 검사
 - 작업할 때는 반드시 브랜치를 만들고 작업할 것
 - 스키마 변경 시 `prisma db push` 대신 `prisma migrate dev` 사용 (마이그레이션 히스토리 유지)
+
+## 하네스: ERP 풀스택 개발 팀
+
+**목표:** 이 ERP 프로젝트의 모든 코드 변경을 도메인 특화 에이전트 팀이 표준 워크플로우로 처리하도록 한다.
+
+**최우선 트리거 규칙 (필수):**
+
+이 프로젝트의 코드 변경 작업은 **반드시 `erp-feature-builder` 스킬을 먼저 사용한다.** 글로벌 에이전트(api-architect, openapi-docs-expert, ui-design-expert, ui-engineer)보다 항상 우선한다. 이유:
+
+- 이 ERP의 도메인 규칙(스냅샷 필드, KST 타임존, VIEWER 권한, 마이그레이션 정책)을 글로벌 에이전트는 모른다
+- 이 프로젝트의 회귀 패턴(API↔프론트 shape 불일치, VIEWER UI 누락)이 빈번하여 incremental QA가 필수
+- 한국어 도메인 문서(CLAUDE.md/CLAUDE.local.md 21개)를 분석하는 에이전트가 별도로 정의됨
+
+**트리거 키워드 (이 중 하나라도 해당하면 erp-feature-builder 사용):**
+- 도메인: 근무기록, 매장, 거래처, 순회, 템플릿, 미수금, 수금, 비용, 고정비용, 공지, 직원, 관리자, 대시보드, 경비, 프로필, 회원가입, 로그인
+- 기술: API 라우트, Prisma, 마이그레이션, 스키마, 페이지, 컴포넌트, 모달, shadcn, TanStack Query, react-hook-form, zod
+- 권한: ADMIN, USER, VIEWER, 역할, 권한 가드
+- 작업 유형: 추가, 수정, 삭제, 변경, 개선, 버그, 회귀, 리팩터링, 업데이트, 보완, 재실행
+
+**트리거하지 않는 경우:**
+- 단순 질문 ("이 함수가 뭐 해?"), 코드 읽기만 요청, 일반 프로그래밍 질문
+- 사용자가 명시적으로 글로벌 에이전트 호출 요청 (예: "ui-engineer로 해줘")
+
+**구성:**
+- 에이전트 5명: `erp-domain-analyst`, `erp-schema-architect`, `erp-backend-engineer`, `erp-frontend-engineer`, `erp-qa-validator`
+- 오케스트레이터 스킬: `erp-feature-builder`
+- 전용 스킬 5개: `erp-domain-context`, `erp-schema-rules`, `erp-api-patterns`, `erp-ui-patterns`, `erp-qa-checks`
+
+**변경 이력:**
+| 날짜 | 변경 내용 | 대상 | 사유 |
+|------|----------|------|------|
+| 2026-04-25 | 초기 구성 — ERP 풀스택 개발 팀 + 오케스트레이터 + 5개 전용 스킬 | 전체 | 도메인 회귀 패턴(권한/타임존/스냅샷/shape 불일치) 사전 차단 |
