@@ -142,6 +142,11 @@ export async function GET(request: NextRequest) {
         items: { select: { id: true, name: true, amount: true, quantity: true } },
         user: { select: { id: true, name: true } },
         collectedBy: { select: { id: true, name: true } },
+        collectionRequestItems: {
+          where: { collectionRequest: { status: "PENDING" } },
+          select: { collectionRequestId: true },
+          take: 1,
+        },
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       skip: (page - 1) * limit,
@@ -305,12 +310,16 @@ export async function GET(request: NextRequest) {
       canDirectCollect = withinOneDay && !hasPreviousUncollected
     }
 
+    const { collectionRequestItems, ...rest } = r
+    const pendingRequestId = collectionRequestItems[0]?.collectionRequestId ?? null
+
     return {
-      ...r,
+      ...rest,
       storeOutstanding: r.storeId ? storeOutstandingMap.get(r.storeId) ?? null : null,
       canDirectCollect,
       hasPendingRequest,
       hasPreviousUncollected,
+      pendingRequestId,
     }
   })
 

@@ -169,6 +169,14 @@ export function WorkRecordModal({
   const storeId = watch("storeId")
   const isClosed = collectionStatus === "CLOSED"
 
+  // 수금 상태 비활성화 조건
+  // - PENDING 수금 확인 요청에 묶인 기록은 USER가 어떤 상태로도 전환 불가
+  // - 이전 미수가 남은 경우 USER가 COLLECTED로 직접 전환 불가
+  const isInPendingRequest = userRole !== "ADMIN" && !!internalEditRecord?.pendingRequestId
+  const isCollectedLocked =
+    isInPendingRequest ||
+    (userRole !== "ADMIN" && !!internalEditRecord?.hasPreviousUncollected)
+
   // useWatch는 값 변경 시 리렌더링을 트리거
   const watchedItems = useWatch({ control, name: "items" })
 
@@ -583,31 +591,38 @@ export function WorkRecordModal({
               className="grid grid-cols-3 gap-2"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="UNCOLLECTED" id="uncollected" />
-                <Label htmlFor="uncollected" className="font-normal cursor-pointer">
+                <RadioGroupItem value="UNCOLLECTED" id="uncollected" disabled={isInPendingRequest} />
+                <Label
+                  htmlFor="uncollected"
+                  className={`font-normal ${isInPendingRequest ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                >
                   미수
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem
-                  value="COLLECTED"
-                  id="collected"
-                  disabled={userRole !== "ADMIN" && !!internalEditRecord?.hasPreviousUncollected}
-                />
+                <RadioGroupItem value="COLLECTED" id="collected" disabled={isCollectedLocked} />
                 <Label
                   htmlFor="collected"
-                  className={`font-normal ${userRole !== "ADMIN" && internalEditRecord?.hasPreviousUncollected ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                  className={`font-normal ${isCollectedLocked ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
                 >
                   수금 완료
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="CLOSED" id="closed" />
-                <Label htmlFor="closed" className="font-normal cursor-pointer">
+                <RadioGroupItem value="CLOSED" id="closed" disabled={isInPendingRequest} />
+                <Label
+                  htmlFor="closed"
+                  className={`font-normal ${isInPendingRequest ? "cursor-not-allowed text-muted-foreground" : "cursor-pointer"}`}
+                >
                   휴업&폐업
                 </Label>
               </div>
             </RadioGroup>
+            {isInPendingRequest && (
+              <p className="text-xs text-amber-600">
+                수금 확인 요청 중인 기록은 수금 상태를 변경할 수 없습니다.
+              </p>
+            )}
           </div>
 
           {/* 품목 섹션 (휴업&폐업이 아닐 때만) */}

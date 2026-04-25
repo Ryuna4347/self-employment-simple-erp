@@ -85,6 +85,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { collectionStatus, imageUrl, note, items } = parseResult.data
 
+  // 수금 확인 요청중인 기록은 USER가 수금 상태 전환 불가 (UI 차단의 서버 가드)
+  if (
+    collectionStatus !== undefined &&
+    collectionStatus !== workRecord.collectionStatus &&
+    user.role !== "ADMIN"
+  ) {
+    const pendingRequestItem = await prisma.collectionRequestItem.findFirst({
+      where: {
+        workRecordId: workRecord.id,
+        collectionRequest: { status: "PENDING" },
+      },
+      select: { id: true },
+    })
+    if (pendingRequestItem) {
+      return ApiErrors.forbidden("수금 확인 요청 중인 기록은 수금 상태를 변경할 수 없습니다.")
+    }
+  }
+
   // 일반 사용자의 직접 수금처리 제한
   if (collectionStatus === "COLLECTED" && workRecord.collectionStatus === "UNCOLLECTED" && user.role !== "ADMIN") {
     // 1. 시간 제한: max(createdAt, date) 기준 24시간 이내인지 확인

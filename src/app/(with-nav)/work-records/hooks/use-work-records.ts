@@ -85,6 +85,8 @@ export interface WorkRecordResponse {
   canDirectCollect?: boolean
   hasPendingRequest?: boolean
   hasPreviousUncollected?: boolean
+  // 이 기록이 PENDING 상태의 CollectionRequest에 직접 묶여 있을 때의 요청 ID (없으면 null)
+  pendingRequestId?: string | null
 }
 
 // 일별 통계 (서버에서 계산)
