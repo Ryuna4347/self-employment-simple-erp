@@ -230,6 +230,8 @@ src/app/api/
 - zod 유효성 검사
 - 작업할 때는 반드시 브랜치를 만들고 작업할 것
 - 스키마 변경 시 `prisma db push` 대신 `prisma migrate dev` 사용 (마이그레이션 히스토리 유지)
+- React 19 환경: `useEffect` 내 직접 `setState` 호출 금지 — URL/props 파생값은 `useMemo`로, 외부 시스템(matchMedia 등) 구독은 `useSyncExternalStore`로 처리. 외부 prop 트리거 동기화처럼 회피가 어려운 경우만 블록 단위 `eslint-disable`로 정당화 주석과 함께 허용
+- TypeScript `any` 캐스팅 회피 — 불가피하면 `as unknown as T` 경유로 명시적 우회
 
 ## 하네스: ERP 풀스택 개발 팀
 
