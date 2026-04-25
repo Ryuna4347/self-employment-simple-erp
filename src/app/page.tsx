@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,15 +35,19 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams()
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string>("");
-
-  useEffect(() => {
+  // URL 파라미터로부터 파생되는 초기 에러 메시지
+  const urlErrorMessage = useMemo(() => {
     if (searchParams.get('sessionExpired') === 'true') {
-      setErrorMessage('세션이 만료되었습니다. 다시 로그인해주세요.')
-    } else if (searchParams.get('authError') === 'true') {
-      setErrorMessage('인증 정보가 유효하지 않습니다. 다시 로그인해주세요.')
+      return '세션이 만료되었습니다. 다시 로그인해주세요.'
     }
+    if (searchParams.get('authError') === 'true') {
+      return '인증 정보가 유효하지 않습니다. 다시 로그인해주세요.'
+    }
+    return ''
   }, [searchParams])
+  // 사용자 액션(로그인 시도)으로 설정한 에러 메시지가 우선
+  const [errorOverride, setErrorOverride] = useState<string | null>(null)
+  const errorMessage = errorOverride !== null ? errorOverride : urlErrorMessage
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -57,7 +61,7 @@ function LoginForm() {
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
-    setErrorMessage("");
+    setErrorOverride("");
 
     try {
       const result = await signIn("credentials", {
@@ -69,7 +73,7 @@ function LoginForm() {
 
       if (result?.error) {
         // 로그인 실패
-        setErrorMessage("아이디 또는 비밀번호가 올바르지 않습니다.");
+        setErrorOverride("아이디 또는 비밀번호가 올바르지 않습니다.");
         setIsSubmitting(false);
       } else if (result?.ok) {
         // 로그인 성공 - /work-records 로 이동
@@ -78,7 +82,7 @@ function LoginForm() {
         router.refresh();
       }
     } catch {
-      setErrorMessage("로그인 처리 중 오류가 발생했습니다.");
+      setErrorOverride("로그인 처리 중 오류가 발생했습니다.");
       setIsSubmitting(false);
     }
   };

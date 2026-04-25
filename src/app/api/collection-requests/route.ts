@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, requireAdmin, requireAdminRead, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
+import { requireAdminRead, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 수금 확인 요청 생성 스키마

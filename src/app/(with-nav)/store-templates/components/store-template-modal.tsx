@@ -175,6 +175,8 @@ export function StoreTemplateModal({
   })
 
   // 모달 열릴 때 초기화
+  // open prop을 트리거로 한 외부 시스템(폼/선택 매장/드롭다운) 동기화 — useEffect가 적합한 케이스
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (open) {
       setInternalEditTemplate(editTemplate ?? null)
@@ -214,6 +216,7 @@ export function StoreTemplateModal({
       }
     }
   }, [open, editTemplate, reset])
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // 드래그 종료 핸들러
   const handleDragEnd = (event: DragEndEvent) => {

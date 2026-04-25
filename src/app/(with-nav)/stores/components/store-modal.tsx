@@ -139,7 +139,6 @@ export function StoreModal({
         })
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editStore, reset])
 
   const handleFormSubmit = (data: StoreFormData) => {
