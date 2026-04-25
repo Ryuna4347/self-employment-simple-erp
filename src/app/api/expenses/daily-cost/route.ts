@@ -8,7 +8,6 @@ import { dateToKSTMidnight } from "@/lib/date-utils"
 
 // 허용 비용 타입
 const ALLOWED_TITLES = ["주유비", "차량수리비"] as const
-type AllowedTitle = (typeof ALLOWED_TITLES)[number]
 
 // GET 쿼리 파라미터 스키마
 const querySchema = z.object({

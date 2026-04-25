@@ -91,9 +91,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     )
 
     // 1-1. 삭제된 매장 제외
-    const deletedStoreIds = new Set(
-      afterDuplicateFilter.filter((m) => m.store.isDeleted).map((m) => m.storeId)
-    )
     const afterDeleteFilter = afterDuplicateFilter.filter((m) => !m.store.isDeleted)
 
     // 1-2. 계좌이체인데 입금자 없는 매장 제외

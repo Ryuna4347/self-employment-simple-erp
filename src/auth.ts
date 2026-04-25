@@ -25,7 +25,7 @@ const getFreshUserById = cache(async (id: string) => {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(prisma as any),
+  adapter: PrismaAdapter(prisma as unknown as Parameters<typeof PrismaAdapter>[0]),
   providers: [
     Credentials({
       name: "credentials",
@@ -92,7 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // → layout.tsx의 `!session.user.id` 분기에서 /?sessionExpired=true 로 redirect
       // → API 가드(requireAuth 등)는 401 반환
       if (!freshUser || freshUser.isDeleted) {
-        return { ...session, user: undefined as any }
+        return { ...session, user: undefined as unknown as typeof session.user }
       }
 
       session.user.id = freshUser.id
