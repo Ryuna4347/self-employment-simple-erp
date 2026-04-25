@@ -43,12 +43,35 @@ export function CollectionRequestModal({
   const createMutation = useCreateCollectionRequest()
   const batchCollectMutation = useBatchCollect()
 
-  // 가장 최근(마지막) 기록 ID - 항상 선택 고정
-  const latestId = uncollectedRecords?.[uncollectedRecords.length - 1]?.id
+  // 같은 pendingRequestId(non-null)를 공유하는 record들의 그룹 매핑
+  // - ADMIN: 그룹 동기 토글에 사용
+  // - USER: 표시 용도(disabled + 라벨)
+  const groupMap = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    if (!uncollectedRecords) return map
+    for (const r of uncollectedRecords) {
+      if (!r.pendingRequestId) continue
+      const set = map.get(r.pendingRequestId) ?? new Set<string>()
+      set.add(r.id)
+      map.set(r.pendingRequestId, set)
+    }
+    return map
+  }, [uncollectedRecords])
 
-  // 데이터 로드 시 전체 선택 초기화
+  // 선택 가능한 record id 집합
+  // - ADMIN: 모든 record 선택 가능
+  // - USER: pendingRequestId === null 인 record만 선택 가능
+  const selectableIds = useMemo(() => {
+    if (!uncollectedRecords) return new Set<string>()
+    if (isAdmin) return new Set(uncollectedRecords.map((r) => r.id))
+    return new Set(uncollectedRecords.filter((r) => r.pendingRequestId === null).map((r) => r.id))
+  }, [uncollectedRecords, isAdmin])
+
+  // 데이터 로드 시 초기 선택 상태 세팅
+  // - ADMIN: 모든 record
+  // - USER: 선택 가능한(non-pending) record만
   if (uncollectedRecords && !initialized) {
-    setSelectedIds(new Set(uncollectedRecords.map((r) => r.id)))
+    setSelectedIds(new Set(selectableIds))
     setInitialized(true)
   }
 
@@ -63,26 +86,46 @@ export function CollectionRequestModal({
   }
 
   const toggleId = (id: string) => {
-    if (id === latestId) return
+    if (!uncollectedRecords) return
+    const record = uncollectedRecords.find((r) => r.id === id)
+    if (!record) return
+
+    // USER: PENDING 묶임 record는 토글 무시
+    if (!isAdmin && record.pendingRequestId !== null) return
+
+    // ADMIN: 그룹 record면 그룹 전체 동기 토글
+    const targetIds: Set<string> =
+      isAdmin && record.pendingRequestId
+        ? groupMap.get(record.pendingRequestId) ?? new Set([id])
+        : new Set([id])
+
     setSelectedIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
+      const allSelected = Array.from(targetIds).every((tid) => prev.has(tid))
+      if (allSelected) {
+        targetIds.forEach((tid) => next.delete(tid))
       } else {
-        next.add(id)
+        targetIds.forEach((tid) => next.add(tid))
       }
       return next
     })
   }
 
+  // "전체 선택" 토글
+  // - ADMIN: 모든 ID 선택/해제 (단순화)
+  // - USER: 선택 가능한(non-pending) ID만 선택/해제
   const toggleAll = () => {
     if (!uncollectedRecords) return
-    if (selectedIds.size === uncollectedRecords.length) {
-      setSelectedIds(new Set(latestId ? [latestId] : []))
+    const allSelected = selectableIds.size > 0 && Array.from(selectableIds).every((id) => selectedIds.has(id))
+    if (allSelected) {
+      setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(uncollectedRecords.map((r) => r.id)))
+      setSelectedIds(new Set(selectableIds))
     }
   }
+
+  const allSelectableSelected =
+    selectableIds.size > 0 && Array.from(selectableIds).every((id) => selectedIds.has(id))
 
   const selectedTotal = useMemo(() => {
     if (!uncollectedRecords) return 0
@@ -165,8 +208,9 @@ export function CollectionRequestModal({
               {/* 전체 선택 */}
               <div className="flex items-center gap-2 pb-2 border-b">
                 <Checkbox
-                  checked={selectedIds.size === uncollectedRecords.length}
+                  checked={allSelectableSelected}
                   onCheckedChange={toggleAll}
+                  disabled={selectableIds.size === 0}
                 />
                 <span className="text-sm font-medium text-gray-700">
                   전체 선택 ({selectedIds.size}/{uncollectedRecords.length})
@@ -175,27 +219,49 @@ export function CollectionRequestModal({
 
               {/* 레코드 목록 */}
               <div className="space-y-2">
-                {uncollectedRecords.map((r) => (
-                  <label
-                    key={r.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <Checkbox
-                      checked={selectedIds.has(r.id)}
-                      onCheckedChange={() => toggleId(r.id)}
-                      disabled={r.id === latestId}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{r.date}</p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {r.items.map((i) => i.name).join(", ")}
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-900 shrink-0">
-                      {r.totalAmount.toLocaleString()}원
-                    </span>
-                  </label>
-                ))}
+                {uncollectedRecords.map((r) => {
+                  const isPendingRecord = r.pendingRequestId !== null
+                  const userDisabled = !isAdmin && isPendingRecord
+                  return (
+                    <label
+                      key={r.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border border-gray-200 ${
+                        userDisabled
+                          ? "bg-gray-50 cursor-not-allowed opacity-70"
+                          : "hover:bg-gray-50 cursor-pointer"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={() => toggleId(r.id)}
+                        disabled={userDisabled}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-gray-900">{r.date}</p>
+                          {/* USER: 확인 요청중 라벨, ADMIN: 요청 묶음 라벨 */}
+                          {isPendingRecord && (
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                isAdmin
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {isAdmin ? "요청 묶음" : "확인 요청중"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 truncate">
+                          {r.items.map((i) => i.name).join(", ")}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 shrink-0">
+                        {r.totalAmount.toLocaleString()}원
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
 
               {/* 선택 합계 */}

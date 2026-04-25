@@ -24,6 +24,12 @@ export async function GET(request: NextRequest) {
       id: true,
       date: true,
       items: { select: { name: true, amount: true, quantity: true } },
+      // PENDING 상태의 수금 확인 요청에 묶여있는지 확인
+      collectionRequestItems: {
+        where: { collectionRequest: { status: "PENDING" } },
+        select: { collectionRequestId: true },
+        take: 1,
+      },
     },
     orderBy: { date: "asc" },
   })
@@ -33,6 +39,7 @@ export async function GET(request: NextRequest) {
     date: format(toKSTLocal(r.date), "yyyy-MM-dd"),
     items: r.items,
     totalAmount: r.items.reduce((sum, item) => sum + item.amount, 0),
+    pendingRequestId: r.collectionRequestItems[0]?.collectionRequestId ?? null,
   }))
 
   return apiSuccess(data)

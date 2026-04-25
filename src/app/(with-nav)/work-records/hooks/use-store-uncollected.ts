@@ -4,8 +4,10 @@ import { apiClient } from "@/lib/api-client"
 export interface StoreUncollectedRecord {
   id: string
   date: string
-  items: { id: string; name: string; amount: number; quantity: number }[]
+  items: { name: string; amount: number; quantity: number }[]
   totalAmount: number
+  // PENDING 상태의 CollectionRequest에 묶여 있으면 그 id, 아니면 null
+  pendingRequestId: string | null
 }
 
 interface StoreUncollectedResponse {

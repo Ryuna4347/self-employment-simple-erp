@@ -39,8 +39,43 @@ export async function POST(request: Request) {
     return ApiErrors.validationError("미수 상태인 기록만 수금 처리할 수 있습니다")
   }
 
+  const now = new Date()
+  const autoCloseNote = "어드민 직접 수금 처리로 자동 종결"
+
   const result = await prisma.$transaction(async (tx) => {
-    return consolidateAndCollect(tx, workRecordIds, user.id, new Date())
+    // 1. 처리 대상 workRecordIds가 속한 PENDING 상태의 CollectionRequest 조회
+    const pendingRequests = await tx.collectionRequest.findMany({
+      where: {
+        status: "PENDING",
+        items: { some: { workRecordId: { in: workRecordIds } } },
+      },
+      select: { id: true, note: true },
+    })
+
+    // 2. 이월 수금 통합 처리 (기존 로직)
+    const consolidateResult = await consolidateAndCollect(tx, workRecordIds, user.id, now)
+
+    // 3. 조회된 PENDING CollectionRequest들을 일괄 APPROVED 처리
+    //    note는 기존 값에 append 방식으로 보존 (개별 update로 분기)
+    const approvedRequestIds: string[] = []
+    for (const req of pendingRequests) {
+      const mergedNote = req.note?.trim()
+        ? `${req.note}\n${autoCloseNote}`
+        : autoCloseNote
+
+      await tx.collectionRequest.update({
+        where: { id: req.id },
+        data: {
+          status: "APPROVED",
+          reviewerId: user.id,
+          reviewedAt: now,
+          note: mergedNote,
+        },
+      })
+      approvedRequestIds.push(req.id)
+    }
+
+    return { ...consolidateResult, approvedRequestIds }
   })
 
   return apiSuccess(result)
