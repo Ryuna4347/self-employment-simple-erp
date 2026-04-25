@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { Loader2, Search, Users } from "lucide-react"
+import { Loader2, RefreshCw, Search, Users } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -47,8 +47,15 @@ export function CollectionHistoryTab() {
     [year, month, selectedUserId, searchStoreName]
   )
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCollectionHistory(params)
+  const {
+    data,
+    isLoading,
+    isFetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useCollectionHistory(params)
 
   const items = useMemo(
     () => data?.pages.flatMap((page) => page.items) ?? [],
@@ -174,6 +181,16 @@ export function CollectionHistoryTab() {
       {isFetchingNextPage && (
         <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
       )}
+
+      {/* 새로고침 버튼 */}
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        aria-label="새로고침"
+      >
+        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   )
 }

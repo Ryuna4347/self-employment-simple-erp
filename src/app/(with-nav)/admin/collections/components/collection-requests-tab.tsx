@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCollectionRequests } from "../hooks/use-collections"
 import { CollectionRequestCard } from "./collection-request-card"
@@ -14,8 +14,15 @@ const STATUS_OPTIONS = [
 export function CollectionRequestsTab() {
   const [status, setStatus] = useState("PENDING")
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useCollectionRequests(status)
+  const {
+    data,
+    isLoading,
+    isFetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useCollectionRequests(status)
 
   const requests = useMemo(
     () => data?.pages.flatMap((page) => page.requests) ?? [],
@@ -84,6 +91,16 @@ export function CollectionRequestsTab() {
       {isFetchingNextPage && (
         <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
       )}
+
+      {/* 새로고침 버튼 */}
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        aria-label="새로고침"
+      >
+        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   )
 }

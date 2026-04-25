@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { UserPlus, Users } from "lucide-react"
+import { RefreshCw, UserPlus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { StaffCard } from "./staff-card"
 import { InviteModal } from "./invite-modal"
@@ -18,7 +18,7 @@ export function StaffContent() {
   const [removeTarget, setRemoveTarget] = useState<StaffMember | null>(null)
 
   // react-query
-  const { data: staff = [], isLoading } = useStaff()
+  const { data: staff = [], isLoading, isFetching, refetch } = useStaff()
   const deleteMutation = useDeleteStaff()
 
   // 삭제 핸들러
@@ -89,6 +89,16 @@ export function StaffContent() {
         onConfirm={handleRemoveConfirm}
         isLoading={deleteMutation.isPending}
       />}
+
+      {/* 새로고침 버튼 */}
+      <button
+        onClick={() => refetch()}
+        disabled={isFetching}
+        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+        aria-label="새로고침"
+      >
+        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
+      </button>
     </div>
   )
 }
