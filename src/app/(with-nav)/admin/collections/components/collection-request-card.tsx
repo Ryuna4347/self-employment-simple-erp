@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ChevronDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,30 @@ import {
   useRejectCollectionRequest,
   type CollectionRequestListItem,
 } from "../hooks/use-collections"
+
+// 날짜별 그룹 (같은 workRecord.date 끼리 묶음)
+interface DateGroup {
+  date: string
+  records: CollectionRequestListItem["items"][number]["workRecord"][]
+  total: number
+}
+
+// items 를 workRecord.date 기준으로 그룹핑.
+// 백엔드가 이미 date 오름차순 정렬해서 내려주므로 추가 정렬 불필요.
+function groupItemsByDate(items: CollectionRequestListItem["items"]): DateGroup[] {
+  const groups: DateGroup[] = []
+  for (const item of items) {
+    const wr = item.workRecord
+    const last = groups[groups.length - 1]
+    if (last && last.date === wr.date) {
+      last.records.push(wr)
+      last.total += wr.itemsTotal
+    } else {
+      groups.push({ date: wr.date, records: [wr], total: wr.itemsTotal })
+    }
+  }
+  return groups
+}
 
 interface CollectionRequestCardProps {
   request: CollectionRequestListItem
@@ -33,6 +57,11 @@ export function CollectionRequestCard({ request }: CollectionRequestCardProps) {
   const badge = STATUS_BADGE[request.status] ?? STATUS_BADGE.PENDING
   const isPending = request.status === "PENDING"
   const isProcessing = approveMutation.isPending || rejectMutation.isPending
+
+  const dateGroups = useMemo(
+    () => groupItemsByDate(request.items),
+    [request.items]
+  )
 
   const handleApprove = () => {
     if (!confirm("이 수금 확인 요청을 승인하시겠습니까?")) return
@@ -104,6 +133,52 @@ export function CollectionRequestCard({ request }: CollectionRequestCardProps) {
       >
         <div className="overflow-hidden">
           <div className="border-t border-gray-200 p-4 space-y-3">
+            {/* 날짜별 비용 목록 (collection-history-card 의 일괄 수금 영역과 동일 톤) */}
+            {dateGroups.length > 0 && (
+              <div className="space-y-3">
+                {dateGroups.map((group) => (
+                  <div key={group.date}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        {group.date}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-sm font-medium",
+                          group.total === 0 ? "text-gray-400" : "text-gray-900"
+                        )}
+                      >
+                        {group.total.toLocaleString()}원
+                      </span>
+                    </div>
+                    <div className="pl-2 space-y-0.5">
+                      {group.records.map((rec) => (
+                        <div
+                          key={rec.id}
+                          className="flex items-center justify-between text-xs text-gray-500"
+                        >
+                          <span className="truncate">
+                            {rec.storeNameSnapshot ?? request.storeNameSnapshot}
+                          </span>
+                          <span>{rec.itemsTotal.toLocaleString()}원</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* 합계 행 (강조) */}
+                <div className="flex items-center justify-between border-t border-gray-200 pt-2 mt-2">
+                  <span className="text-sm font-semibold text-muted-foreground">
+                    합계
+                  </span>
+                  <span className="text-base font-bold text-red-600">
+                    {request.totalAmount.toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* 메모 */}
             {request.note && (
               <div className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-200">

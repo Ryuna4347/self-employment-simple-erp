@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
+import { format } from "date-fns"
 import { prisma } from "@/lib/prisma"
 import { requireAdminRead, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import { toKSTLocal } from "@/lib/date-utils"
 
 // 수금 확인 요청 생성 스키마
 const createSchema = z.object({
@@ -114,7 +116,8 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 date: true,
-                items: { select: { name: true, amount: true, quantity: true } },
+                storeNameSnapshot: true,
+                items: { select: { id: true, name: true, amount: true, quantity: true } },
               },
             },
           },
@@ -127,14 +130,37 @@ export async function GET(request: NextRequest) {
     prisma.collectionRequest.count({ where }),
   ])
 
-  // 각 요청의 총액 계산
+  // 각 요청의 총액 계산 + KST 포맷 + items 명시 매핑
   const data = requests.map((req) => {
-    const totalAmount = req.items.reduce((sum, item) => {
-      return sum + item.workRecord.items.reduce((s, ri) => s + ri.amount, 0)
-    }, 0)
+    // RecordItem 합계는 프로젝트 컨벤션에 따라 amount 단독 합산
+    // (collection-history, [id]/route.ts, work-records 등 모든 라우트 일관)
+    const items = req.items
+      .map((item) => {
+        const itemsTotal = item.workRecord.items.reduce((sum, ri) => sum + ri.amount, 0)
+        return {
+          id: item.id,
+          workRecordId: item.workRecordId,
+          workRecord: {
+            id: item.workRecord.id,
+            date: format(toKSTLocal(item.workRecord.date), "yyyy-MM-dd"),
+            storeNameSnapshot: item.workRecord.storeNameSnapshot,
+            items: item.workRecord.items,
+            itemsTotal,
+          },
+        }
+      })
+      // workRecord.date 오름차순 정렬 (이력 카드와 동일)
+      .sort((a, b) => a.workRecord.date.localeCompare(b.workRecord.date))
+
+    const totalAmount = items.reduce((sum, it) => sum + it.workRecord.itemsTotal, 0)
 
     return {
       ...req,
+      createdAt: format(toKSTLocal(req.createdAt), "yyyy-MM-dd HH:mm"),
+      reviewedAt: req.reviewedAt
+        ? format(toKSTLocal(req.reviewedAt), "yyyy-MM-dd HH:mm")
+        : null,
+      items,
       totalAmount,
       recordCount: req.items.length,
     }

@@ -3,6 +3,10 @@ import { apiClient } from "@/lib/api-client"
 import type { CollectionRequestStatus } from "@/generated/prisma/client"
 
 // 수금 확인 요청 목록 아이템
+// 백엔드 매핑: src/app/api/collection-requests/route.ts (GET 응답)
+//  - createdAt/reviewedAt: KST "yyyy-MM-dd HH:mm" 포맷 문자열 (서버에서 사전 포맷)
+//  - items[].workRecord.date: KST "yyyy-MM-dd" 포맷 문자열 (서버에서 사전 포맷)
+//  - items 는 workRecord.date 오름차순 정렬됨
 export interface CollectionRequestListItem {
   id: string
   storeNameSnapshot: string
@@ -11,7 +15,19 @@ export interface CollectionRequestListItem {
   recordCount: number
   totalAmount: number
   createdAt: string
+  reviewedAt: string | null
   note: string | null
+  items: {
+    id: string
+    workRecordId: string
+    workRecord: {
+      id: string
+      date: string
+      storeNameSnapshot: string | null
+      items: { id: string; name: string; amount: number; quantity: number }[]
+      itemsTotal: number
+    }
+  }[]
 }
 
 // 수금 확인 요청 상세
