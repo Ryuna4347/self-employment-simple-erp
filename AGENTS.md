@@ -32,13 +32,13 @@ pnpm prisma studio    # DB GUI
 
 ```
 src/app/
-├── (auth)/              # 인증 관련 CLAUDE.md만 존재 (페이지 없음)
+├── (auth)/              # 인증 관련 AGENTS.md만 존재 (페이지 없음)
 ├── (with-nav)/          # 네비게이션 포함 (Header + BottomNav)
 │   ├── layout.tsx       # 세션 검증 + AppProviders
 │   ├── work-records/    # 근무기록 (캘린더 + 리스트)
 │   ├── stores/          # 매장 관리
 │   ├── store-templates/ # 순회 코스 템플릿
-│   ├── expenses/        # 경비 (미구현, CLAUDE.md만 존재)
+│   ├── expenses/        # 경비 (미구현, AGENTS.md만 존재)
 │   ├── profile/         # 프로필 (비밀번호 변경)
 │   └── admin/           # 관리자 전용
 │       ├── page.tsx     # 관리자 랜딩 페이지
@@ -233,9 +233,9 @@ src/app/api/
 - React 19 환경: `useEffect` 내 직접 `setState` 호출 금지 — URL/props 파생값은 `useMemo`로, 외부 시스템(matchMedia 등) 구독은 `useSyncExternalStore`로 처리. 외부 prop 트리거 동기화처럼 회피가 어려운 경우만 블록 단위 `eslint-disable`로 정당화 주석과 함께 허용
 - TypeScript `any` 캐스팅 회피 — 불가피하면 `as unknown as T` 경유로 명시적 우회
 
-## 하네스: ERP 풀스택 개발 팀
+## 하네스: Claude × Codex 협업 (MCP 기반)
 
-**목표:** 이 ERP 프로젝트의 모든 코드 변경을 도메인 특화 에이전트 팀이 표준 워크플로우로 처리하도록 한다.
+**목표:** 이 ERP 프로젝트의 모든 코드 변경을 **Claude(오케스트레이터/QA) ↔ Codex(코드 작성) 협업**으로 처리한다. Claude는 도메인 컨텍스트 수집·계획·검증을, 실제 파일 편집은 Codex MCP가 담당한다.
 
 **최우선 트리거 규칙 (필수):**
 
@@ -243,7 +243,7 @@ src/app/api/
 
 - 이 ERP의 도메인 규칙(스냅샷 필드, KST 타임존, VIEWER 권한, 마이그레이션 정책)을 글로벌 에이전트는 모른다
 - 이 프로젝트의 회귀 패턴(API↔프론트 shape 불일치, VIEWER UI 누락)이 빈번하여 incremental QA가 필수
-- 한국어 도메인 문서(CLAUDE.md/CLAUDE.local.md 21개)를 분석하는 에이전트가 별도로 정의됨
+- 한국어 도메인 문서(AGENTS.md/AGENTS.local.md 21개)를 분석하는 컨텍스트 수집 절차가 별도로 정의됨
 
 **트리거 키워드 (이 중 하나라도 해당하면 erp-feature-builder 사용):**
 - 도메인: 근무기록, 매장, 거래처, 순회, 템플릿, 미수금, 수금, 비용, 고정비용, 공지, 직원, 관리자, 대시보드, 경비, 프로필, 회원가입, 로그인
@@ -255,12 +255,26 @@ src/app/api/
 - 단순 질문 ("이 함수가 뭐 해?"), 코드 읽기만 요청, 일반 프로그래밍 질문
 - 사용자가 명시적으로 글로벌 에이전트 호출 요청 (예: "ui-engineer로 해줘")
 
+**역할 분담:**
+
+| 주체 | 책임 |
+|------|------|
+| **Claude (오케스트레이터)** | 도메인 분석, 영향 범위 매핑, 작업 분해, Codex 호출용 사양서(brief) 작성, QA 검증, 사용자 보고 |
+| **Codex MCP (실행자)** | Prisma 스키마 변경, 마이그레이션 실행, API 라우트 구현, 페이지/컴포넌트 구현, lint/tsc 자체 수정 |
+
+**MCP 호출 규약:**
+
+- Codex는 `.mcp.json`에 정의된 `codex` 서버를 통해 호출한다 (MCP 도구 이름: `mcp__codex__codex` 또는 동등 이름)
+- Claude는 직접 `Edit`/`Write`로 코드를 편집하지 않는다 (사양서·계획·QA 보고만 직접 작성)
+- 예외: skills/agents 메타 파일, 1줄 단순 수정, 사용자가 명시적으로 Claude 직접 작업을 지시한 경우
+
 **구성:**
-- 에이전트 5명: `erp-domain-analyst`, `erp-schema-architect`, `erp-backend-engineer`, `erp-frontend-engineer`, `erp-qa-validator`
-- 오케스트레이터 스킬: `erp-feature-builder`
-- 전용 스킬 5개: `erp-domain-context`, `erp-schema-rules`, `erp-api-patterns`, `erp-ui-patterns`, `erp-qa-checks`
+- 오케스트레이터 스킬: `erp-feature-builder` (Codex MCP 호출 흐름 정의)
+- 컨텍스트/규칙 스킬 5개: `erp-domain-context`, `erp-schema-rules`, `erp-api-patterns`, `erp-ui-patterns`, `erp-qa-checks` — Codex에게 전달할 brief의 출처
+- 에이전트 5명(`erp-domain-analyst`, `erp-schema-architect`, `erp-backend-engineer`, `erp-frontend-engineer`, `erp-qa-validator`): **Codex에 보낼 brief의 역할별 템플릿**으로 사용. Claude의 Task agent로 호출하지 않음
 
 **변경 이력:**
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-04-25 | 초기 구성 — ERP 풀스택 개발 팀 + 오케스트레이터 + 5개 전용 스킬 | 전체 | 도메인 회귀 패턴(권한/타임존/스냅샷/shape 불일치) 사전 차단 |
+| 2026-05-05 | 코드 작성을 Codex MCP에 위임. CLAUDE.md → AGENTS.md 통합 | 전체 | 단일 도메인 문서(AGENTS.md)로 Codex와 Claude가 동일 컨텍스트 공유 |
