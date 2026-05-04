@@ -37,7 +37,7 @@
 
 ## 구현 상태
 
-> **미구현**: 사용자용 `/expenses` 페이지 UI는 아직 구현되지 않음 (CLAUDE.md만 존재).
+> **미구현**: 사용자용 `/expenses` 페이지 UI는 아직 구현되지 않음 (AGENTS.md만 존재).
 > 일일 비용 기록은 `/work-records`의 일일 비용 모달에서 `POST /api/expenses/daily-cost`로 처리.
 > 관리자용 비용 관리는 `/admin/costs`에서 구현됨.
 

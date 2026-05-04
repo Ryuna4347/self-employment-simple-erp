@@ -45,8 +45,9 @@ next-env.d.ts
 # tasks
 /tasks
 
-# Claude Code
+# Claude Code / Codex
 .claude/
 **/CLAUDE.local.md
+**/AGENTS.local.md
 docs/
 scripts/
