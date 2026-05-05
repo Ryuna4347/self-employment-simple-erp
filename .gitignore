@@ -52,3 +52,6 @@ next-env.d.ts
 **/AGENTS.local.md
 docs/
 scripts/
+
+# erp-feature-builder workspace (작업 산출물, 로컬 보관)
+/_workspace/
