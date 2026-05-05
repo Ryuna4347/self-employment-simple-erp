@@ -11,6 +11,7 @@
 - 수금 관리: 수금 확인 요청 승인/거부, 수금 이력 조회
 - 비용 관리: 월별 비용 CRUD, 대시보드 연동
 - 공지 관리: 공지 CRUD, 만료일 설정
+- 세금계산서 관리: TaxParty 사업자 마스터 CRUD
 - 엑셀 내보내기: 월간 리포트 출력
 
 ---
@@ -77,7 +78,7 @@ admin/
 │   └── hooks/
 │       ├── use-costs.ts
 │       └── use-recurring-costs.ts
-└── notices/
+├── notices/
     ├── page.tsx
     ├── components/
     │   ├── notices-content.tsx
@@ -87,6 +88,15 @@ admin/
     │   └── index.ts
     └── hooks/
         └── use-notices.ts
+└── tax-invoices/
+    ├── page.tsx
+    ├── components/
+    │   ├── tax-parties-content.tsx
+    │   ├── tax-party-card.tsx
+    │   ├── tax-party-modal.tsx
+    │   └── delete-tax-party-modal.tsx
+    └── hooks/
+        └── use-tax-parties.ts
 ```
 
 ---
@@ -126,6 +136,12 @@ admin/
 - 만료일 설정 (null = 무기한, 설정 시 해당일 23:59:59까지 유효)
 - 만료되지 않은 최신 공지 1건이 근무기록 페이지에 배너로 표시
 
+### 7. 세금계산서 관리
+- TaxParty 사업자 마스터 CRUD
+- 사업자명, 사업자등록번호, 대표자명, 업태, 종목, 이메일, 담당자 관리
+- `VIEWER`는 목록 조회만 가능하며 추가/편집/삭제 버튼은 렌더링하지 않음
+- 매장은 `taxPartyId`로 TaxParty를 참조하며, 한 사업자는 여러 매장에 연결 가능
+
 ---
 
 ## 관련 API
@@ -143,6 +159,8 @@ admin/
 - `PUT/DELETE /api/admin/recurring-costs/[id]` - 고정비용 수정/삭제
 - `GET/POST /api/admin/notices` - 공지 목록/생성
 - `PUT/DELETE /api/admin/notices/[id]` - 공지 수정/삭제
+- `GET/POST /api/admin/tax-parties` - 사업자 마스터 목록/생성
+- `PUT/DELETE /api/admin/tax-parties/[id]` - 사업자 마스터 수정/삭제
 - `POST /api/cron/generate-recurring-costs` - 고정비용 자동 생성 (크론)
 - `GET /api/notices/latest` - 최신 공지 조회 (사용자용)
 - `POST /api/admin/export/monthly` - 월간 엑셀 내보내기
@@ -158,3 +176,4 @@ admin/
 - `/admin/collections` - 수금 관리
 - `/admin/costs` - 비용 관리
 - `/admin/notices` - 공지 관리
+- `/admin/tax-invoices` - 세금계산서 관리

@@ -4,7 +4,9 @@ import { useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { useUser } from "@/components/providers/app-providers"
+import { hasAdminAccess } from "@/lib/role-utils"
+import { cn, formatBizNo } from "@/lib/utils"
 import type { Store } from "../hooks/use-stores"
 
 interface StoreCardProps {
@@ -41,6 +43,8 @@ const receiptTypeLabels: Record<string, string> = {
  */
 export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const { role } = useUser()
+  const showTaxParty = hasAdminAccess(role)
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -158,6 +162,25 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
               </div>
             )}
 
+            {showTaxParty && (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                <h4 className="mb-3 font-medium text-foreground">사업자 정보</h4>
+                {store.taxParty ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoItem label="사업자명" value={store.taxParty.name} />
+                    <InfoItem label="사업자번호" value={formatBizNo(store.taxParty.bizNo)} />
+                    <InfoItem label="대표자명" value={store.taxParty.representativeName} />
+                    <InfoItem label="업태" value={store.taxParty.businessType} />
+                    <InfoItem label="종목" value={store.taxParty.businessItem} />
+                    <InfoItem label="발급 이메일" value={store.taxParty.taxInvoiceEmail} />
+                    <InfoItem label="주소" value={store.taxParty.address} />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">사업자 정보 미연결</p>
+                )}
+              </div>
+            )}
+
             {/* 품목 테이블 */}
             <div>
               <h4 className="text-sm font-medium text-gray-900 mb-2">
@@ -231,6 +254,15 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function InfoItem({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <span className="text-muted-foreground">{label}</span>
+      <p className="mt-0.5 font-medium text-foreground">{value || "-"}</p>
     </div>
   )
 }

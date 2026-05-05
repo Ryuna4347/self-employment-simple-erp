@@ -21,6 +21,9 @@
 - `kakaoPlaceId`: 카카오맵 장소 ID
 - `latitude` / `longitude`: 좌표
 - `receiptType`: 영수증 발급 종류 (NONE / SIMPLE_RECEIPT / TRANSACTION_STATEMENT)
+- `taxInvoiceEnabled`: 세금계산서 발급 대상 여부
+- `taxPartyId`: 연결된 TaxParty ID
+- `taxParty`: 연결된 사업자 마스터 정보
 - `assignedUserId`: 담당 사원 ID
 - `isDeleted`: 소프트 삭제 여부 (default: false)
 
@@ -37,6 +40,12 @@
 - 매장 수정 시 연결된 WorkRecord의 스냅샷(storeNameSnapshot, storeAddressSnapshot) 동기화
 - kakaoPlaceId는 unique (중복 등록 방지)
 - 근무기록 생성 시 StoreItem 자동 로드
+- 세금계산서 발급 대상 체크박스는 결제 방식이 `CASH` 또는 `ACCOUNT`일 때만 렌더링
+- 결제 방식을 `CARD`로 변경해도 `taxInvoiceEnabled` 값을 자동 초기화하지 않음. 다시 `CASH`/`ACCOUNT`로 돌아오면 기존 체크 상태를 보존
+- 사업자등록번호, 대표자명, 업태, 종목, 세금계산서 이메일, 발급 담당자는 Store에서 제거되고 TaxParty에서 관리
+- 매장 모달의 사업자 선택 autocomplete는 `ADMIN`에게만 렌더링
+- `USER`는 매장 모달에서 사업자 영역을 볼 수 없으며 기존 `taxPartyId` 값을 보존
+- 매장 카드 펼침 영역의 사업자 정보 readonly 표시는 `ADMIN`, `VIEWER`에게만 렌더링
 
 ---
 
@@ -48,6 +57,7 @@ stores/
 ├── components/
 │   ├── store-card.tsx      # 매장 카드 (아코디언)
 │   ├── store-modal.tsx     # 매장 추가/수정 모달
+│   ├── tax-party-autocomplete.tsx # 사업자 검색/선택 autocomplete
 │   └── index.ts
 └── hooks/
     └── use-stores.ts       # 매장 CRUD
@@ -59,6 +69,7 @@ stores/
 
 - `GET/POST /api/stores` - 매장 목록/생성
 - `GET/PUT/DELETE /api/stores/[id]` - 매장 CRUD
+- `GET /api/tax-parties/search` - 사업자 autocomplete 검색
 
 ---
 

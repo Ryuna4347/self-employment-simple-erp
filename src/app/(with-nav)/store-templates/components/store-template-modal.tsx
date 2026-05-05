@@ -204,11 +204,12 @@ export function StoreTemplateModal({
             longitude: null,
             assignedUserId: null,
             note: null,
-            bizNo: null,
             taxInvoiceEnabled: false,
+            taxPartyId: null,
+            taxParty: null,
             assignedUser: null,
             storeItems: [],
-          } as Store,
+          },
           order: member.order,
         }))
         setSelectedStores(existingStores)

@@ -42,19 +42,20 @@ export async function GET(request: NextRequest) {
         isDeleted: false,
         taxInvoiceEnabled: true,
         PaymentType: { in: ["CASH", "ACCOUNT"] },
-        bizNo: { not: null },
+        taxPartyId: { not: null },
+        taxParty: { is: { isDeleted: false } },
       },
       select: {
         id: true,
         name: true,
         managerName: true,
         PaymentType: true,
-        bizNo: true,
+        taxParty: { select: { bizNo: true } },
       },
     })
 
     const storesWithBizNo = stores
-      .map((store) => ({ ...store, bizNo: store.bizNo?.trim() ?? "" }))
+      .map((store) => ({ ...store, bizNo: store.taxParty?.bizNo.trim() ?? "" }))
       .filter((store) => store.bizNo.length > 0)
 
     if (storesWithBizNo.length === 0) {
