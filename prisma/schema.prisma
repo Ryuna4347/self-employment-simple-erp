@@ -40,14 +40,15 @@ model Store {
   longitude       Float?
   receiptType     ReceiptType       @default(NONE)  // 영수증 발급 종류
   note            String?           // 특이사항
-  bizNo             String? @db.VarChar(10)
   taxInvoiceEnabled Boolean @default(false)
+  taxPartyId      String?
   assignedUserId  String?
   isDeleted       Boolean               @default(false)
   deletedAt       DateTime?             // 소프트 삭제 시점
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   assignedUser    User?                 @relation("assignedStores", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  taxParty        TaxParty?             @relation(fields: [taxPartyId], references: [id], onDelete: SetNull)
   storeItems           StoreItem[]
   templateMembers      StoreTemplateMember[]
   workRecords          WorkRecord[]
@@ -56,6 +57,26 @@ model Store {
 
   @@index([isDeleted])                           // stores: 소프트 삭제 필터
   @@index([deletedAt])                           // dashboard: 기간별 삭제 매장 조회
+  @@index([taxPartyId])
+}
+
+model TaxParty {
+  id                 String    @id @default(cuid())
+  name               String
+  bizNo              String    @unique @db.VarChar(10)
+  representativeName String?
+  businessType       String?
+  businessItem       String?
+  taxInvoiceEmail    String?
+  address            String?
+  isDeleted          Boolean   @default(false)
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  stores             Store[]
+
+  @@index([isDeleted])
+  @@index([name])
 }
 
 model StoreItem {

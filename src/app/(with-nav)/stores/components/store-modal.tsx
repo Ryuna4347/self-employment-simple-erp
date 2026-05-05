@@ -25,7 +25,9 @@ import {
 } from "@/components/ui/select"
 import type { Store, StoreInput } from "../hooks/use-stores"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
+import { useUser } from "@/components/providers/app-providers"
 import { useUsers } from "@/hooks/use-users"
+import { TaxPartyAutocomplete, type TaxPartyOption } from "./tax-party-autocomplete"
 
 // 품목 스키마
 const storeItemSchema = z.object({
@@ -33,22 +35,6 @@ const storeItemSchema = z.object({
   amount: z.number().int().min(0, "금액을 입력해주세요"),
   quantity: z.number().int().min(1, "수량을 입력해주세요"),
 })
-
-// 매장 스키마
-const formBizNoSchema = z
-  .string()
-  .optional()
-  .refine((value) => !value || /^[\d-]{0,13}$/.test(value), {
-    message: "사업자등록번호는 숫자 또는 하이픈만 입력해주세요",
-  })
-  .refine(
-    (value) => {
-      if (!value) return true
-      const digitLength = value.replace(/[^0-9]/g, "").length
-      return digitLength === 0 || digitLength === 10
-    },
-    { message: "사업자등록번호는 10자리 숫자여야 합니다" }
-  )
 
 const storeSchema = z.object({
   name: z.string().min(1, "매장명을 입력해주세요"),
@@ -58,7 +44,7 @@ const storeSchema = z.object({
   managerName: z.string().optional(),
   assignedUserId: z.string().optional(),
   note: z.string().optional(),
-  bizNo: formBizNoSchema,
+  taxPartyId: z.string().nullable().optional(),
   taxInvoiceEnabled: z.boolean().optional(),
   items: z.array(storeItemSchema).optional(),
 }).refine(
@@ -67,6 +53,14 @@ const storeSchema = z.object({
 )
 
 type StoreFormData = z.infer<typeof storeSchema>
+
+function isPaymentType(value: string): value is StoreFormData["PaymentType"] {
+  return value === "CASH" || value === "ACCOUNT" || value === "CARD"
+}
+
+function isReceiptType(value: string): value is StoreFormData["receiptType"] {
+  return value === "NONE" || value === "SIMPLE_RECEIPT" || value === "TRANSACTION_STATEMENT"
+}
 
 interface StoreModalProps {
   open: boolean
@@ -90,6 +84,9 @@ export function StoreModal({
   const [internalEditStore, setInternalEditStore] = useState<Store | null>(null)
   const isEditMode = !!internalEditStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  const [selectedParty, setSelectedParty] = useState<TaxPartyOption | null>(null)
+  const { role } = useUser()
+  const isAdmin = role === "ADMIN"
   const { data: templates = [] } = useStoreTemplates()
   const { data: users = [] } = useUsers()
 
@@ -112,7 +109,7 @@ export function StoreModal({
       managerName: "",
       assignedUserId: "",
       note: "",
-      bizNo: "",
+      taxPartyId: null,
       taxInvoiceEnabled: false,
       items: [],
     },
@@ -125,6 +122,7 @@ export function StoreModal({
 
   const paymentType = watch("PaymentType")
   const taxInvoiceEnabled = watch("taxInvoiceEnabled")
+  const showTaxInvoiceCheckbox = paymentType === "CASH" || paymentType === "ACCOUNT"
 
   // 모달 열릴 때 외부 editStore를 내부 상태로 동기화
   useEffect(() => {
@@ -133,6 +131,7 @@ export function StoreModal({
       setSelectedTemplateId("")
 
       if (editStore) {
+        setSelectedParty(editStore.taxParty)
         reset({
           name: editStore.name,
           address: editStore.address,
@@ -141,7 +140,7 @@ export function StoreModal({
           managerName: editStore.managerName ?? "",
           assignedUserId: editStore.assignedUserId ?? "",
           note: editStore.note ?? "",
-          bizNo: editStore.bizNo ?? "",
+          taxPartyId: editStore.taxPartyId,
           taxInvoiceEnabled: editStore.taxInvoiceEnabled ?? false,
           items: editStore.storeItems.map((item) => ({
             name: item.name,
@@ -150,6 +149,7 @@ export function StoreModal({
           })),
         })
       } else {
+        setSelectedParty(null)
         reset({
           name: "",
           address: "",
@@ -158,7 +158,7 @@ export function StoreModal({
           managerName: "",
           assignedUserId: "",
           note: "",
-          bizNo: "",
+          taxPartyId: null,
           taxInvoiceEnabled: false,
           items: [],
         })
@@ -167,7 +167,6 @@ export function StoreModal({
   }, [open, editStore, reset])
 
   const handleFormSubmit = (data: StoreFormData) => {
-    const cleanedBizNo = (data.bizNo ?? "").replace(/[^0-9]/g, "")
     const submitData: StoreInput = {
       name: data.name,
       address: data.address,
@@ -176,7 +175,7 @@ export function StoreModal({
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       assignedUserId: data.assignedUserId || null,
       note: data.note || null,
-      bizNo: cleanedBizNo === "" ? null : cleanedBizNo,
+      taxPartyId: isAdmin ? data.taxPartyId ?? null : editStore?.taxPartyId ?? null,
       taxInvoiceEnabled: data.taxInvoiceEnabled ?? false,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
@@ -244,9 +243,9 @@ export function StoreModal({
               <Label htmlFor="PaymentType">결제방식</Label>
               <Select
                 value={paymentType}
-                onValueChange={(value) =>
-                  setValue("PaymentType", value as "CASH" | "ACCOUNT" | "CARD")
-                }
+                onValueChange={(value) => {
+                  if (isPaymentType(value)) setValue("PaymentType", value)
+                }}
               >
                 <SelectTrigger id="PaymentType">
                   <SelectValue placeholder="결제방식 선택" />
@@ -263,9 +262,9 @@ export function StoreModal({
               <Label htmlFor="receiptType">영수증 종류</Label>
               <Select
                 value={watch("receiptType")}
-                onValueChange={(value) =>
-                  setValue("receiptType", value as "NONE" | "SIMPLE_RECEIPT" | "TRANSACTION_STATEMENT")
-                }
+                onValueChange={(value) => {
+                  if (isReceiptType(value)) setValue("receiptType", value)
+                }}
               >
                 <SelectTrigger id="receiptType">
                   <SelectValue placeholder="영수증 종류 선택" />
@@ -344,36 +343,41 @@ export function StoreModal({
             />
           </div>
 
-          {/* 사업자등록번호 */}
-          <div className="space-y-2">
-            <Label htmlFor="bizNo">사업자등록번호</Label>
-            <Input
-              id="bizNo"
-              inputMode="numeric"
-              placeholder="10자리 숫자 (하이픈 자동 제거)"
-              {...register("bizNo")}
-              aria-invalid={!!errors.bizNo}
-            />
-            {errors.bizNo && (
-              <p className="text-sm text-red-500">{errors.bizNo.message}</p>
-            )}
-          </div>
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label>사업자 정보</Label>
+              <TaxPartyAutocomplete
+                value={selectedParty}
+                onChange={(party) => {
+                  setValue("taxPartyId", party?.id ?? null, { shouldDirty: true })
+                  setSelectedParty(party)
+                }}
+              />
+              {selectedParty && (
+                <div className="text-sm text-muted-foreground">
+                  {selectedParty.name} ({selectedParty.bizNo})
+                </div>
+              )}
+            </div>
+          )}
 
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="taxInvoiceEnabled"
-              checked={taxInvoiceEnabled}
-              onCheckedChange={(value) =>
-                setValue("taxInvoiceEnabled", value === true, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-            />
-            <Label htmlFor="taxInvoiceEnabled" className="cursor-pointer">
-              세금계산서 발급 대상
-            </Label>
-          </div>
+          {showTaxInvoiceCheckbox && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="taxInvoiceEnabled"
+                checked={taxInvoiceEnabled}
+                onCheckedChange={(value) =>
+                  setValue("taxInvoiceEnabled", value === true, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              />
+              <Label htmlFor="taxInvoiceEnabled" className="cursor-pointer">
+                세금계산서 발급 대상
+              </Label>
+            </div>
+          )}
 
           {/* 코스 선택 (생성 모드에서만) */}
           {!isEditMode && templates.length > 0 && (

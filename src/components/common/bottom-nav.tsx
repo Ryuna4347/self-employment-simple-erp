@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   Receipt,
   Megaphone,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +83,11 @@ const ADMIN_NAV_ITEMS = [
     label: "공지",
     icon: Megaphone,
   },
+  {
+    href: "/admin/tax-invoices",
+    label: "세금계산서",
+    icon: FileText,
+  },
 ] as const;
 
 /**
@@ -113,7 +119,7 @@ export function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border shadow-[0_-1px_3px_0_rgb(0_0_0/0.05)]"
       aria-label={isAdminMode ? "관리자 메뉴" : "주요 메뉴"}
     >
-      <div className="flex items-stretch justify-around max-w-4xl mx-auto">
+      <div className="mx-auto flex max-w-4xl items-stretch overflow-x-auto">
         {navItems.map((item) => {
           // 현재 경로가 해당 메뉴의 하위 경로인지 확인
           const isActive = pathname.startsWith(item.href);
@@ -126,7 +132,7 @@ export function BottomNav() {
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 // 기본 레이아웃
-                "relative flex-1 flex flex-col items-center justify-center",
+                "relative flex min-w-20 flex-1 flex-col items-center justify-center",
                 "py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]",
                 "transition-colors duration-150",
                 // 포커스 스타일 (접근성)
