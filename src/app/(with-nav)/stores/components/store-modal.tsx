@@ -13,6 +13,7 @@ import {
   ResponsiveModalFooter,
 } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -34,6 +35,21 @@ const storeItemSchema = z.object({
 })
 
 // 매장 스키마
+const formBizNoSchema = z
+  .string()
+  .optional()
+  .refine((value) => !value || /^[\d-]{0,13}$/.test(value), {
+    message: "사업자등록번호는 숫자 또는 하이픈만 입력해주세요",
+  })
+  .refine(
+    (value) => {
+      if (!value) return true
+      const digitLength = value.replace(/[^0-9]/g, "").length
+      return digitLength === 0 || digitLength === 10
+    },
+    { message: "사업자등록번호는 10자리 숫자여야 합니다" }
+  )
+
 const storeSchema = z.object({
   name: z.string().min(1, "매장명을 입력해주세요"),
   address: z.string().min(1, "주소를 입력해주세요"),
@@ -42,6 +58,8 @@ const storeSchema = z.object({
   managerName: z.string().optional(),
   assignedUserId: z.string().optional(),
   note: z.string().optional(),
+  bizNo: formBizNoSchema,
+  taxInvoiceEnabled: z.boolean().optional(),
   items: z.array(storeItemSchema).optional(),
 }).refine(
   (data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(),
@@ -94,6 +112,8 @@ export function StoreModal({
       managerName: "",
       assignedUserId: "",
       note: "",
+      bizNo: "",
+      taxInvoiceEnabled: false,
       items: [],
     },
   })
@@ -104,6 +124,7 @@ export function StoreModal({
   })
 
   const paymentType = watch("PaymentType")
+  const taxInvoiceEnabled = watch("taxInvoiceEnabled")
 
   // 모달 열릴 때 외부 editStore를 내부 상태로 동기화
   useEffect(() => {
@@ -120,6 +141,8 @@ export function StoreModal({
           managerName: editStore.managerName ?? "",
           assignedUserId: editStore.assignedUserId ?? "",
           note: editStore.note ?? "",
+          bizNo: editStore.bizNo ?? "",
+          taxInvoiceEnabled: editStore.taxInvoiceEnabled ?? false,
           items: editStore.storeItems.map((item) => ({
             name: item.name,
             amount: item.amount,
@@ -135,6 +158,8 @@ export function StoreModal({
           managerName: "",
           assignedUserId: "",
           note: "",
+          bizNo: "",
+          taxInvoiceEnabled: false,
           items: [],
         })
       }
@@ -142,6 +167,7 @@ export function StoreModal({
   }, [open, editStore, reset])
 
   const handleFormSubmit = (data: StoreFormData) => {
+    const cleanedBizNo = (data.bizNo ?? "").replace(/[^0-9]/g, "")
     const submitData: StoreInput = {
       name: data.name,
       address: data.address,
@@ -150,6 +176,8 @@ export function StoreModal({
       managerName: data.PaymentType === "ACCOUNT" ? data.managerName : null,
       assignedUserId: data.assignedUserId || null,
       note: data.note || null,
+      bizNo: cleanedBizNo === "" ? null : cleanedBizNo,
+      taxInvoiceEnabled: data.taxInvoiceEnabled ?? false,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
     }
@@ -314,6 +342,37 @@ export function StoreModal({
               placeholder="미수인 경우 '미수 액수'로 입력 (예: 미수 50000)"
               {...register("note")}
             />
+          </div>
+
+          {/* 사업자등록번호 */}
+          <div className="space-y-2">
+            <Label htmlFor="bizNo">사업자등록번호</Label>
+            <Input
+              id="bizNo"
+              inputMode="numeric"
+              placeholder="10자리 숫자 (하이픈 자동 제거)"
+              {...register("bizNo")}
+              aria-invalid={!!errors.bizNo}
+            />
+            {errors.bizNo && (
+              <p className="text-sm text-red-500">{errors.bizNo.message}</p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="taxInvoiceEnabled"
+              checked={taxInvoiceEnabled}
+              onCheckedChange={(value) =>
+                setValue("taxInvoiceEnabled", value === true, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+            />
+            <Label htmlFor="taxInvoiceEnabled" className="cursor-pointer">
+              세금계산서 발급 대상
+            </Label>
           </div>
 
           {/* 코스 선택 (생성 모드에서만) */}

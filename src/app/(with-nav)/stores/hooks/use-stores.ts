@@ -24,6 +24,8 @@ export interface Store {
   longitude: number | null
   assignedUserId: string | null
   note: string | null
+  bizNo: string | null
+  taxInvoiceEnabled: boolean
   assignedUser: { id: string; name: string } | null
   storeItems: StoreItem[]
 }
@@ -40,6 +42,8 @@ export interface StoreInput {
   longitude?: number | null
   assignedUserId?: string | null
   note?: string | null
+  bizNo?: string | null
+  taxInvoiceEnabled?: boolean
   items?: {
     name: string
     amount: number

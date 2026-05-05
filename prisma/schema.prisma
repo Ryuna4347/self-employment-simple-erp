@@ -40,6 +40,8 @@ model Store {
   longitude       Float?
   receiptType     ReceiptType       @default(NONE)  // 영수증 발급 종류
   note            String?           // 특이사항
+  bizNo             String? @db.VarChar(10)
+  taxInvoiceEnabled Boolean @default(false)
   assignedUserId  String?
   isDeleted       Boolean               @default(false)
   deletedAt       DateTime?             // 소프트 삭제 시점
@@ -50,6 +52,7 @@ model Store {
   templateMembers      StoreTemplateMember[]
   workRecords          WorkRecord[]
   collectionRequests   CollectionRequest[]
+  taxInvoiceResults    TaxInvoiceResult[]
 
   @@index([isDeleted])                           // stores: 소프트 삭제 필터
   @@index([deletedAt])                           // dashboard: 기간별 삭제 매장 조회
@@ -180,6 +183,24 @@ model RecurringCost {
   @@index([userId])
 }
 
+model TaxInvoiceResult {
+  id             String           @id @default(cuid())
+  storeId        String
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  year           Int
+  month          Int
+  idempotencyKey String           @unique
+  status         TaxInvoiceStatus
+  mode           String
+  submittedAt    DateTime
+  retryCount     Int              @default(0)
+  errorReason    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([storeId, year, month])
+}
+
 /// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
 enum Role {
   ADMIN
@@ -208,6 +229,12 @@ enum CollectionStatus {
 enum RecurringCostFrequency {
   WEEKLY    // 매주 월요일 자동 생성
   MONTHLY   // 매월 1일 자동 생성
+}
+
+enum TaxInvoiceStatus {
+  SUBMITTED
+  SKIPPED
+  FAILED
 }
 
 enum CollectionRequestStatus {

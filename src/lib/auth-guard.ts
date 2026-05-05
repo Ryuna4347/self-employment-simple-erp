@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto"
+import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { ApiErrors } from "@/lib/api-response"
 import type { Role } from "@/generated/prisma/client"
@@ -117,6 +119,37 @@ export async function requireRole(
   }
 
   return { session, user: session.user }
+}
+
+/**
+ * 외부 세금계산서 발급기용 API Key 인증 가드.
+ * 내부 ERP API 응답 헬퍼가 아닌 외부 연동용 평면 JSON을 반환한다.
+ */
+export function requireApiKey(request: Request): Response | null {
+  const providedKey = request.headers.get("x-api-key")
+  const expectedKey = process.env.TAX_INVOICE_API_KEY
+
+  if (!providedKey || !expectedKey) {
+    return NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    )
+  }
+
+  const providedBuffer = Buffer.from(providedKey)
+  const expectedBuffer = Buffer.from(expectedKey)
+  const isValid =
+    providedBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(providedBuffer, expectedBuffer)
+
+  if (!isValid) {
+    return NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    )
+  }
+
+  return null
 }
 
 /**

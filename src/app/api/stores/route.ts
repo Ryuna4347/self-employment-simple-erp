@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import { bizNoSchema, taxInvoiceEnabledSchema } from "@/lib/validations"
 
 // 매장 생성 스키마
 const createStoreSchema = z.object({
@@ -26,6 +27,8 @@ const createStoreSchema = z.object({
   assignedUserId: z.string().nullish(),
   receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
   note: z.string().nullish(),
+  bizNo: bizNoSchema,
+  taxInvoiceEnabled: taxInvoiceEnabledSchema,
 }).refine(
   (data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(),
   { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }

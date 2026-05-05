@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard";
 import { apiSuccess, ApiErrors } from "@/lib/api-response";
+import { bizNoSchema, taxInvoiceEnabledSchema } from "@/lib/validations";
 
 // 매장 수정 스키마
 const updateStoreSchema = z.object({
@@ -27,6 +28,8 @@ const updateStoreSchema = z.object({
     .enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"])
     .optional(),
   note: z.string().nullable().optional(),
+  bizNo: bizNoSchema,
+  taxInvoiceEnabled: taxInvoiceEnabledSchema,
 }).refine(
   (data) => {
     // PaymentType이 전달되지 않은 경우는 검증 건너뛰기 (부분 업데이트)
