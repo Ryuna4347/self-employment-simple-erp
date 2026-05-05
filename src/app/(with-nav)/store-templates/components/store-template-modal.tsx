@@ -204,6 +204,8 @@ export function StoreTemplateModal({
             longitude: null,
             assignedUserId: null,
             note: null,
+            bizNo: null,
+            taxInvoiceEnabled: false,
             assignedUser: null,
             storeItems: [],
           } as Store,
