@@ -12,6 +12,12 @@ const querySchema = z.object({
   month: z.coerce.number().int().min(1).max(12),
 })
 
+type ItemGroup = {
+  name: string
+  amount: number
+  quantity: number
+}
+
 function externalJson(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: NO_STORE_HEADERS })
 }
@@ -35,7 +41,6 @@ export async function GET(request: NextRequest) {
     const periodStart = startOfMonthKST(year, month)
     const periodEnd = endOfMonthKST(year, month)
     const issueDate = toKSTDateString(new Date())
-    const monthLabel = `${month}월 정산금`
 
     const stores = await prisma.store.findMany({
       where: {
@@ -69,25 +74,67 @@ export async function GET(request: NextRequest) {
       },
       select: {
         storeId: true,
-        items: { select: { amount: true } },
+        items: { select: { name: true, amount: true, quantity: true } },
       },
     })
 
-    const totalByStore = new Map<string, number>()
+    const groupsByStore = new Map<string, Map<string, { amount: number; quantity: number }>>()
     for (const record of records) {
       if (!record.storeId) continue
-      const recordTotal = record.items.reduce((sum, item) => sum + item.amount, 0)
-      totalByStore.set(record.storeId, (totalByStore.get(record.storeId) ?? 0) + recordTotal)
+
+      const groups = groupsByStore.get(record.storeId) ?? new Map<string, { amount: number; quantity: number }>()
+      for (const item of record.items) {
+        const current = groups.get(item.name) ?? { amount: 0, quantity: 0 }
+        current.amount += item.amount
+        current.quantity += item.quantity
+        groups.set(item.name, current)
+      }
+      groupsByStore.set(record.storeId, groups)
     }
 
     const monthPad = String(month).padStart(2, "0")
     const responseStores = []
 
     for (const store of storesWithBizNo) {
-      const totalAmount = totalByStore.get(store.id) ?? 0
+      const storeGroups = groupsByStore.get(store.id)
+      if (!storeGroups) continue
+
+      const allGroups = Array.from(storeGroups.entries()).map(([name, group]) => ({
+        name,
+        amount: group.amount,
+        quantity: group.quantity,
+      }))
+      const totalAmount = allGroups.reduce((sum, group) => sum + group.amount, 0)
       if (totalAmount <= 0) continue
 
+      const itemGroups = allGroups
+        .filter((group) => group.amount > 0)
+        .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name))
+      if (itemGroups.length === 0) continue
+
       const { supply, tax } = splitVat(totalAmount)
+      const responseItems = itemGroups.map((group: ItemGroup) => {
+        const { supply: lineSupply, tax: lineTax } = splitVat(group.amount)
+        return {
+          name: group.name,
+          spec: "",
+          qty: group.quantity > 0 ? group.quantity : null,
+          unit_price:
+            group.quantity > 0 && group.amount % group.quantity === 0
+              ? group.amount / group.quantity
+              : null,
+          supply_amount: formatDecimalString(lineSupply),
+          tax_amount: formatDecimalString(lineTax),
+          note: "",
+        }
+      })
+
+      const lineSupplyTotal = responseItems.reduce((sum, item) => sum + Number(item.supply_amount), 0)
+      const lineTaxTotal = responseItems.reduce((sum, item) => sum + Number(item.tax_amount), 0)
+      const anchorItem = responseItems[0]
+      anchorItem.supply_amount = formatDecimalString(Number(anchorItem.supply_amount) + supply - lineSupplyTotal)
+      anchorItem.tax_amount = formatDecimalString(Number(anchorItem.tax_amount) + tax - lineTaxTotal)
+
       responseStores.push({
         store_id: store.id,
         biz_no: store.bizNo,
@@ -100,17 +147,7 @@ export async function GET(request: NextRequest) {
         tax_amount: formatDecimalString(tax),
         total_amount: formatDecimalString(totalAmount),
         idempotency_key: `${store.id}-${year}-${monthPad}`,
-        items: [
-          {
-            name: monthLabel,
-            spec: "",
-            qty: null,
-            unit_price: null,
-            supply_amount: formatDecimalString(supply),
-            tax_amount: formatDecimalString(tax),
-            note: "",
-          },
-        ],
+        items: responseItems,
       })
     }
 
