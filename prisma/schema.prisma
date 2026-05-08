@@ -8,75 +8,51 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  loginId        String          @unique
-  name           String
-  password       String?
-  role           Role            @default(USER)
-  inviteCode     String?         @unique
-  isDeleted      Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  expenses       Expense[]
-  RefreshToken   RefreshToken[]
-  storeTemplates StoreTemplate[]
-  workRecords                  WorkRecord[]
-  collectedWorkRecords         WorkRecord[]           @relation("collectedByUser")
-  assignedStores               Store[]                @relation("assignedStores")
-  collectionRequests           CollectionRequest[]    @relation("collectionRequester")
-  reviewedCollectionRequests   CollectionRequest[]    @relation("collectionReviewer")
-  notices                      Notice[]
-  recurringCosts               RecurringCost[]
+  id                         String              @id @default(cuid())
+  loginId                    String              @unique
+  name                       String
+  password                   String?
+  role                       Role                @default(USER)
+  inviteCode                 String?             @unique
+  isDeleted                  Boolean             @default(false)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  expenses                   Expense[]
+  RefreshToken               RefreshToken[]
+  storeTemplates             StoreTemplate[]
+  workRecords                WorkRecord[]
+  collectedWorkRecords       WorkRecord[]        @relation("collectedByUser")
+  assignedStores             Store[]             @relation("assignedStores")
+  collectionRequests         CollectionRequest[] @relation("collectionRequester")
+  reviewedCollectionRequests CollectionRequest[] @relation("collectionReviewer")
+  notices                    Notice[]
+  recurringCosts             RecurringCost[]
 }
 
 model Store {
-  id              String                @id @default(cuid())
-  name            String
-  address         String
-  managerName     String?
-  PaymentType     PaymentType           @default(CASH)
-  kakaoPlaceId    String?               @unique
-  latitude        Float?
-  longitude       Float?
-  receiptType     ReceiptType       @default(NONE)  // 영수증 발급 종류
-  note            String?           // 특이사항
-  taxInvoiceEnabled Boolean @default(false)
-  taxPartyId      String?
-  assignedUserId  String?
-  isDeleted       Boolean               @default(false)
-  deletedAt       DateTime?             // 소프트 삭제 시점
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  assignedUser    User?                 @relation("assignedStores", fields: [assignedUserId], references: [id], onDelete: SetNull)
-  taxParty        TaxParty?             @relation(fields: [taxPartyId], references: [id], onDelete: SetNull)
-  storeItems           StoreItem[]
-  templateMembers      StoreTemplateMember[]
-  workRecords          WorkRecord[]
-  collectionRequests   CollectionRequest[]
-  taxInvoiceResults    TaxInvoiceResult[]
-
-  @@index([isDeleted])                           // stores: 소프트 삭제 필터
-  @@index([deletedAt])                           // dashboard: 기간별 삭제 매장 조회
-  @@index([taxPartyId])
-}
-
-model TaxParty {
-  id                 String    @id @default(cuid())
+  id                 String                @id @default(cuid())
   name               String
-  bizNo              String    @unique @db.VarChar(10)
-  representativeName String?
-  businessType       String?
-  businessItem       String?
-  taxInvoiceEmail    String?
-  address            String?
-  isDeleted          Boolean   @default(false)
-  deletedAt          DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  stores             Store[]
+  address            String
+  managerName        String?
+  PaymentType        PaymentType           @default(CASH)
+  kakaoPlaceId       String?               @unique
+  latitude           Float?
+  longitude          Float?
+  receiptType        ReceiptType           @default(NONE) // 영수증 발급 종류
+  note               String? // 특이사항
+  assignedUserId     String?
+  isDeleted          Boolean               @default(false)
+  deletedAt          DateTime? // 소프트 삭제 시점
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  assignedUser       User?                 @relation("assignedStores", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  storeItems         StoreItem[]
+  templateMembers    StoreTemplateMember[]
+  workRecords        WorkRecord[]
+  collectionRequests CollectionRequest[]
 
-  @@index([isDeleted])
-  @@index([name])
+  @@index([isDeleted]) // stores: 소프트 삭제 필터
+  @@index([deletedAt]) // dashboard: 기간별 삭제 매장 조회
 }
 
 model StoreItem {
@@ -109,34 +85,33 @@ model StoreTemplateMember {
 }
 
 model WorkRecord {
-  id                   String           @id @default(cuid())
-  date                 DateTime         @default(now())
-  storeId              String?          // nullable로 변경 (직접 입력 시 null)
-  userId               String
-  collectionStatus     CollectionStatus @default(UNCOLLECTED)
-  imageUrl             String?          // 이미지 URL (Supabase Storage)
-  note                 String?
-  // 스냅샷 필드 (거래 시점의 매장 정보)
-  storeNameSnapshot    String?      // 매장명 스냅샷
-  storeAddressSnapshot String?      // 주소 스냅샷
-  managerNameSnapshot  String?      // 담당자 스냅샷
-  paymentTypeSnapshot  PaymentType  // 결제 방식 스냅샷
-  sortOrder            Int          @default(0) // 코스 적용 시 정렬 순서
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  collectedAt          DateTime?    // 수금완료 처리 시점
-  collectedByUserId    String?      // 수금완료 처리한 사용자
-  items                    RecordItem[]
-  collectionRequestItems   CollectionRequestItem[]
-  store                    Store?       @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  user                     User         @relation(fields: [userId], references: [id], onDelete: Restrict)
-  collectedBy              User?        @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
+  id                     String                  @id @default(cuid())
+  date                   DateTime                @default(now())
+  storeId                String?
+  userId                 String
+  collectionStatus       CollectionStatus        @default(UNCOLLECTED)
+  imageUrl               String?
+  note                   String?
+  storeNameSnapshot      String?
+  storeAddressSnapshot   String?
+  managerNameSnapshot    String?
+  paymentTypeSnapshot    PaymentType
+  sortOrder              Int                     @default(0)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  collectedAt            DateTime?
+  collectedByUserId      String?
+  items                  RecordItem[]
+  collectionRequestItems CollectionRequestItem[]
+  store                  Store?                  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  user                   User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  collectedBy            User?                   @relation("collectedByUser", fields: [collectedByUserId], references: [id], onDelete: SetNull)
 
-  @@index([date])                                // dashboard: date range 단독 조회
-  @@index([userId, date])                        // work-records: 사용자별 날짜 조회
-  @@index([storeId, collectionStatus])           // 매장별 미수금 + store-visits
-  @@index([collectionStatus, date])              // outstanding: 날짜별 필터
-  @@index([collectionStatus, storeNameSnapshot]) // outstanding: 매장별 필터
+  @@index([date])
+  @@index([userId, date])
+  @@index([storeId, collectionStatus])
+  @@index([collectionStatus, date])
+  @@index([collectionStatus, storeNameSnapshot])
 }
 
 model RecordItem {
@@ -149,16 +124,16 @@ model RecordItem {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  date        DateTime
-  userId      String
-  title       String
-  amount      Int
-  description String?
-  isAutoGenerated Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  date            DateTime
+  userId          String
+  title           String
+  amount          Int
+  description     String?
+  isAutoGenerated Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([date])
   @@index([userId])
@@ -191,35 +166,17 @@ model Notice {
 }
 
 model RecurringCost {
-  id              String                  @id @default(cuid())
-  name            String
-  amount          Int
-  frequency       RecurringCostFrequency
-  isActive        Boolean                 @default(true)
-  userId          String
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String                 @id @default(cuid())
+  name      String
+  amount    Int
+  frequency RecurringCostFrequency
+  isActive  Boolean                @default(true)
+  userId    String
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-model TaxInvoiceResult {
-  id             String           @id @default(cuid())
-  storeId        String
-  store          Store            @relation(fields: [storeId], references: [id], onDelete: Restrict)
-  year           Int
-  month          Int
-  idempotencyKey String           @unique
-  status         TaxInvoiceStatus
-  mode           String
-  submittedAt    DateTime
-  retryCount     Int              @default(0)
-  errorReason    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  @@index([storeId, year, month])
 }
 
 /// db에 url 정보를 넣는 것은 7 버전 이후 제거 -> prisma-client-js 사용 시 필요
@@ -242,26 +199,20 @@ enum ReceiptType {
 }
 
 enum CollectionStatus {
-  UNCOLLECTED  // 미수
-  COLLECTED    // 수금완료
-  CLOSED       // 휴업&폐업
+  UNCOLLECTED // 미수
+  COLLECTED // 수금완료
+  CLOSED // 휴업&폐업
 }
 
 enum RecurringCostFrequency {
-  WEEKLY    // 매주 월요일 자동 생성
-  MONTHLY   // 매월 1일 자동 생성
-}
-
-enum TaxInvoiceStatus {
-  SUBMITTED
-  SKIPPED
-  FAILED
+  WEEKLY // 매주 월요일 자동 생성
+  MONTHLY // 매월 1일 자동 생성
 }
 
 enum CollectionRequestStatus {
-  PENDING   // 대기 중
-  APPROVED  // 승인됨
-  REJECTED  // 거부됨
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model CollectionRequest {

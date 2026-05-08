@@ -48,7 +48,6 @@ src/app/
 │       ├── collections/ # 수금 관리
 │       ├── costs/       # 비용 관리
 │       ├── notices/     # 공지 관리
-│       └── tax-invoices/ # 세금계산서 관리
 ├── register/            # 회원가입
 ├── api/                 # API 라우트
 ├── layout.tsx           # 루트 레이아웃 (fonts, providers)
@@ -142,8 +141,6 @@ src/app/api/
 │   └── daily-cost/route.ts            # POST 일일 비용 기록
 ├── notices/
 │   └── latest/route.ts                # GET 최신 공지 조회
-├── tax-parties/
-│   └── search/route.ts                # GET 사업자 autocomplete 검색
 ├── cron/
 │   └── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
@@ -166,9 +163,6 @@ src/app/api/
     ├── notices/
     │   ├── route.ts                    # GET/POST 공지 목록/생성
     │   └── [id]/route.ts              # PUT/DELETE 공지 수정/삭제
-    ├── tax-parties/
-    │   ├── route.ts                    # GET/POST 사업자 마스터 목록/생성
-    │   └── [id]/route.ts              # PUT/DELETE 사업자 마스터 수정/삭제
     └── export/monthly/route.ts         # POST 월간 엑셀 내보내기
 ```
 
@@ -182,14 +176,13 @@ src/app/api/
 | 순회 템플릿 | `/store-templates` | 매장 그룹/코스 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 (미구현) |
 | 프로필 | `/profile` | 비밀번호 변경 |
-| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 공지, 세금계산서, 엑셀 내보내기 |
+| 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 공지, 엑셀 내보내기 |
 
 ## 데이터 모델 (Prisma)
 
 ### 핵심 모델
 - **User**: 사용자 (loginId, name, password, role, inviteCode, isDeleted)
-- **Store**: 매장 (name, address, managerName, PaymentType, coordinates, receiptType, assignedUserId, taxInvoiceEnabled, taxPartyId)
-- **TaxParty**: 사업자 마스터 (name, bizNo, representativeName, businessType, businessItem, taxInvoiceEmail, taxInvoiceContact)
+- **Store**: 매장 (name, address, managerName, PaymentType, coordinates, receiptType, assignedUserId)
 - **StoreItem**: 매장 기본 품목 (storeId, name, amount, quantity)
 - **WorkRecord**: 방문 기록 (date, storeId, userId, collectionStatus, imageUrl, snapshots, sortOrder)
 - **RecordItem**: 거래 상세 (workRecordId, name, amount, quantity)

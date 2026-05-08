@@ -4,23 +4,10 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import { taxInvoiceEnabledSchema } from "@/lib/validations"
-
-const taxPartySelect = {
-  id: true,
-  name: true,
-  bizNo: true,
-  representativeName: true,
-  businessType: true,
-  businessItem: true,
-  taxInvoiceEmail: true,
-  address: true,
-}
 
 const storeInclude = {
   storeItems: true,
   assignedUser: { select: { id: true, name: true } },
-  taxParty: { select: taxPartySelect },
 }
 
 const storeItemSchema = z.object({
@@ -43,8 +30,6 @@ const createStoreSchema = z
     assignedUserId: z.string().nullish(),
     receiptType: z.enum(["NONE", "SIMPLE_RECEIPT", "TRANSACTION_STATEMENT"]).optional(),
     note: z.string().nullish(),
-    taxPartyId: z.string().optional().nullable(),
-    taxInvoiceEnabled: taxInvoiceEnabledSchema,
   })
   .refine((data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(), {
     message: "계좌이체 결제 시 입금자를 입력해주세요",

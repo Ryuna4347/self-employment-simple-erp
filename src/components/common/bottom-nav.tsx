@@ -14,103 +14,27 @@ import {
   ClipboardCheck,
   Receipt,
   Megaphone,
-  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/**
- * 하단 네비게이션 아이템 정의
- *
- * 각 항목은 자영업 ERP의 핵심 도메인에 대응:
- * - 근무 기록: 일별 방문/거래 관리 (메인 기능)
- * - 코스: 순회 코스 (매장 그룹)
- * - 매장: 매장 정보 관리
- */
 const NAV_ITEMS = [
-  {
-    href: "/work-records",
-    label: "근무 기록",
-    icon: Home,
-  },
-  {
-    href: "/store-templates",
-    label: "코스",
-    icon: Layers,
-  },
-  {
-    href: "/stores",
-    label: "매장",
-    icon: Store,
-  },
+  { href: "/work-records", label: "근무 기록", icon: Home },
+  { href: "/store-templates", label: "코스", icon: Layers },
+  { href: "/stores", label: "매장", icon: Store },
 ] as const;
 
-/**
- * 어드민 모드 전용 네비게이션 아이템
- *
- * 관리자 페이지(/admin/*) 진입 시 하단 메뉴가 전환됨:
- * - 대시보드: 매출/미수금 통계
- * - 직원 관리: 초대, 계정 관리
- * - 미수금 관리: 미수금 추적 및 완납 처리
- */
 const ADMIN_NAV_ITEMS = [
-  {
-    href: "/admin/dashboard",
-    label: "대시보드",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/admin/staff",
-    label: "직원 관리",
-    icon: Users,
-  },
-  {
-    href: "/admin/outstanding",
-    label: "미수금 관리",
-    icon: CircleDollarSign,
-  },
-  {
-    href: "/admin/collections",
-    label: "수금 관리",
-    icon: ClipboardCheck,
-  },
-  {
-    href: "/admin/costs",
-    label: "비용 관리",
-    icon: Receipt,
-  },
-  {
-    href: "/admin/notices",
-    label: "공지",
-    icon: Megaphone,
-  },
-  {
-    href: "/admin/tax-invoices",
-    label: "세금계산서",
-    icon: FileText,
-  },
+  { href: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
+  { href: "/admin/staff", label: "직원 관리", icon: Users },
+  { href: "/admin/outstanding", label: "미수금 관리", icon: CircleDollarSign },
+  { href: "/admin/collections", label: "수금 관리", icon: ClipboardCheck },
+  { href: "/admin/costs", label: "비용 관리", icon: Receipt },
+  { href: "/admin/notices", label: "공지", icon: Megaphone },
 ] as const;
 
-/**
- * 하단 네비게이션 컴포넌트
- *
- * **디자인 목적**: 모바일 환경에서 주요 도메인 간 빠른 전환을 제공
- *
- * **시각적 계층구조**:
- * - 활성 탭: primary 색상 + 굵은 스트로크로 현재 위치 명확히 표시
- * - 비활성 탭: muted 색상으로 시각적 노이즈 최소화
- * - 활성 인디케이터: 상단 2px 바로 즉각적인 위치 인지
- *
- * **접근성**:
- * - semantic nav 태그 + aria-label 사용
- * - 현재 페이지는 aria-current="page" 표시
- * - 키보드 네비게이션 지원 (Link 컴포넌트 기반)
- * - 포커스 링 명확히 표시
- * - safe-area-inset 대응 (노치/홈바 디바이스)
- */
 export function BottomNav() {
   const pathname = usePathname();
   const { role } = useUser();
-  // VIEWER는 일반 콘솔 접근이 차단되므로 항상 관리자 네비게이션 표시
   const isAdminMode = isViewer(role) || pathname.startsWith("/admin");
   const navItems = isAdminMode ? ADMIN_NAV_ITEMS : NAV_ITEMS;
 
@@ -121,7 +45,6 @@ export function BottomNav() {
     >
       <div className="mx-auto flex max-w-4xl items-stretch overflow-x-auto">
         {navItems.map((item) => {
-          // 현재 경로가 해당 메뉴의 하위 경로인지 확인
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
 
@@ -131,31 +54,21 @@ export function BottomNav() {
               href={item.href}
               aria-current={isActive ? "page" : undefined}
               className={cn(
-                // 기본 레이아웃
                 "relative flex min-w-20 flex-1 flex-col items-center justify-center",
                 "py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]",
                 "transition-colors duration-150",
-                // 포커스 스타일 (접근성)
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-                // 활성/비활성 색상
-                isActive
-                  ? "text-blue-500"
-                  : "text-muted-foreground hover:text-foreground/70",
+                isActive ? "text-blue-500" : "text-muted-foreground hover:text-foreground/70",
               )}
             >
-              {/* 활성 인디케이터: 상단 바 */}
               {isActive && (
                 <span
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-blue-500"
                   aria-hidden="true"
                 />
               )}
-
               <Icon
-                className={cn(
-                  "size-5 mb-0.5",
-                  isActive && "stroke-[2.5px]",
-                )}
+                className={cn("size-5 mb-0.5", isActive && "stroke-[2.5px]")}
                 aria-hidden="true"
               />
               <span

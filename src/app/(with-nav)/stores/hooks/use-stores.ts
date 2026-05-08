@@ -24,18 +24,6 @@ export interface Store {
   longitude: number | null
   assignedUserId: string | null
   note: string | null
-  taxInvoiceEnabled: boolean
-  taxPartyId: string | null
-  taxParty: {
-    id: string
-    name: string
-    bizNo: string
-    representativeName: string | null
-    businessType: string | null
-    businessItem: string | null
-    taxInvoiceEmail: string | null
-    address: string | null
-  } | null
   assignedUser: { id: string; name: string } | null
   storeItems: StoreItem[]
 }
@@ -52,8 +40,6 @@ export interface StoreInput {
   longitude?: number | null
   assignedUserId?: string | null
   note?: string | null
-  taxInvoiceEnabled?: boolean
-  taxPartyId?: string | null
   items?: {
     name: string
     amount: number

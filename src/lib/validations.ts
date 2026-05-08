@@ -1,11 +1,6 @@
 import { z } from "zod"
 
 /**
- * 세금계산서 발급 대상 여부.
- */
-export const taxInvoiceEnabledSchema = z.boolean().optional()
-
-/**
  * 비밀번호 유효성 검사 스키마
  * - 최소 8자
  * - 영문 + 숫자 + 특수문자(@$!%*?&) 포함

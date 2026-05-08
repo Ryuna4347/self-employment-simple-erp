@@ -4,9 +4,7 @@ import { useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { useUser } from "@/components/providers/app-providers"
-import { hasAdminAccess } from "@/lib/role-utils"
-import { cn, formatBizNo } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import type { Store } from "../hooks/use-stores"
 
 interface StoreCardProps {
@@ -28,23 +26,8 @@ const receiptTypeLabels: Record<string, string> = {
   TRANSACTION_STATEMENT: "거래명세서",
 }
 
-/**
- * 매장 카드 컴포넌트 (Accordion)
- *
- * 축약 모드 (기본):
- * - 매장명 + (계좌일 때 담당자 뱃지)
- * - 주소
- *
- * 상세 모드 (클릭 시 확장):
- * - 결제방식
- * - 담당자
- * - 품목 테이블
- * - 수정/삭제 버튼
- */
 export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const { role } = useUser()
-  const showTaxParty = hasAdminAccess(role)
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -65,13 +48,11 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
         "hover:shadow-md"
       )}
     >
-      {/* 축약 모드 - 클릭 가능 영역 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full text-left focus:outline-none p-4"
       >
         <div className="flex items-start justify-between gap-3">
-          {/* 좌측: 매장 정보 */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-gray-900 text-base">
@@ -101,7 +82,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
             </div>
           </div>
 
-          {/* 우측: 확장 아이콘 */}
           <ChevronDown
             className={cn(
               "size-5 text-gray-400 transition-transform duration-300 flex-shrink-0",
@@ -111,7 +91,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
         </div>
       </button>
 
-      {/* 상세 모드 - 확장 영역 (grid-rows 애니메이션) */}
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-300 ease-out",
@@ -120,7 +99,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
       >
         <div className="overflow-hidden">
           <div className="border-t border-gray-200 p-4 space-y-4">
-            {/* 기본 정보 */}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-600">결제방식</span>
@@ -152,7 +130,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
               </div>
             </div>
 
-            {/* 특이사항 */}
             {store.note && (
               <div className="text-sm">
                 <span className="text-gray-600">특이사항</span>
@@ -162,26 +139,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
               </div>
             )}
 
-            {showTaxParty && (
-              <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                <h4 className="mb-3 font-medium text-foreground">사업자 정보</h4>
-                {store.taxParty ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <InfoItem label="사업자명" value={store.taxParty.name} />
-                    <InfoItem label="사업자번호" value={formatBizNo(store.taxParty.bizNo)} />
-                    <InfoItem label="대표자명" value={store.taxParty.representativeName} />
-                    <InfoItem label="업태" value={store.taxParty.businessType} />
-                    <InfoItem label="종목" value={store.taxParty.businessItem} />
-                    <InfoItem label="발급 이메일" value={store.taxParty.taxInvoiceEmail} />
-                    <InfoItem label="주소" value={store.taxParty.address} />
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">사업자 정보 미연결</p>
-                )}
-              </div>
-            )}
-
-            {/* 품목 테이블 */}
             <div>
               <h4 className="text-sm font-medium text-gray-900 mb-2">
                 매장 기본 품목
@@ -192,7 +149,7 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-3 py-2 text-left text-gray-700 font-medium">
-                          품명
+                          품목명
                         </th>
                         <th className="px-3 py-2 text-right text-gray-700 font-medium">
                           기본 수량
@@ -226,7 +183,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
               )}
             </div>
 
-            {/* 액션 버튼 */}
             {(onEdit || onDelete) && (
               <div className="flex gap-2 pt-2">
                 <Button
@@ -254,15 +210,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function InfoItem({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div>
-      <span className="text-muted-foreground">{label}</span>
-      <p className="mt-0.5 font-medium text-foreground">{value || "-"}</p>
     </div>
   )
 }
