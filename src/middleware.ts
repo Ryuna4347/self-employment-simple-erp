@@ -15,10 +15,9 @@ export const config = {
      * - api/auth (Auth.js 핸들러)
      * - register (회원가입)
      * - api/cron (스케줄러 트리거)
-     * - api/tax-invoices (외부 세금계산서 발급기 — X-API-Key로 라우트 자체에서 인증)
      * - _next/static, _next/image (Next.js 정적 파일)
      * - favicon.ico, 이미지 등 정적 리소스
      */
-    "/((?!api/auth|api/register|api/cron|api/tax-invoices|register|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
+    "/((?!api/auth|api/register|api/cron|register|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
   ],
 }
