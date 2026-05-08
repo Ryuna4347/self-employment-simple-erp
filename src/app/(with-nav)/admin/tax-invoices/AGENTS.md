@@ -18,6 +18,15 @@ TaxParty는 사업자명, 사업자등록번호, 대표자명, 업태, 종목, �
 - `PUT /api/admin/tax-parties/[id]` - 사업자 마스터 수정
 - `DELETE /api/admin/tax-parties/[id]` - 사업자 마스터 삭제
 
+## 외부 세금계산서 발급 API (X-API-Key)
+
+내부 화면이 호출하는 API는 아니지만 동일 도메인의 데이터를 사용한다.
+
+- `GET /api/tax-invoices/pending?year=YYYY&month=MM` - 미발행 집계 (TaxParty가 연결되고 `taxInvoiceEnabled=true`이며 결제방식이 `CASH`/`ACCOUNT`인 매장 대상)
+- `PUT /api/tax-invoices/result` - 외부 발급기가 처리 결과(`SUBMITTED`/`SKIPPED`/`FAILED`)를 보고. `idempotencyKey = ${storeId}-${year}-${month}`로 upsert
+
+발행 결과는 `TaxInvoiceResult` 모델에 저장되며 `splitVat`/`formatDecimalString`(`src/lib/tax-invoice-utils.ts`)이 부가세 분리/포맷에 사용된다.
+
 ## 주요 컴포넌트
 
 - `components/tax-parties-content.tsx` - 검색, 목록, 생성/수정/삭제 모달 상태 관리

@@ -55,6 +55,7 @@
 stores/
 ├── page.tsx
 ├── components/
+│   ├── stores-client.tsx   # 메인 클라이언트 컴포넌트 (목록 + 모달 상태)
 │   ├── store-card.tsx      # 매장 카드 (아코디언)
 │   ├── store-modal.tsx     # 매장 추가/수정 모달
 │   ├── tax-party-autocomplete.tsx # 사업자 검색/선택 autocomplete
