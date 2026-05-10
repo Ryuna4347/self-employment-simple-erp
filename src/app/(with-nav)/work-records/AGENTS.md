@@ -150,6 +150,7 @@ work-records/
 - `POST /api/work-records/[id]/save-store` - 매장 저장
 - `GET /api/work-records/store-visits` - 방문 이력
 - `GET /api/work-records/store-uncollected` - 미수금 조회
+- `GET /api/work-records/daily-cash-collection?date=YYYY-MM-DD` - 특정 날짜의 직원별 현금 수금 집계 (ADMIN 전용)
 - `PATCH /api/work-records/batch-collect` - 일괄 수금
 - `PATCH /api/work-records/reorder` - 순서 변경
 - `GET/POST /api/collection-requests` - 수금 요청
@@ -169,3 +170,8 @@ work-records/
 - 일일 비용 기록 모달
 - 일괄 삭제 모달
 - 템플릿 적용 모달
+
+## 추가 파일
+
+- `src/app/(with-nav)/work-records/components/daily-cash-collection-modal.tsx` - 전날 직원별 현금 수금 모달 (ADMIN 전용)
+- `src/app/(with-nav)/work-records/hooks/use-daily-cash-collection.ts` - 전날 현금 수금 조회 훅

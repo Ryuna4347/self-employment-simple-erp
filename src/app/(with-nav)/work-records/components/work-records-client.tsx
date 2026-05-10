@@ -14,6 +14,7 @@ import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
 import { BulkDeleteModal } from "./bulk-delete-modal"
 import { CollectionRequestModal } from "./collection-request-modal"
+import { DailyCashCollectionModal } from "./daily-cash-collection-modal"
 import { DailyCostModal } from "./daily-cost-modal"
 import { NoticeBanner } from "./notice-banner"
 import { useDailyCost } from "../hooks/use-daily-cost"
@@ -47,6 +48,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [collectionRequestTarget, setCollectionRequestTarget] = useState<WorkRecordResponse | null>(null)
   const [fuelCostModalOpen, setFuelCostModalOpen] = useState(false)
   const [repairCostModalOpen, setRepairCostModalOpen] = useState(false)
+  const [dailyCashModalOpen, setDailyCashModalOpen] = useState(false)
 
   const isAdmin = userRole === "ADMIN"
   const writable = canWrite(userRole)
@@ -201,6 +203,18 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
         <DailyStats summary={dailySummary} />
 
+        {isAdmin && (
+          <div className="flex justify-end -mt-2 mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDailyCashModalOpen(true)}
+            >
+              전날 직원별 현금 수금
+            </Button>
+          </div>
+        )}
+
         {/* 매장명 검색 */}
         <div className="flex gap-1.5 mb-4">
           <Input
@@ -299,6 +313,14 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             userRole={userRole}
           />
         </>
+      )}
+
+      {isAdmin && (
+        <DailyCashCollectionModal
+          open={dailyCashModalOpen}
+          onOpenChange={setDailyCashModalOpen}
+          baseDate={selectedDate}
+        />
       )}
     </div>
   )

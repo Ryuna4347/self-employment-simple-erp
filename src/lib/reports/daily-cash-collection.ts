@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma"
-import { startOfDayKST, toKSTDateString } from "@/lib/date-utils"
+import {
+  dateToKSTEndOfDay,
+  dateToKSTMidnight,
+  toKSTDateString,
+} from "@/lib/date-utils"
 
 export interface EmployeeCashSummary {
   userId: string
@@ -9,13 +13,14 @@ export interface EmployeeCashSummary {
 }
 
 export interface DailyCashCollectionResult {
+  isoDate: string
   dateLabel: string
   rows: EmployeeCashSummary[]
   grandTotal: number
 }
 
-function formatDateLabel(date: Date): string {
-  const [month, day] = toKSTDateString(date)
+function formatDateLabel(dateStr: string): string {
+  const [month, day] = dateStr
     .split("-")
     .slice(1)
     .map((value) => Number(value))
@@ -23,17 +28,17 @@ function formatDateLabel(date: Date): string {
   return `${month}/${day}`
 }
 
-export async function getYesterdayCashCollectionByEmployee(
-  now: Date = new Date()
+export async function getCashCollectionByEmployee(
+  targetKstDateStr: string
 ): Promise<DailyCashCollectionResult> {
-  const todayMidnight = startOfDayKST(now)
-  const yesterdayMidnight = new Date(todayMidnight.getTime() - 24 * 60 * 60 * 1000)
+  const startDate = dateToKSTMidnight(targetKstDateStr)
+  const endDate = dateToKSTEndOfDay(targetKstDateStr)
 
   const records = await prisma.workRecord.findMany({
     where: {
       collectionStatus: "COLLECTED",
       paymentTypeSnapshot: "CASH",
-      collectedAt: { gte: yesterdayMidnight, lt: todayMidnight },
+      date: { gte: startDate, lte: endDate },
     },
     select: {
       userId: true,
@@ -43,10 +48,7 @@ export async function getYesterdayCashCollectionByEmployee(
 
   const map = new Map<string, { total: number; count: number }>()
   for (const record of records) {
-    const sum = record.items.reduce(
-      (acc, item) => acc + item.amount * item.quantity,
-      0
-    )
+    const sum = record.items.reduce((acc, item) => acc + item.amount, 0)
     const current = map.get(record.userId) ?? { total: 0, count: 0 }
     map.set(record.userId, {
       total: current.total + sum,
@@ -82,8 +84,20 @@ export async function getYesterdayCashCollectionByEmployee(
   const grandTotal = rows.reduce((acc, row) => acc + row.totalAmount, 0)
 
   return {
-    dateLabel: formatDateLabel(yesterdayMidnight),
+    isoDate: targetKstDateStr,
+    dateLabel: formatDateLabel(targetKstDateStr),
     rows,
     grandTotal,
   }
+}
+
+export async function getYesterdayCashCollectionByEmployee(
+  now: Date = new Date()
+): Promise<DailyCashCollectionResult> {
+  const todayStr = toKSTDateString(now)
+  const yesterdayStr = toKSTDateString(
+    new Date(dateToKSTMidnight(todayStr).getTime() - 24 * 60 * 60 * 1000)
+  )
+
+  return getCashCollectionByEmployee(yesterdayStr)
 }
