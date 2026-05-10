@@ -6,6 +6,8 @@ import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { broadcastSignOut } from "@/hooks/use-session-sync";
 import { ChangePasswordModal } from "./change-password-modal";
+import { ChangePhoneModal } from "./change-phone-modal";
+import { usePhoneNumber } from "../hooks/use-phone-number";
 import type { Role } from "@/generated/prisma/client";
 import { getRoleLabel } from "@/lib/role-utils";
 
@@ -21,6 +23,10 @@ interface ProfileContentProps {
 export function ProfileContent({ user }: ProfileContentProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+  const isAdmin = user.role === "ADMIN";
+  const phoneQuery = usePhoneNumber({ enabled: isAdmin });
+  const currentPhoneNumber = phoneQuery.data ?? null;
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -73,6 +79,29 @@ export function ProfileContent({ user }: ProfileContentProps) {
               비밀번호 변경
             </Button>
           </div>
+          {isAdmin && (
+            <div className="px-4 py-3 flex justify-between items-center">
+              <div className="flex flex-col">
+                <span className="text-sm text-gray-500">휴대폰 번호</span>
+                <span className="text-xs text-gray-400">문자 수신처</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-900">
+                  {phoneQuery.isLoading
+                    ? "..."
+                    : (formatPhone(currentPhoneNumber) ?? "미등록")}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-auto px-3 py-1 text-sm font-medium"
+                  onClick={() => setIsPhoneModalOpen(true)}
+                >
+                  {currentPhoneNumber ? "변경" : "등록"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -93,6 +122,27 @@ export function ProfileContent({ user }: ProfileContentProps) {
         open={isPasswordModalOpen}
         onOpenChange={setIsPasswordModalOpen}
       />
+      {isAdmin && (
+        <ChangePhoneModal
+          open={isPhoneModalOpen}
+          onOpenChange={setIsPhoneModalOpen}
+          currentPhoneNumber={currentPhoneNumber}
+        />
+      )}
     </div>
   );
+}
+
+function formatPhone(value: string | null): string | null {
+  if (!value) return null;
+
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  return value;
 }
