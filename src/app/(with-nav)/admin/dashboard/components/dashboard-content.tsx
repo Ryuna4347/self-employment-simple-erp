@@ -279,18 +279,36 @@ export function DashboardContent() {
               </div>
             </div>
 
-            {/* 제거된 매장 */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <div className="flex flex-col">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm text-gray-600">제거된 매장</p>
-                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <StoreIcon className="w-4 h-4 text-gray-500" />
+            {/* 제거된 매장 / 추가된 매장 (좌우 분할) */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* 제거된 매장 */}
+              <div className="bg-white rounded-lg shadow-sm p-3">
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-600">제거된 매장</p>
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                      <StoreIcon className="w-4 h-4 text-gray-500" />
+                    </div>
                   </div>
+                  <p className="text-lg font-semibold text-gray-700">
+                    {data.summary.deletedStoresCount}곳
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-gray-700">
-                  {data.summary.deletedStoresCount}곳
-                </p>
+              </div>
+
+              {/* 추가된 매장 */}
+              <div className="bg-white rounded-lg shadow-sm p-3">
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-600">추가된 매장</p>
+                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+                      <StoreIcon className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  </div>
+                  <p className="text-lg font-semibold text-emerald-600">
+                    {data.summary.newlyAddedStoresCount}곳
+                  </p>
+                </div>
               </div>
             </div>
           </div>

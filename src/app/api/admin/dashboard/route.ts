@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
       outstandingRecords,
       expenseAggregate,
       deletedStoresList,
+      newlyAddedStoresCount,
     ] = await Promise.all([
       // 1) collectionStatus별 건수 (summary + 파이차트 공용)
       prisma.workRecord.groupBy({
@@ -140,6 +141,13 @@ export async function GET(request: NextRequest) {
         select: { id: true, name: true, address: true, deletedAt: true },
         orderBy: { deletedAt: "desc" },
       }),
+
+      // 9) 해당 기간 내 새로 추가된 매장 수 (isDeleted 무관)
+      prisma.store.count({
+        where: {
+          createdAt: { gte: dateStart, lte: dateEnd },
+        },
+      }),
     ])
 
     // === summary 조립 ===
@@ -164,6 +172,7 @@ export async function GET(request: NextRequest) {
       totalVisits,
       uniqueStores: uniqueStoresResult.length,
       deletedStoresCount: deletedStoresList.length,
+      newlyAddedStoresCount,
     }
 
     // === deletedStores 조립 (KST 날짜 포맷) ===
