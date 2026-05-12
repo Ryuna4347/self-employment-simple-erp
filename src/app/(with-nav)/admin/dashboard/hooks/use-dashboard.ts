@@ -9,6 +9,7 @@ interface DashboardSummary {
   totalVisits: number
   uniqueStores: number
   deletedStoresCount: number
+  newlyAddedStoresCount: number
 }
 
 // 제거된 매장
