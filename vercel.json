@@ -5,10 +5,6 @@
     {
       "path": "/api/cron/cleanup-tokens",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/daily-cash-sms",
-      "schedule": "0 22 * * *"
     }
   ]
 }

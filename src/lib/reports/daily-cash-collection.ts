@@ -1,15 +1,13 @@
 import { prisma } from "@/lib/prisma"
-import {
-  dateToKSTEndOfDay,
-  dateToKSTMidnight,
-  toKSTDateString,
-} from "@/lib/date-utils"
+import { dateToKSTEndOfDay, dateToKSTMidnight } from "@/lib/date-utils"
 
 export interface EmployeeCashSummary {
   userId: string
   name: string
   totalAmount: number
   recordCount: number
+  pendingAmount: number
+  pendingCount: number
 }
 
 export interface DailyCashCollectionResult {
@@ -34,26 +32,72 @@ export async function getCashCollectionByEmployee(
   const startDate = dateToKSTMidnight(targetKstDateStr)
   const endDate = dateToKSTEndOfDay(targetKstDateStr)
 
-  const records = await prisma.workRecord.findMany({
-    where: {
-      collectionStatus: "COLLECTED",
-      paymentTypeSnapshot: "CASH",
-      date: { gte: startDate, lte: endDate },
-    },
-    select: {
-      userId: true,
-      items: { select: { amount: true, quantity: true } },
-    },
-  })
+  const [collectedRecords, pendingRequests] = await Promise.all([
+    prisma.workRecord.findMany({
+      where: {
+        collectionStatus: "COLLECTED",
+        paymentTypeSnapshot: "CASH",
+        date: { gte: startDate, lte: endDate },
+      },
+      select: {
+        userId: true,
+        items: { select: { amount: true } },
+      },
+    }),
+    prisma.collectionRequest.findMany({
+      where: {
+        status: "PENDING",
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      select: {
+        items: {
+          select: {
+            workRecord: {
+              select: {
+                userId: true,
+                paymentTypeSnapshot: true,
+                collectionStatus: true,
+                items: { select: { amount: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ])
 
-  const map = new Map<string, { total: number; count: number }>()
-  for (const record of records) {
+  type Bucket = {
+    collected: number
+    collectedCount: number
+    pending: number
+    pendingCount: number
+  }
+  const map = new Map<string, Bucket>()
+  const getBucket = (userId: string): Bucket => {
+    const existing = map.get(userId)
+    if (existing) return existing
+    const fresh: Bucket = { collected: 0, collectedCount: 0, pending: 0, pendingCount: 0 }
+    map.set(userId, fresh)
+    return fresh
+  }
+
+  for (const record of collectedRecords) {
     const sum = record.items.reduce((acc, item) => acc + item.amount, 0)
-    const current = map.get(record.userId) ?? { total: 0, count: 0 }
-    map.set(record.userId, {
-      total: current.total + sum,
-      count: current.count + 1,
-    })
+    const bucket = getBucket(record.userId)
+    bucket.collected += sum
+    bucket.collectedCount += 1
+  }
+
+  for (const request of pendingRequests) {
+    for (const item of request.items) {
+      const wr = item.workRecord
+      if (wr.paymentTypeSnapshot !== "CASH") continue
+      if (wr.collectionStatus !== "UNCOLLECTED") continue
+      const sum = wr.items.reduce((acc, i) => acc + i.amount, 0)
+      const bucket = getBucket(wr.userId)
+      bucket.pending += sum
+      bucket.pendingCount += 1
+    }
   }
 
   const userIds = [...map.keys()]
@@ -68,16 +112,20 @@ export async function getCashCollectionByEmployee(
 
   const rows = userIds
     .map((userId) => {
-      const summary = map.get(userId)
+      const bucket = map.get(userId)!
       return {
         userId,
         name: nameById.get(userId) ?? userId,
-        totalAmount: summary?.total ?? 0,
-        recordCount: summary?.count ?? 0,
+        totalAmount: bucket.collected,
+        recordCount: bucket.collectedCount,
+        pendingAmount: bucket.pending,
+        pendingCount: bucket.pendingCount,
       }
     })
     .sort((a, b) => {
-      if (b.totalAmount !== a.totalAmount) return b.totalAmount - a.totalAmount
+      const aDisplay = a.totalAmount + a.pendingAmount
+      const bDisplay = b.totalAmount + b.pendingAmount
+      if (bDisplay !== aDisplay) return bDisplay - aDisplay
       return a.name.localeCompare(b.name, "ko")
     })
 
@@ -91,13 +139,3 @@ export async function getCashCollectionByEmployee(
   }
 }
 
-export async function getYesterdayCashCollectionByEmployee(
-  now: Date = new Date()
-): Promise<DailyCashCollectionResult> {
-  const todayStr = toKSTDateString(now)
-  const yesterdayStr = toKSTDateString(
-    new Date(dateToKSTMidnight(todayStr).getTime() - 24 * 60 * 60 * 1000)
-  )
-
-  return getCashCollectionByEmployee(yesterdayStr)
-}

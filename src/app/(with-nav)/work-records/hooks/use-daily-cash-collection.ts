@@ -6,6 +6,8 @@ export interface EmployeeCashRow {
   name: string
   totalAmount: number
   recordCount: number
+  pendingAmount: number
+  pendingCount: number
 }
 
 export interface DailyCashCollectionData {
