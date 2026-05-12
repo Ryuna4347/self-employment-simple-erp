@@ -25,18 +25,18 @@
 profile/
 ├── page.tsx
 ├── components/
-│   ├── profile-content.tsx         # 프로필 메인 컨텐츠
-│   ├── change-password-modal.tsx   # 비밀번호 변경 모달
+│   ├── profile-content.tsx
+│   ├── change-password-modal.tsx
 │   └── index.ts
 └── hooks/
-    └── use-change-password.ts      # 비밀번호 변경
+    └── use-change-password.ts
 ```
 
 ---
 
 ## 관련 API
 
-- `POST /api/profile/password` - 비밀번호 변경
+- `PATCH /api/profile/password` - 비밀번호 변경
 
 ---
 
