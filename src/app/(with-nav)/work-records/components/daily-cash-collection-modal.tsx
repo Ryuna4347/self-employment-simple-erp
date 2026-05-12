@@ -31,7 +31,7 @@ export function DailyCashCollectionModal({
   const displayLabel = data?.dateLabel ? `${data.dateLabel} ` : ""
 
   return (
-    <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="fullscreen">
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="sheet">
       <ResponsiveModalContent className="sm:max-w-md max-h-[85vh] overflow-hidden flex flex-col">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>{displayLabel}직원별 현금 수금</ResponsiveModalTitle>
