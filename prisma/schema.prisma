@@ -246,3 +246,71 @@ model CollectionRequestItem {
 
   @@unique([collectionRequestId, workRecordId])
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Clone 모델 — 원본 Store/WorkRecord/RecordItem 데이터를 안전하게
+// 복제해 실험/수정 작업에 사용하기 위한 self-contained 테이블.
+// FK 관계 없음. 원본 추적은 sourceId 컬럼으로만.
+// ─────────────────────────────────────────────────────────────────
+
+model StoreClone {
+  id             String      @id @default(cuid())
+  sourceId       String? // 원본 Store.id (역추적용)
+  snapshotAt     DateTime    @default(now()) // 복제 시점
+
+  name           String
+  address        String
+  managerName    String?
+  PaymentType    PaymentType @default(CASH)
+  kakaoPlaceId   String? // @unique 의도적으로 제거 (다중 복제 허용)
+  latitude       Float?
+  longitude      Float?
+  receiptType    ReceiptType @default(NONE)
+  note           String?
+  assignedUserId String? // FK 관계 없이 ID만 보존
+  isDeleted      Boolean     @default(false)
+  deletedAt      DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([sourceId])
+  @@index([isDeleted])
+}
+
+model WorkRecordClone {
+  id                   String           @id @default(cuid())
+  sourceId             String? // 원본 WorkRecord.id (역추적용)
+  snapshotAt           DateTime         @default(now()) // 복제 시점
+
+  date                 DateTime         @default(now())
+  storeId              String? // FK 관계 없이 ID만 보존
+  userId               String // FK 관계 없이 ID만 보존
+  collectionStatus     CollectionStatus @default(UNCOLLECTED)
+  imageUrl             String?
+  note                 String?
+  storeNameSnapshot    String?
+  storeAddressSnapshot String?
+  managerNameSnapshot  String?
+  paymentTypeSnapshot  PaymentType
+  sortOrder            Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  collectedAt          DateTime?
+  collectedByUserId    String?
+
+  @@index([sourceId])
+  @@index([date])
+  @@index([collectionStatus])
+}
+
+model RecordItemClone {
+  id                String  @id @default(cuid())
+  sourceId          String? // 원본 RecordItem.id (역추적용)
+  workRecordCloneId String // 부모 WorkRecordClone.id (FK 없이 ID만 보존)
+  name              String
+  amount            Int
+  quantity          Int
+
+  @@index([workRecordCloneId])
+  @@index([sourceId])
+}
