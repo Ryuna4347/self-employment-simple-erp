@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Link from "next/link";
 import { useDashboard, type DashboardPeriod } from "../hooks/use-dashboard";
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
@@ -84,6 +83,8 @@ export function DashboardContent() {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null);
   const [isDeletedStoresModalOpen, setIsDeletedStoresModalOpen] =
+    useState(false);
+  const [isNewlyAddedStoresModalOpen, setIsNewlyAddedStoresModalOpen] =
     useState(false);
 
   // 기간 변경 시 선택 해제
@@ -520,7 +521,7 @@ export function DashboardContent() {
             </div>
           </div>
 
-          {/* 제거된 매장 + 최근 미수금 */}
+          {/* 제거된 매장 + 추가된 매장 */}
           <div className="space-y-6">
             {/* 제거된 매장 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
@@ -566,44 +567,45 @@ export function DashboardContent() {
               </div>
             </div>
 
-            {/* 최근 미수금 */}
+            {/* 추가된 매장 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-gray-900">
-                  최근 미수금
+                  추가된 매장
                 </h3>
-                <Link
-                  href={
-                    period === "daily"
-                      ? `/admin/outstanding?year=${year}&month=${month}`
-                      : `/admin/outstanding?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`
-                  }
-                  className="text-xs text-blue-500 hover:text-blue-700 font-medium"
-                >
-                  더보기
-                </Link>
+                {data.newlyAddedStores.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsNewlyAddedStoresModalOpen(true)}
+                    className="text-xs text-blue-500 hover:text-blue-700 font-medium"
+                  >
+                    더보기
+                  </button>
+                )}
               </div>
               <div className="space-y-3">
-                {data.recentOutstanding.length > 0 ? (
-                  data.recentOutstanding.map((record) => (
+                {data.newlyAddedStores.length > 0 ? (
+                  data.newlyAddedStores.slice(0, 5).map((store) => (
                     <div
-                      key={record.id}
-                      className="flex items-center justify-between p-3 bg-red-50 rounded border-l-4 border-red-500"
+                      key={store.id}
+                      className="flex items-center justify-between p-3 bg-emerald-50 rounded border-l-4 border-emerald-500"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {record.storeName}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {store.name}
                         </p>
-                        <p className="text-xs text-gray-500">{record.date}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {store.address}
+                        </p>
                       </div>
-                      <span className="text-sm font-medium text-red-600">
-                        {record.totalAmount.toLocaleString()}원
+                      <span className="text-xs text-gray-500 ml-3 shrink-0">
+                        {store.createdAt}
                       </span>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-8 text-sm text-gray-400">
-                    미수금이 없습니다
+                    추가된 매장이 없습니다
                   </div>
                 )}
               </div>
@@ -637,6 +639,40 @@ export function DashboardContent() {
                     </div>
                     <span className="text-xs text-gray-500 ml-3 shrink-0">
                       {store.deletedAt}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </ResponsiveModalContent>
+          </ResponsiveModal>
+
+          {/* 추가된 매장 전체 목록 모달 */}
+          <ResponsiveModal
+            open={isNewlyAddedStoresModalOpen}
+            onOpenChange={setIsNewlyAddedStoresModalOpen}
+          >
+            <ResponsiveModalContent className="sm:max-w-md">
+              <ResponsiveModalHeader>
+                <ResponsiveModalTitle>
+                  추가된 매장 ({data.newlyAddedStores.length}곳)
+                </ResponsiveModalTitle>
+              </ResponsiveModalHeader>
+              <div className="px-4 sm:px-6 pb-4 max-h-[60vh] overflow-y-auto space-y-2">
+                {data.newlyAddedStores.map((store) => (
+                  <div
+                    key={store.id}
+                    className="flex items-center justify-between p-3 bg-emerald-50 rounded border-l-4 border-emerald-500"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {store.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {store.address}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 ml-3 shrink-0">
+                      {store.createdAt}
                     </span>
                   </div>
                 ))}
