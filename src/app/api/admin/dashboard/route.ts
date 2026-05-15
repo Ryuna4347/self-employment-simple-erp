@@ -118,20 +118,22 @@ export async function GET(request: NextRequest) {
         where: { date: { gte: dateStart, lte: dateEnd } },
       }),
 
-      // 8) 해당 기간 내 제거된 매장 목록 (전체)
+      // 8) 해당 기간 내 제거된 매장 목록 (근무기록 보유 매장만)
       prisma.store.findMany({
         where: {
           isDeleted: true,
           deletedAt: { gte: dateStart, lte: dateEnd },
+          workRecords: { some: {} },
         },
         select: { id: true, name: true, address: true, deletedAt: true },
         orderBy: { deletedAt: "desc" },
       }),
 
-      // 9) 해당 기간 내 새로 추가된 매장 수 (isDeleted 무관)
+      // 9) 해당 기간 내 새로 추가된 매장 목록 (isDeleted 무관, 근무기록 보유 매장만)
       prisma.store.findMany({
         where: {
           createdAt: { gte: dateStart, lte: dateEnd },
+          workRecords: { some: {} },
         },
         select: { id: true, name: true, address: true, createdAt: true },
         orderBy: { createdAt: "desc" },
