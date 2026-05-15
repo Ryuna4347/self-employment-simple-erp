@@ -623,7 +623,7 @@ export function DashboardContent() {
                   제거된 매장 ({data.deletedStores.length}곳)
                 </ResponsiveModalTitle>
               </ResponsiveModalHeader>
-              <div className="px-4 sm:px-6 pb-4 max-h-[60vh] overflow-y-auto space-y-2">
+              <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 overflow-y-auto space-y-2 sm:flex-none sm:max-h-[60vh]">
                 {data.deletedStores.map((store) => (
                   <div
                     key={store.id}
@@ -657,7 +657,7 @@ export function DashboardContent() {
                   추가된 매장 ({data.newlyAddedStores.length}곳)
                 </ResponsiveModalTitle>
               </ResponsiveModalHeader>
-              <div className="px-4 sm:px-6 pb-4 max-h-[60vh] overflow-y-auto space-y-2">
+              <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 overflow-y-auto space-y-2 sm:flex-none sm:max-h-[60vh]">
                 {data.newlyAddedStores.map((store) => (
                   <div
                     key={store.id}
