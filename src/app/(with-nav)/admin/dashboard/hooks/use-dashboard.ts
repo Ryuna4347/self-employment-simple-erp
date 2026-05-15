@@ -20,6 +20,14 @@ export interface DeletedStore {
   deletedAt: string
 }
 
+// 추가된 매장
+export interface NewlyAddedStore {
+  id: string
+  name: string
+  address: string
+  createdAt: string
+}
+
 // 차트 데이터 포인트
 interface ChartDataPoint {
   label: string
@@ -35,14 +43,6 @@ interface ExpenseChartDataPoint {
   amount: number
 }
 
-// 최근 미수금
-interface RecentOutstanding {
-  id: string
-  date: string
-  storeName: string
-  totalAmount: number
-}
-
 // 수금 현황
 interface CollectionStatus {
   collected: number
@@ -55,8 +55,8 @@ export interface DashboardData {
   summary: DashboardSummary
   chart: ChartDataPoint[]
   expenseChart: ExpenseChartDataPoint[]
-  recentOutstanding: RecentOutstanding[]
   deletedStores: DeletedStore[]
+  newlyAddedStores: NewlyAddedStore[]
   collectionStatus: CollectionStatus
 }
 

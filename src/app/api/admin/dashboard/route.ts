@@ -10,7 +10,6 @@ import {
 } from "date-fns"
 import { Prisma } from "@/generated/prisma/client"
 import {
-  startOfDayKST,
   startOfMonthKST,
   endOfMonthKST,
   toKSTLocal,
@@ -55,7 +54,6 @@ export async function GET(request: NextRequest) {
       dateEnd = endOfMonthKST(year, 12)
     }
 
-    const today = startOfDayKST()
     const truncUnit = period === "daily" && month ? "day" : "month"
 
     // 모든 집계를 DB 레벨에서 병렬 실행
@@ -65,10 +63,9 @@ export async function GET(request: NextRequest) {
       uniqueStoresResult,
       chartData,
       expenseChartData,
-      outstandingRecords,
       expenseAggregate,
       deletedStoresList,
-      newlyAddedStoresCount,
+      newlyAddedStoresList,
     ] = await Promise.all([
       // 1) collectionStatus별 건수 (summary + 파이차트 공용)
       prisma.workRecord.groupBy({
@@ -115,38 +112,31 @@ export async function GET(request: NextRequest) {
         GROUP BY period ORDER BY period
       `,
 
-      // 6) 최근 미수금 5건 (오늘 이전만)
-      prisma.workRecord.findMany({
-        where: {
-          collectionStatus: "UNCOLLECTED",
-          date: { gte: dateStart, lte: dateEnd, lt: today },
-        },
-        include: { items: { select: { amount: true } } },
-        orderBy: { date: "desc" },
-        take: 5,
-      }),
-
       // 7) 비용 합계
       prisma.expense.aggregate({
         _sum: { amount: true },
         where: { date: { gte: dateStart, lte: dateEnd } },
       }),
 
-      // 8) 해당 기간 내 제거된 매장 목록 (전체)
+      // 8) 해당 기간 내 제거된 매장 목록 (근무기록 보유 매장만)
       prisma.store.findMany({
         where: {
           isDeleted: true,
           deletedAt: { gte: dateStart, lte: dateEnd },
+          workRecords: { some: {} },
         },
         select: { id: true, name: true, address: true, deletedAt: true },
         orderBy: { deletedAt: "desc" },
       }),
 
-      // 9) 해당 기간 내 새로 추가된 매장 수 (isDeleted 무관)
-      prisma.store.count({
+      // 9) 해당 기간 내 새로 추가된 매장 목록 (isDeleted 무관, 근무기록 보유 매장만)
+      prisma.store.findMany({
         where: {
           createdAt: { gte: dateStart, lte: dateEnd },
+          workRecords: { some: {} },
         },
+        select: { id: true, name: true, address: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
       }),
     ])
 
@@ -172,7 +162,7 @@ export async function GET(request: NextRequest) {
       totalVisits,
       uniqueStores: uniqueStoresResult.length,
       deletedStoresCount: deletedStoresList.length,
-      newlyAddedStoresCount,
+      newlyAddedStoresCount: newlyAddedStoresList.length,
     }
 
     // === deletedStores 조립 (KST 날짜 포맷) ===
@@ -183,6 +173,14 @@ export async function GET(request: NextRequest) {
       deletedAt: store.deletedAt
         ? format(toKSTLocal(store.deletedAt), "yyyy-MM-dd")
         : "",
+    }))
+
+    // === newlyAddedStores 조립 (KST 날짜 포맷) ===
+    const newlyAddedStores = newlyAddedStoresList.map((store) => ({
+      id: store.id,
+      name: store.name,
+      address: store.address,
+      createdAt: format(toKSTLocal(store.createdAt), "yyyy-MM-dd"),
     }))
 
     // === chart 조립 (빈 날짜/월 채우기 + 결제유형별 분리) ===
@@ -251,14 +249,6 @@ export async function GET(request: NextRequest) {
       amount,
     }))
 
-    // === recentOutstanding 조립 ===
-    const recentOutstanding = outstandingRecords.map((record) => ({
-      id: record.id,
-      date: format(toKSTLocal(record.date), "yyyy-MM-dd"),
-      storeName: record.storeNameSnapshot ?? "알 수 없음",
-      totalAmount: record.items.reduce((sum, item) => sum + item.amount, 0),
-    }))
-
     // === 수금 현황 (파이 차트용) ===
     const statusMap: Record<string, number> = { COLLECTED: 0, UNCOLLECTED: 0, CLOSED: 0 }
     for (const s of summaryByStatus) {
@@ -269,8 +259,8 @@ export async function GET(request: NextRequest) {
       summary,
       chart,
       expenseChart,
-      recentOutstanding,
       deletedStores,
+      newlyAddedStores,
       collectionStatus: {
         collected: statusMap.COLLECTED,
         uncollected: statusMap.UNCOLLECTED,
