@@ -3,8 +3,8 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { ApiErrors } from "@/lib/api-response"
-import { format } from "date-fns"
-import { startOfMonthKST, endOfMonthKST, toKSTLocal } from "@/lib/date-utils"
+import { format, subMonths } from "date-fns"
+import { startOfMonthKST, endOfMonthKST, startOfDayKST, toKSTLocal } from "@/lib/date-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 // 날짜별 필터 스키마
@@ -23,6 +23,10 @@ const storeFilterSchema = z.object({
   filter: z.literal("store"),
   storeName: z.string().min(1).max(100).optional(),
   userId: z.string().optional(),
+  agedOnly: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => v === "true"),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -51,6 +55,7 @@ export async function GET(request: NextRequest) {
       month: searchParams.get("month") ?? undefined,
       storeName: searchParams.get("storeName") ?? undefined,
       userId: searchParams.get("userId") ?? undefined,
+      agedOnly: searchParams.get("agedOnly") ?? undefined,
       search: searchParams.get("search") ?? undefined,
       page: searchParams.get("page") ?? undefined,
       limit: searchParams.get("limit") ?? undefined,
@@ -156,7 +161,9 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
  * 한 매장의 모든 레코드가 항상 같은 페이지에 표시된다.
  */
 async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
-  const { storeName, userId, page, limit } = params
+  const { storeName, userId, agedOnly, page, limit } = params
+  const agedCutoff = agedOnly ? subMonths(startOfDayKST(), 2) : null
+
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
     ...(storeName ? { OR: [
@@ -164,6 +171,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
       { managerNameSnapshot: { contains: storeName, mode: "insensitive" } },
     ] } : { storeNameSnapshot: { not: null } }),
     ...(userId ? { userId } : {}),
+    ...(agedCutoff ? { date: { lt: agedCutoff } } : {}),
   }
 
   // 1. 매장명 목록 + 요약 + 상세 레코드를 병렬로 조회
@@ -201,6 +209,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
         where: {
           collectionStatus: "UNCOLLECTED",
           storeNameSnapshot: { in: pageStoreNames },
+          ...(agedCutoff ? { date: { lt: agedCutoff } } : {}),
         },
         include: {
           items: true,

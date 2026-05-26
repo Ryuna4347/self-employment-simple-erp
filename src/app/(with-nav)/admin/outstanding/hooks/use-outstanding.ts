@@ -55,6 +55,7 @@ export type StoreFilterParams = {
   filter: "store"
   storeName?: string
   userId?: string
+  agedOnly?: boolean
 }
 
 export type OutstandingParams = DateFilterParams | StoreFilterParams
@@ -88,8 +89,13 @@ export function useOutstanding(params: OutstandingParams) {
         if (params.search) {
           searchParams.set("search", params.search)
         }
-      } else if (params.storeName) {
-        searchParams.set("storeName", params.storeName)
+      } else {
+        if (params.storeName) {
+          searchParams.set("storeName", params.storeName)
+        }
+        if (params.agedOnly) {
+          searchParams.set("agedOnly", "true")
+        }
       }
 
       if (params.userId) {

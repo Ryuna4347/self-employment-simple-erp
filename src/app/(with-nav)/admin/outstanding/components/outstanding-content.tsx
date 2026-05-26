@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/components/providers/app-providers";
 import { canWrite } from "@/lib/role-utils";
@@ -62,6 +63,7 @@ export function OutstandingContent() {
   const initialView = (searchParams.get("view") as ViewMode) || "date";
   const initialStoreName = searchParams.get("storeName") ?? "";
   const initialUserId = searchParams.get("userId") ?? "all";
+  const initialAgedOnly = searchParams.get("agedOnly") === "true";
 
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
@@ -69,6 +71,7 @@ export function OutstandingContent() {
   const [storeName, setStoreName] = useState(initialStoreName);
   const [searchStoreName, setSearchStoreName] = useState(initialStoreName);
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
+  const [agedOnly, setAgedOnly] = useState<boolean>(initialAgedOnly);
 
   // 직원 목록 조회
   const { data: users } = useUsers();
@@ -81,10 +84,13 @@ export function OutstandingContent() {
       params.set("year", String(year));
       params.set("month", String(month));
     }
+    if (view === "store" && agedOnly) {
+      params.set("agedOnly", "true");
+    }
     if (searchStoreName) params.set("storeName", searchStoreName);
     if (selectedUserId !== "all") params.set("userId", selectedUserId);
     router.replace(`/admin/outstanding?${params.toString()}`);
-  }, [year, month, view, searchStoreName, selectedUserId, router]);
+  }, [year, month, view, searchStoreName, selectedUserId, agedOnly, router]);
 
   // 쿼리 파라미터 구성
   const queryParams: OutstandingParams = useMemo(() => {
@@ -102,8 +108,9 @@ export function OutstandingContent() {
       filter: "store",
       ...(searchStoreName ? { storeName: searchStoreName } : {}),
       userId,
+      ...(agedOnly ? { agedOnly: true } : {}),
     };
-  }, [view, year, month, searchStoreName, selectedUserId]);
+  }, [view, year, month, searchStoreName, selectedUserId, agedOnly]);
 
   // 데이터 조회
   const {
@@ -336,6 +343,16 @@ export function OutstandingContent() {
           <Search className="size-4" />
         </Button>
       </div>
+      {view === "store" && (
+        <label className="flex items-center gap-2 mb-4 text-sm text-gray-700 cursor-pointer select-none">
+          <Checkbox
+            id="aged-only"
+            checked={agedOnly}
+            onCheckedChange={(checked) => setAgedOnly(checked === true)}
+          />
+          <span>2달 이상 장기 미수만 보기</span>
+        </label>
+      )}
       {/* 로딩 상태 */}
       {isLoading && (
         <div className="flex items-center justify-center py-20">
@@ -381,7 +398,11 @@ export function OutstandingContent() {
             ))
           ) : (
             <div className="text-center py-16 text-sm text-gray-400">
-              {searchStoreName ? "검색 결과가 없습니다" : "미수금이 없습니다"}
+              {searchStoreName
+                ? "검색 결과가 없습니다"
+                : agedOnly
+                  ? "2달 이상 장기 미수가 없습니다"
+                  : "미수금이 없습니다"}
             </div>
           )}
         </div>
