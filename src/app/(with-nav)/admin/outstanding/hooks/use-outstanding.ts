@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
@@ -39,6 +39,13 @@ interface OutstandingResponse {
       count: number
     }
     pagination: PaginationInfo
+  }
+}
+
+// 장기 미수 매장 수 응답 타입(totalCount만 사용)
+interface AgedCountResponse {
+  data: {
+    pagination: { totalCount: number }
   }
 }
 
@@ -110,6 +117,25 @@ export function useOutstanding(params: OutstandingParams) {
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
+  })
+}
+
+/**
+ * 장기 미수(2개월 이상) 매장 수만 경량 조회
+ *
+ * 알림 배너의 표시 여부를 결정하는 용도.
+ * limit=1로 호출하여 페이지 레코드 부하를 최소화한다.
+ */
+export function useAgedOutstandingCount() {
+  return useQuery({
+    queryKey: [...OUTSTANDING_KEY, "aged-count"] as const,
+    queryFn: async () => {
+      const response = await apiClient<AgedCountResponse>(
+        `/api/admin/outstanding?filter=store&agedOnly=true&page=1&limit=1`
+      )
+      return response.data.pagination.totalCount
+    },
+    staleTime: 30_000,
   })
 }
 

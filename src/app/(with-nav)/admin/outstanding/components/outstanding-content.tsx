@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, RefreshCw, Search, Users } from "lucide-react";
+import { AlertTriangle, Loader2, RefreshCw, Search, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import { useUser } from "@/components/providers/app-providers";
 import { canWrite } from "@/lib/role-utils";
 import { useUsers } from "@/hooks/use-users";
 import {
+  useAgedOutstandingCount,
   useOutstanding,
   type OutstandingParams,
 } from "../hooks/use-outstanding";
@@ -123,6 +124,7 @@ export function OutstandingContent() {
     hasNextPage,
     isFetchingNextPage,
   } = useOutstanding(queryParams);
+  const { data: agedCount = 0 } = useAgedOutstandingCount();
 
   // 페이지 플래튼
   const allRecords = useMemo(
@@ -233,6 +235,13 @@ export function OutstandingContent() {
     setSearchStoreName(storeName.trim());
   }, [storeName]);
 
+  const showAgedAlert = agedCount > 0 && !(view === "store" && agedOnly);
+
+  const handleViewAged = useCallback(() => {
+    setView("store");
+    setAgedOnly(true);
+  }, []);
+
   const yearOptions = getYearOptions();
 
   return (
@@ -256,6 +265,25 @@ export function OutstandingContent() {
           </Select>
         </div>
       </div>
+
+      {showAgedAlert && (
+        <div className="flex items-center justify-between gap-3 mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center gap-2 text-sm text-amber-900 min-w-0">
+            <AlertTriangle className="size-4 shrink-0" />
+            <span className="truncate">
+              2달 이상 장기 미수가 있는 매장이 <strong>{agedCount}곳</strong> 있습니다
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleViewAged}
+            className="shrink-0 bg-white"
+          >
+            확인하기
+          </Button>
+        </div>
+      )}
 
       {/* 필터 컨트롤 */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
