@@ -155,8 +155,8 @@ src/app/api/
     │   └── [id]/route.ts              # DELETE 직원 삭제 (soft delete)
     ├── create-invite/route.ts          # POST 초대 코드 생성
     ├── outstanding/
-    │   ├── route.ts                    # GET 미수금 목록
-    │   └── batch-collect/route.ts     # PATCH 일괄 수금
+    │   ├── route.ts                    # GET 미수금 목록 (date/store 필터, store는 agedOnly 지원)
+    │   └── batch-collect/route.ts     # POST 일괄 수금
     ├── collection-history/route.ts     # GET 수금 이력
     ├── costs/
     │   ├── route.ts                    # GET/POST 비용 목록/생성
@@ -290,3 +290,4 @@ src/app/api/
 | 2026-04-25 | 초기 구성 — ERP 풀스택 개발 팀 + 오케스트레이터 + 5개 전용 스킬 | 전체 | 도메인 회귀 패턴(권한/타임존/스냅샷/shape 불일치) 사전 차단 |
 | 2026-05-05 | 코드 작성을 Codex MCP에 위임. CLAUDE.md → AGENTS.md 통합 | 전체 | 단일 도메인 문서(AGENTS.md)로 Codex와 Claude가 동일 컨텍스트 공유 |
 | 2026-05-16 | 현재 구현 반영 — 점검 모드, daily-cash-collection API, Store 소프트 삭제 필드, Clone 모델, `src/lib/reports/` 추가 | 라우트/모델/lib 섹션 | 그동안 추가된 기능(현금 수금 집계, MAINTENANCE_MODE, Sandbox Clone 테이블)을 문서와 일치시킴 |
+| 2026-05-29 | 미수금 장기 미수(2달 이상) 필터·알림 배너 반영, batch-collect 메서드 PATCH→POST 정정 | outstanding AGENTS.md, 루트 API 섹션 | 신규 장기 미수 기능 문서화 및 실제 라우트 메서드와 불일치 수정 |
