@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { Plus, Search, Store as StoreIcon, RefreshCw } from "lucide-react"
+import { Plus, Search, Store as StoreIcon } from "lucide-react"
 import { useUser } from "@/components/providers/app-providers"
 import { canWrite } from "@/lib/role-utils"
+import { RefreshFab } from "@/components/common/refresh-fab"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { StoreCard, StoreModal } from "./index"
@@ -179,14 +180,11 @@ export function StoresClient() {
       )}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab
+        onRefresh={() => refetch()}
+        isFetching={isFetching}
+        offset="stacked"
+      />
 
       {/* FAB (Floating Action Button) */}
       {writable && (

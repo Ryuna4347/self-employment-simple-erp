@@ -99,6 +99,7 @@ export function ChangePasswordModal({
               <Input
                 id="currentPassword"
                 type="password"
+                autoComplete="current-password"
                 placeholder="현재 비밀번호를 입력하세요"
                 {...register("currentPassword", {
                   onChange: (e) => {
@@ -120,6 +121,7 @@ export function ChangePasswordModal({
               <Input
                 id="newPassword"
                 type="password"
+                autoComplete="new-password"
                 placeholder="새 비밀번호를 입력하세요"
                 {...register("newPassword", {
                   onChange: (e) => {
@@ -141,6 +143,7 @@ export function ChangePasswordModal({
               <Input
                 id="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 placeholder="새 비밀번호를 다시 입력하세요"
                 {...register("confirmPassword", {
                   onChange: (e) => {

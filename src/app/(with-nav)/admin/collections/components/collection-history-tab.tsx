@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { Loader2, RefreshCw, Search, Users } from "lucide-react"
+import { Loader2, Search, Users } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useUsers } from "@/hooks/use-users"
+import { RefreshFab } from "@/components/common/refresh-fab"
 import { useCollectionHistory } from "../hooks/use-collections"
 import { CollectionHistoryCard } from "./collection-history-card"
 
@@ -183,14 +184,7 @@ export function CollectionHistoryTab() {
       )}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab onRefresh={() => refetch()} isFetching={isFetching} />
     </div>
   )
 }

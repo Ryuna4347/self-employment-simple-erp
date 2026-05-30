@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { AlertTriangle, Loader2, RefreshCw, Search, Users } from "lucide-react";
+import { AlertTriangle, Loader2, Search, Users } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { RefreshFab } from "@/components/common/refresh-fab";
 import { useUser } from "@/components/providers/app-providers";
 import { canWrite } from "@/lib/role-utils";
 import { useUsers } from "@/hooks/use-users";
@@ -129,7 +130,7 @@ export function OutstandingContent() {
   // 페이지 플래튼
   const allRecords = useMemo(
     () => data?.pages.flatMap((page) => page.records) ?? [],
-    [data]
+    [data],
   );
 
   // 서버 요약
@@ -197,7 +198,7 @@ export function OutstandingContent() {
           fetchNextPage();
         }
       },
-      { threshold: 0 }
+      { threshold: 0 },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -209,26 +210,21 @@ export function OutstandingContent() {
   const [modalStoreName, setModalStoreName] = useState("");
 
   // 매장별 뷰에서 수금처리 클릭
-  const handleStoreCollect = useCallback(
-    (group: StoreGroup) => {
-      if (!group.storeId) return;
-      setModalStoreId(group.storeId);
-      setModalStoreName(group.storeName);
-      setModalOpen(true);
-    },
-    []
-  );
+  const handleStoreCollect = useCallback((group: StoreGroup) => {
+    console.log(group);
+    if (!group.storeId) return;
+    setModalStoreId(group.storeId);
+    setModalStoreName(group.storeName);
+    setModalOpen(true);
+  }, []);
 
   // 날짜별 뷰에서 수금처리 클릭
-  const handleRecordCollect = useCallback(
-    (record: OutstandingRecord) => {
-      if (!record.storeId) return;
-      setModalStoreId(record.storeId);
-      setModalStoreName(record.storeNameSnapshot ?? "-");
-      setModalOpen(true);
-    },
-    []
-  );
+  const handleRecordCollect = useCallback((record: OutstandingRecord) => {
+    if (!record.storeId) return;
+    setModalStoreId(record.storeId);
+    setModalStoreName(record.storeNameSnapshot ?? "-");
+    setModalOpen(true);
+  }, []);
 
   // 매장명 검색 실행
   const handleStoreSearch = useCallback(() => {
@@ -271,7 +267,8 @@ export function OutstandingContent() {
           <div className="flex items-center gap-2 text-sm text-amber-900 min-w-0">
             <AlertTriangle className="size-4 shrink-0" />
             <span className="truncate">
-              2달 이상 장기 미수가 있는 매장이 <strong>{agedCount}곳</strong> 있습니다
+              2달 이상 장기 미수가 있는 매장이 <strong>{agedCount}곳</strong>{" "}
+              있습니다
             </span>
           </div>
           <Button
@@ -439,7 +436,9 @@ export function OutstandingContent() {
       {/* 무한 스크롤 트리거 */}
       <div ref={loadMoreRef} className="h-1" />
       {isFetchingNextPage && (
-        <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
+        <div className="text-center py-4 text-gray-500 text-sm">
+          불러오는 중...
+        </div>
       )}
 
       {/* 일괄 수금 처리 모달 */}
@@ -454,14 +453,7 @@ export function OutstandingContent() {
       )}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab onRefresh={() => refetch()} isFetching={isFetching} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -25,7 +25,7 @@ interface StoreTemplateCardProps {
  * - 매장 목록 (방문 순서)
  * - 적용/수정/삭제 버튼
  */
-export function StoreTemplateCard({
+export const StoreTemplateCard = React.memo(function StoreTemplateCard({
   template,
   onEdit,
   onDelete,
@@ -155,4 +155,6 @@ export function StoreTemplateCard({
       </div>
     </div>
   )
-}
+})
+
+StoreTemplateCard.displayName = "StoreTemplateCard"

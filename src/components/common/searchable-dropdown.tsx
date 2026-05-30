@@ -65,17 +65,31 @@ export function SearchableDropdown<T>({
           onBlur={onBlur}
           className="pl-9"
           disabled={disabled}
+          aria-expanded={showDropdown}
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
         />
       </div>
 
-      {showDropdown && (
-        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+      {showDropdown && !disabled && (
+        <div
+          role="listbox"
+          className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-y-auto"
+        >
           {items.length > 0 ? (
             items.map((item) => (
               <button
                 key={getItemKey(item)}
                 type="button"
+                role="option"
+                aria-selected={false}
                 onMouseDown={() => onItemSelect(item)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    onItemSelect(item)
+                  }
+                }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-50 border-b last:border-b-0"
               >
                 {renderItem(item)}

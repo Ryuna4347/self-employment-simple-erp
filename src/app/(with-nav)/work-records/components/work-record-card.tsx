@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   MapPin,
   ChevronDown,
@@ -100,7 +100,7 @@ const COLLECTION_STATUS_CONFIG: Record<
  * - 메모
  * - 수정/삭제 버튼
  */
-export function WorkRecordCard({
+export const WorkRecordCard = React.memo(function WorkRecordCard({
   record,
   onEdit,
   onDelete,
@@ -112,12 +112,31 @@ export function WorkRecordCard({
   isDragging,
 }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const totalAmount = calculateTotalAmount(record.items);
+  const totalAmount = useMemo(
+    () => calculateTotalAmount(record.items),
+    [record.items],
+  );
   const statusConfig = COLLECTION_STATUS_CONFIG[record.collectionStatus];
   // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능, VIEWER는 수정 불가
   const canModify =
     (record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN") && canWrite(userRole);
   const isActionPending = isDeleting || isCollecting;
+  const storeAddress = record.storeAddressSnapshot ?? record.store?.address ?? "";
+  const storeAddressLabel = storeAddress || "주소 없음";
+
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((v) => !v);
+  }, []);
+
+  const handleToggleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleExpand();
+      }
+    },
+    [toggleExpand],
+  );
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -158,9 +177,12 @@ export function WorkRecordCard({
       {/* 카드 콘텐츠 영역 */}
       <div className="flex-1">
         {/* 축약 모드 - 클릭 가능 영역 */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full text-left focus:outline-none p-4"
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={toggleExpand}
+          onKeyDown={handleToggleKeyDown}
+          className="w-full text-left focus:outline-none p-4 cursor-pointer"
         >
           <div className="flex items-start justify-between gap-3">
             {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
@@ -192,16 +214,18 @@ export function WorkRecordCard({
                   )
                 })()}
               </div>
-              <div
-                className="flex items-start gap-1.5 text-sm text-gray-600 cursor-pointer active:bg-gray-100 rounded"
+              <button
+                type="button"
+                aria-label={`주소 복사: ${storeAddressLabel}`}
+                className="flex items-start gap-1.5 text-sm text-gray-600 active:bg-gray-100 rounded"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const address = record.storeAddressSnapshot ?? record.store?.address ?? "";
-                  if (address) {
-                    navigator.clipboard.writeText(address);
+                  if (storeAddress) {
+                    navigator.clipboard.writeText(storeAddress);
                     toast.success("주소가 복사되었습니다");
                   }
                 }}
+                onKeyDown={(e) => e.stopPropagation()}
               >
                 <MapPin className="size-4 flex-shrink-0 mt-0.5" />
                 <span className="line-clamp-1">
@@ -209,7 +233,7 @@ export function WorkRecordCard({
                     record.store?.address ??
                     "주소 없음"}
                 </span>
-              </div>
+              </button>
             </div>
 
             {/* 우측: 금액 및 확장 아이콘 */}
@@ -233,7 +257,7 @@ export function WorkRecordCard({
               />
             </div>
           </div>
-        </button>
+        </div>
 
         {/* 상세 모드 - 확장 영역 (애니메이션) */}
         <div
@@ -473,7 +497,9 @@ export function WorkRecordCard({
       </div>
     </div>
   );
-}
+})
+
+WorkRecordCard.displayName = "WorkRecordCard"
 
 /**
  * 드래그앤드롭 정렬을 위한 래퍼 컴포넌트

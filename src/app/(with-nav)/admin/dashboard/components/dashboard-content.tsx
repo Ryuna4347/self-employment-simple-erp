@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   BarChart,
   Bar,
@@ -24,9 +24,9 @@ import {
   Loader2,
   Download,
   Receipt,
-  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RefreshFab } from "@/components/common/refresh-fab";
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -81,16 +81,17 @@ export function DashboardContent() {
   );
 
   const [isExporting, setIsExporting] = useState(false);
-  const [selectedBarLabel, setSelectedBarLabel] = useState<string | null>(null);
+  const [selection, setSelection] = useState<{
+    key: string;
+    label: string;
+  } | null>(null);
+  const periodKey = `${period}-${year}-${month}`;
+  const selectedBarLabel =
+    selection?.key === periodKey ? selection.label : null;
   const [isDeletedStoresModalOpen, setIsDeletedStoresModalOpen] =
     useState(false);
   const [isNewlyAddedStoresModalOpen, setIsNewlyAddedStoresModalOpen] =
     useState(false);
-
-  // 기간 변경 시 선택 해제
-  useEffect(() => {
-    setSelectedBarLabel(null);
-  }, [period, year, month]);
 
   const yearOptions = getYearOptions();
 
@@ -338,7 +339,7 @@ export function DashboardContent() {
                       {selectedBarLabel} 결제유형별 매출
                     </p>
                     <button
-                      onClick={() => setSelectedBarLabel(null)}
+                      onClick={() => setSelection(null)}
                       className="text-xs text-gray-400 hover:text-gray-600"
                     >
                       닫기
@@ -397,8 +398,10 @@ export function DashboardContent() {
                     onClick={(state) => {
                       if (state?.activeLabel != null) {
                         const label = String(state.activeLabel);
-                        setSelectedBarLabel((prev) =>
-                          prev === label ? null : label,
+                        setSelection((prev) =>
+                          prev?.key === periodKey && prev.label === label
+                            ? null
+                            : { key: periodKey, label },
                         );
                       }
                     }}
@@ -683,14 +686,7 @@ export function DashboardContent() {
       )}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab onRefresh={() => refetch()} isFetching={isFetching} />
     </div>
   );
 }
