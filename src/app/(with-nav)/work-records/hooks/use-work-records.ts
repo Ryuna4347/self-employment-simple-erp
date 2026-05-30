@@ -8,11 +8,7 @@ export type CollectionStatus = "UNCOLLECTED" | "COLLECTED" | "CLOSED"
 // 근무기록 생성 입력 타입
 export interface WorkRecordInput {
   date: string // YYYY-MM-DD
-  storeId?: string // 매장 검색 선택 시 (optional)
-  storeName: string // 매장명 (필수)
-  storeAddress?: string // 주소 (선택)
-  paymentType: PaymentType // 결제방식 (필수)
-  managerName?: string // 담당자 (선택)
+  storeId: string
   collectionStatus: CollectionStatus
   imageUrl?: string
   note?: string

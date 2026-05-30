@@ -23,7 +23,7 @@
 
 ### WorkRecord (방문 기록)
 - `date`: 방문 날짜
-- `storeId`: 방문 매장 (nullable - 직접 입력 시 null)
+- `storeId`: 방문 매장 (신규 생성 시 **필수** — 기존 매장 선택만 허용. 컬럼은 과거 직접입력 레거시 레코드 보존을 위해 nullable 유지)
 - `userId`: 작성자
 - `collectionStatus`: 수금 상태 (UNCOLLECTED/COLLECTED/CLOSED)
 - `imageUrl`: 이미지 URL (Supabase Storage)
@@ -147,7 +147,7 @@ work-records/
 
 - `GET/POST /api/work-records` - 목록/생성
 - `GET/PUT/DELETE /api/work-records/[id]` - CRUD
-- `POST /api/work-records/[id]/save-store` - 매장 저장
+- `POST /api/work-records/[id]/save-store` - 매장 저장 (레거시: storeId=null 기록 정리용. 신규 생성은 매장 선택 필수라 정상 플로우에서는 사용 안 함)
 - `GET /api/work-records/store-visits` - 방문 이력
 - `GET /api/work-records/store-uncollected` - 미수금 조회
 - `GET /api/work-records/daily-cash-collection?date=YYYY-MM-DD` - 특정 날짜의 직원별 현금 수금 집계 (ADMIN 전용)

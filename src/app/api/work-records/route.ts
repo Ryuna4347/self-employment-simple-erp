@@ -18,11 +18,7 @@ const querySchema = z.object({
 // 근무기록 생성 스키마
 const createWorkRecordSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
-  storeId: z.string().optional(), // 매장 검색 선택 시 (optional)
-  storeName: z.string().min(1, "매장명을 입력해주세요"), // 필수
-  storeAddress: z.string().optional(), // 주소 (선택)
-  paymentType: z.enum(["CASH", "ACCOUNT", "CARD"]), // 결제방식 (필수)
-  managerName: z.string().optional(), // 담당자 (선택)
+  storeId: z.string().min(1, "매장을 선택해주세요"),
   collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
   imageUrl: z.string().url().optional(),
   note: z.string().optional(),
@@ -41,14 +37,6 @@ const createWorkRecordSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "최소 1개 이상의 품목이 필요합니다",
       path: ["items"],
-    })
-  }
-  // 계좌이체일 때 입금자 필수
-  if (data.paymentType === "ACCOUNT" && !data.managerName?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "계좌이체 결제 시 입금자를 입력해주세요",
-      path: ["managerName"],
     })
   }
 })
@@ -369,38 +357,41 @@ export async function POST(request: NextRequest) {
     ])
   }
 
-  const { date, storeId, storeName, storeAddress, paymentType, managerName, collectionStatus, imageUrl, note, items } = parseResult.data
+  const { date, storeId, collectionStatus, imageUrl, note, items } = parseResult.data
 
   // 미래 날짜 등록 차단 (KST 기준)
   if (date > toKSTDateString(new Date())) {
     return ApiErrors.validationError("미래 날짜에는 근무기록을 등록할 수 없습니다")
   }
 
-  // storeId가 있으면 매장 존재 여부 확인 + 동일 날짜 중복 체크
-  if (storeId) {
-    const store = await prisma.store.findUnique({
-      where: { id: storeId },
-      select: { id: true, isDeleted: true },
-    })
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      id: true,
+      isDeleted: true,
+      name: true,
+      address: true,
+      managerName: true,
+      PaymentType: true,
+    },
+  })
 
-    if (!store || store.isDeleted) {
-      return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
-    }
+  if (!store || store.isDeleted) {
+    return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
+  }
 
-    // 동일 날짜 + 동일 매장 중복 체크
+  // 동일 날짜 + 동일 매장 중복 체크
+  const existing = await prisma.workRecord.findFirst({
+    where: {
+      userId: user.id,
+      storeId,
+      date: { gte: dateToKSTMidnight(date), lte: dateToKSTEndOfDay(date) },
+    },
+    select: { id: true },
+  })
 
-    const existing = await prisma.workRecord.findFirst({
-      where: {
-        userId: user.id,
-        storeId,
-        date: { gte: dateToKSTMidnight(date), lte: dateToKSTEndOfDay(date) },
-      },
-      select: { id: true },
-    })
-
-    if (existing) {
-      return ApiErrors.alreadyExists("해당 날짜에 이미 등록된 매장입니다")
-    }
+  if (existing) {
+    return ApiErrors.alreadyExists("해당 날짜에 이미 등록된 매장입니다")
   }
 
   // 휴업&폐업 시 items 강제 비움
@@ -411,8 +402,7 @@ export async function POST(request: NextRequest) {
   const workRecord = await prisma.workRecord.create({
     data: {
       date: dateToKSTMidnight(date),
-      // storeId가 있으면 store connect, 없으면 관계 생략
-      ...(storeId ? { store: { connect: { id: storeId } } } : {}),
+      store: { connect: { id: storeId } },
       user: { connect: { id: user.id } },
       collectionStatus,
       ...(collectionStatus === "COLLECTED" && {
@@ -421,11 +411,10 @@ export async function POST(request: NextRequest) {
       }),
       imageUrl: imageUrl || null,
       note: note || null,
-      // 스냅샷 필드 (항상 요청값 사용)
-      storeNameSnapshot: storeName,
-      storeAddressSnapshot: storeAddress || null,
-      managerNameSnapshot: managerName || null,
-      paymentTypeSnapshot: paymentType,
+      storeNameSnapshot: store.name,
+      storeAddressSnapshot: store.address,
+      managerNameSnapshot: store.managerName,
+      paymentTypeSnapshot: store.PaymentType,
       ...(finalItems.length > 0 && {
         items: {
           create: finalItems.map((item) => ({

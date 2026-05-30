@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
-import { Plus, X, MapPin, Save, ImagePlus, Trash2 } from "lucide-react"
+import { Plus, X, MapPin, ImagePlus, Trash2 } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -19,21 +19,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { SearchableDropdown } from "@/components/common"
+import { apiClient } from "@/lib/api-client"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { Role } from "@/generated/prisma/client"
 import {
   useCreateWorkRecord,
   useUpdateWorkRecord,
-  useSaveStoreFromWorkRecord,
   type WorkRecordResponse,
   type CollectionStatus,
 } from "../hooks/use-work-records"
@@ -47,16 +40,16 @@ const recordItemSchema = z.object({
 
 // 근무기록 폼 스키마
 const workRecordFormSchema = z.object({
-  storeId: z.string().optional(),
-  storeName: z.string().min(1, "매장명을 입력해주세요"),
-  storeAddress: z.string().min(1, "매장 주소를 입력해주세요"),
+  storeId: z.string().min(1, "매장을 선택해주세요"),
+  storeName: z.string().optional(),
+  storeAddress: z.string().optional(),
   paymentType: z.enum(["CASH", "ACCOUNT", "CARD"]),
   managerName: z.string().optional(),
   collectionStatus: z.enum(["UNCOLLECTED", "COLLECTED", "CLOSED"]),
   note: z.string().optional(),
   items: z.array(recordItemSchema),
 }).superRefine((data, ctx) => {
-  // 품목 검증: 휴업&폐업이 아니면 최소 1개 필요
+  // 폐점/휴업이 아니면 최소 1개 품목이 필요합니다.
   if (data.collectionStatus !== "CLOSED" && data.items.length < 1) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -64,16 +57,7 @@ const workRecordFormSchema = z.object({
       path: ["items"],
     })
   }
-  // 입금자 검증: 계좌이체일 때 필수
-  if (data.paymentType === "ACCOUNT" && !data.managerName?.trim()) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "계좌이체 결제 시 담당자를 입력해주세요",
-      path: ["managerName"],
-    })
-  }
 })
-
 type WorkRecordFormData = z.infer<typeof workRecordFormSchema>
 
 interface WorkRecordModalProps {
@@ -120,8 +104,7 @@ export function WorkRecordModal({
   // Mutations
   const createMutation = useCreateWorkRecord()
   const updateMutation = useUpdateWorkRecord()
-  const saveStoreMutation = useSaveStoreFromWorkRecord()
-  const isLoading = createMutation.isPending || updateMutation.isPending || saveStoreMutation.isPending
+  const isLoading = createMutation.isPending || updateMutation.isPending
 
   // 매장 검색 필터링
   const filteredStores = useMemo(() => {
@@ -165,7 +148,6 @@ export function WorkRecordModal({
   })
 
   const collectionStatus = watch("collectionStatus")
-  const paymentType = watch("paymentType")
   const storeId = watch("storeId")
   const isClosed = collectionStatus === "CLOSED"
 
@@ -190,7 +172,7 @@ export function WorkRecordModal({
       if (editRecord) {
         // 수정 모드: 기존 데이터로 초기화
         reset({
-          storeId: editRecord.storeId ?? "",
+          storeId: editRecord.storeId ?? "__legacy_work_record__",
           storeName: editRecord.storeNameSnapshot ?? editRecord.store?.name ?? "",
           storeAddress: editRecord.storeAddressSnapshot ?? editRecord.store?.address ?? "",
           paymentType: editRecord.paymentTypeSnapshot,
@@ -239,7 +221,7 @@ export function WorkRecordModal({
   // 매장 선택 핸들러
   const handleStoreSelect = (store: Store) => {
     // 폼 필드 자동 채움
-    setValue("storeId", store.id)
+    setValue("storeId", store.id, { shouldValidate: true })
     setValue("storeName", store.name)
     setValue("storeAddress", store.address)
     setValue("paymentType", store.PaymentType)
@@ -260,14 +242,6 @@ export function WorkRecordModal({
     trigger()
   }
 
-  // 매장명/주소 변경 시 storeId 연결 해제
-  const handleStoreFieldChange = (field: "storeName" | "storeAddress", value: string) => {
-    setValue(field, value, { shouldValidate: true })
-    if (storeId) {
-      setValue("storeId", "", { shouldValidate: true })
-    }
-  }
-
   // 품목 추가 핸들러
   const handleAddItem = () => {
     append({ name: "", amount: 0, quantity: 1 })
@@ -282,12 +256,6 @@ export function WorkRecordModal({
   const totalAmount = (watchedItems ?? []).reduce((sum, item) => {
     return sum + (item.amount ?? 0)
   }, 0)
-
-  // 매장 저장 핸들러 (수정 모달에서 사용)
-  const handleSaveStore = () => {
-    if (!internalEditRecord) return
-    saveStoreMutation.mutate(internalEditRecord.id)
-  }
 
   // 이미지 선택 핸들러
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -326,17 +294,12 @@ export function WorkRecordModal({
     const formData = new FormData()
     formData.append("file", imageFile)
 
-    const response = await fetch("/api/upload", {
+    const response = await apiClient<{ data: { url: string } }>("/api/upload", {
       method: "POST",
       body: formData,
     })
 
-    if (!response.ok) {
-      throw new Error("이미지 업로드에 실패했습니다")
-    }
-
-    const data = await response.json()
-    return data.data.url
+    return response.data.url
   }
 
   // 폼 제출 핸들러
@@ -370,11 +333,7 @@ export function WorkRecordModal({
         createMutation.mutate(
           {
             date: dateStr,
-            storeId: data.storeId || undefined,
-            storeName: data.storeName,
-            storeAddress: data.storeAddress,
-            paymentType: data.paymentType,
-            managerName: data.managerName,
+            storeId: data.storeId,
             collectionStatus: data.collectionStatus as CollectionStatus,
             note: data.note,
             items: isClosed ? [] : data.items,
@@ -418,7 +377,9 @@ export function WorkRecordModal({
           {/* 매장 검색 (추가 모드에서만) */}
           {!isEditMode && (
             <div className="space-y-2">
-              <Label htmlFor="storeSearch">매장 검색 (선택사항)</Label>
+              <Label htmlFor="storeSearch">
+                매장 선택 <span className="text-red-500">*</span>
+              </Label>
               <SearchableDropdown
                 id="storeSearch"
                 searchTerm={storeDropdown.searchTerm}
@@ -441,6 +402,9 @@ export function WorkRecordModal({
                 placeholder="기존 매장을 검색하여 자동 입력..."
                 emptyMessage="검색 결과가 없습니다"
               />
+              {errors.storeId && (
+                <p className="text-xs text-red-500">{errors.storeId.message}</p>
+              )}
             </div>
           )}
 
@@ -448,18 +412,6 @@ export function WorkRecordModal({
           <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center justify-between">
               <Label className="text-base font-medium">매장 정보</Label>
-              {isEditMode && !internalEditRecord?.storeId && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSaveStore}
-                  disabled={saveStoreMutation.isPending}
-                >
-                  <Save className="size-4 mr-1" />
-                  {saveStoreMutation.isPending ? "저장 중..." : "매장으로 저장"}
-                </Button>
-              )}
             </div>
 
             {/* 수정 모드: 읽기 전용 */}
@@ -485,98 +437,32 @@ export function WorkRecordModal({
                     <span className="font-medium">{watch("managerName")}</span>
                   </div>
                 )}
-                {!internalEditRecord?.storeId && (
-                  <p className="text-xs text-amber-600 mt-2">
-                    ※ 이 매장은 아직 DB에 저장되지 않았습니다.
-                  </p>
+              </div>
+            ) : storeId ? (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-600">매장명</span>
+                  <span className="font-medium text-right">{watch("storeName")}</span>
+                </div>
+                {watch("storeAddress") && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-600">주소</span>
+                    <span className="font-medium text-right">{watch("storeAddress")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-600">결제방식</span>
+                  <span className="font-medium">{formatPaymentType(watch("paymentType"))}</span>
+                </div>
+                {watch("managerName") && (
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-600">담당자</span>
+                    <span className="font-medium text-right">{watch("managerName")}</span>
+                  </div>
                 )}
               </div>
             ) : (
-              /* 추가 모드: 입력 가능 */
-              <div className="space-y-3">
-                {/* 매장명 */}
-                <div className="space-y-1">
-                  <Label htmlFor="storeName" className="text-sm">
-                    매장명 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="storeName"
-                    placeholder="매장명을 입력하세요"
-                    value={watch("storeName")}
-                    onChange={(e) => handleStoreFieldChange("storeName", e.target.value)}
-                    aria-invalid={!!errors.storeName}
-                  />
-                  {errors.storeName && (
-                    <p className="text-xs text-red-500">{errors.storeName.message}</p>
-                  )}
-                </div>
-
-                {/* 주소 */}
-                <div className="space-y-1">
-                  <Label htmlFor="storeAddress" className="text-sm">
-                    주소 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="storeAddress"
-                    placeholder="주소를 입력하세요"
-                    value={watch("storeAddress") ?? ""}
-                    onChange={(e) => handleStoreFieldChange("storeAddress", e.target.value)}
-                    aria-invalid={!!errors.storeAddress}
-                  />
-                  {errors.storeAddress && (
-                    <p className="text-xs text-red-500">{errors.storeAddress.message}</p>
-                  )}
-                </div>
-
-                {/* 결제방식 */}
-                <div className="space-y-1">
-                  <Label htmlFor="paymentType" className="text-sm">
-                    결제방식 <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={paymentType}
-                    onValueChange={(value) =>
-                      setValue("paymentType", value as "CASH" | "ACCOUNT" | "CARD", {
-                        shouldValidate: true,
-                      })
-                    }
-                  >
-                    <SelectTrigger id="paymentType">
-                      <SelectValue placeholder="결제방식 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CASH">현금</SelectItem>
-                      <SelectItem value="ACCOUNT">계좌이체</SelectItem>
-                      <SelectItem value="CARD">카드</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 담당자 (계좌이체일 때만) */}
-                {paymentType === "ACCOUNT" && (
-                  <div className="space-y-1">
-                    <Label htmlFor="managerName" className="text-sm">
-                      담당자 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="managerName"
-                      placeholder="담당자명을 입력하세요"
-                      {...register("managerName")}
-                      aria-invalid={!!errors.managerName}
-                    />
-                    {errors.managerName && (
-                      <p className="text-xs text-red-500">{errors.managerName.message}</p>
-                    )}
-                  </div>
-                )}
-
-                {/* 연결된 매장 표시 */}
-                {storeId && (
-                  <p className="text-xs text-green-600">
-                    ✓ 기존 매장과 연결됨
-                  </p>
-                )}
-              </div>
+              <p className="text-sm text-gray-500">매장을 검색하여 선택하세요.</p>
             )}
           </div>
 
