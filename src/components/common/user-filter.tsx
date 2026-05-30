@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useUsers } from "@/hooks/use-users"
-import { Users } from "lucide-react"
+import { AlertCircle, Users } from "lucide-react"
 
 interface UserFilterProps {
   selectedUserId: string
@@ -17,7 +17,7 @@ interface UserFilterProps {
 }
 
 export function UserFilter({ selectedUserId, onUserChange, currentUserId }: UserFilterProps) {
-  const { data: users, isLoading } = useUsers()
+  const { data: users, isLoading, isError } = useUsers()
 
   if (isLoading) {
     return (
@@ -25,6 +25,17 @@ export function UserFilter({ selectedUserId, onUserChange, currentUserId }: User
         <div className="flex items-center gap-2 text-gray-500 text-sm">
           <Users className="size-4" />
           <span>로딩 중...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="bg-white rounded-lg border border-red-200 p-3 mb-4 shadow-sm">
+        <div className="flex items-center gap-2 text-red-600 text-sm">
+          <AlertCircle className="size-4" />
+          <span>사용자 목록을 불러올 수 없습니다</span>
         </div>
       </div>
     )

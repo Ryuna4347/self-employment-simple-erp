@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { RefreshCw, UserPlus, Users } from "lucide-react"
+import { UserPlus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/common/empty-state"
+import { RefreshFab } from "@/components/common/refresh-fab"
 import { StaffCard } from "./staff-card"
 import { InviteModal } from "./invite-modal"
 import { RemoveStaffModal } from "./remove-staff-modal"
@@ -52,13 +54,11 @@ export function StaffContent() {
         {isLoading ? (
           <div className="text-center py-12 text-gray-400">로딩 중...</div>
         ) : staff.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="size-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-400">등록된 직원이 없습니다</p>
-            <p className="text-gray-400 text-sm mt-1">
-              초대 버튼을 눌러 직원을 초대하세요
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="등록된 직원이 없습니다"
+            description="초대 버튼을 눌러 직원을 초대하세요"
+          />
         ) : (
           staff.map((member) => (
             <StaffCard
@@ -91,14 +91,7 @@ export function StaffContent() {
       />}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab onRefresh={() => refetch()} isFetching={isFetching} />
     </div>
   )
 }

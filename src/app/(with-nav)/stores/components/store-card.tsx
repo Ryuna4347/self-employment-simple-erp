@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useCallback, useState } from "react"
 import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -26,8 +26,27 @@ const receiptTypeLabels: Record<string, string> = {
   TRANSACTION_STATEMENT: "거래명세서",
 }
 
-export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProps) {
+export const StoreCard = React.memo(function StoreCard({
+  store,
+  onEdit,
+  onDelete,
+  isDeleting,
+}: StoreCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+
+  const toggleExpand = useCallback(() => {
+    setIsExpanded((v) => !v)
+  }, [])
+
+  const handleToggleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault()
+        toggleExpand()
+      }
+    },
+    [toggleExpand],
+  )
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -48,9 +67,12 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
         "hover:shadow-md"
       )}
     >
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full text-left focus:outline-none p-4"
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={toggleExpand}
+        onKeyDown={handleToggleKeyDown}
+        className="w-full text-left focus:outline-none p-4 cursor-pointer"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -69,17 +91,20 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
                 </span>
               )}
             </div>
-            <div
-              className="flex items-start gap-1.5 text-sm text-gray-600 cursor-pointer active:bg-gray-100 rounded"
+            <button
+              type="button"
+              aria-label={`주소 복사: ${store.address}`}
+              className="flex items-start gap-1.5 text-sm text-gray-600 active:bg-gray-100 rounded"
               onClick={(e) => {
                 e.stopPropagation()
                 navigator.clipboard.writeText(store.address)
                 toast.success("주소가 복사되었습니다")
               }}
+              onKeyDown={(e) => e.stopPropagation()}
             >
               <MapPin className="size-4 flex-shrink-0 mt-0.5" />
               <span className="line-clamp-1">{store.address}</span>
-            </div>
+            </button>
           </div>
 
           <ChevronDown
@@ -89,7 +114,7 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
             )}
           />
         </div>
-      </button>
+      </div>
 
       <div
         className={cn(
@@ -212,4 +237,6 @@ export function StoreCard({ store, onEdit, onDelete, isDeleting }: StoreCardProp
       </div>
     </div>
   )
-}
+})
+
+StoreCard.displayName = "StoreCard"

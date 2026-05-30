@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, Plus, RefreshCw } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { RefreshFab } from "@/components/common/refresh-fab"
 import { useUser } from "@/components/providers/app-providers"
 import { canWrite } from "@/lib/role-utils"
 import { useNotices, type NoticeRecord } from "../hooks/use-notices"
@@ -116,14 +117,7 @@ export function NoticesContent() {
       )}
 
       {/* 새로고침 버튼 */}
-      <button
-        onClick={() => refetch()}
-        disabled={isFetching}
-        className="fixed bottom-[5.75rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-        aria-label="새로고침"
-      >
-        <RefreshCw className={`size-5 ${isFetching ? "animate-spin" : ""}`} />
-      </button>
+      <RefreshFab onRefresh={() => refetch()} isFetching={isFetching} />
     </div>
   )
 }
