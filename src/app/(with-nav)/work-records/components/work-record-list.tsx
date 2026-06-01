@@ -54,15 +54,17 @@ export function WorkRecordList({
   canReorder = false,
   onReorder,
 }: WorkRecordListProps) {
-  // 낙관적 업데이트를 위한 로컬 상태
+  // 드래그 정렬을 위한 로컬 상태
   const [localRecords, setLocalRecords] = useState(records);
-  const recordsSignature = records.map((r) => r.id).join(",");
-  const [prevSignature, setPrevSignature] = useState(recordsSignature);
+  const [isDragging, setIsDragging] = useState(false);
+  const [prevRecords, setPrevRecords] = useState(records);
 
-  // 드래그 중에는 records prop이 안 바뀌어 signature가 동일하므로 로컬 순서를 보존하고,
-  // onReorder 후 서버 재조회로 records가 새 순서로 오면 signature 변경으로 동기화한다.
-  if (recordsSignature !== prevSignature) {
-    setPrevSignature(recordsSignature);
+  // 드래그 중이 아니면 records prop을 그대로 로컬 상태에 반영한다.
+  // 수금 처리·수정·삭제 등으로 record의 내용만 바뀌고 id 목록(및 순서)은 그대로인 경우에도
+  // 반드시 동기화되어야 카드가 최신 수금 상태를 표시한다.
+  // 드래그 중에는 순서 보존을 위해 동기화를 건너뛰고, 드래그가 끝난 뒤 동기화한다.
+  if (prevRecords !== records && !isDragging) {
+    setPrevRecords(records);
     setLocalRecords(records);
   }
 
@@ -79,7 +81,16 @@ export function WorkRecordList({
     }),
   );
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleDragCancel = () => {
+    setIsDragging(false);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
+    setIsDragging(false);
     const { active, over } = event;
     if (over && active.id !== over.id) {
       const oldIndex = localRecords.findIndex((r) => r.id === active.id);
@@ -119,7 +130,9 @@ export function WorkRecordList({
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
         <SortableContext
           items={localRecords.map((r) => r.id)}
