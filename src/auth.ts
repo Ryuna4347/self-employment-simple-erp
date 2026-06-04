@@ -4,18 +4,12 @@ import { prisma } from "@/lib/prisma"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcrypt"
 import { cache } from "react"
-import { authConfig } from "./auth.config"
+import { authConfig, REMEMBER_MAX_AGE } from "./auth.config"
 // 타입 확장은 src/types/next-auth.d.ts에서 처리
 
-// 자동로그인("로그인 상태 유지") 체크 시: 7일 슬라이딩 세션의 상한.
-// 전역 session.maxAge(쿠키 물리 수명)로 사용한다. (유휴 7일 허용을 위해 필수)
-const REMEMBER_MAX_AGE = 7 * 24 * 60 * 60  // 7일 (초 단위)
 // 미체크 시: 12시간 고정 세션. 쿠키가 아닌 토큰 내 expiresAt claim으로 강제한다.
+// (자동로그인 7일 슬라이딩은 auth.config.ts의 session.maxAge + 미들웨어 네이티브 롤링이 담당)
 const FIXED_MAX_AGE = 12 * 60 * 60  // 12시간 (초 단위)
-// 자동로그인 슬라이딩 시 expiresAt를 다시 계산·연장하는 최소 간격.
-// 이 간격 이내의 요청은 토큰을 그대로 반환하므로(멱등) 동시 다발 요청에도 재계산이 없다.
-// 갱신 경로 자체에 DB 쓰기·토큰 회전이 없어 갱신 폭주·연쇄 로그아웃이 구조적으로 불가능하다.
-const SLIDE_THROTTLE = 60 * 60  // 1시간 (초 단위)
 
 // 동일 요청 내에서 auth()가 여러 번 호출돼도 DB 조회를 한 번으로 dedupe
 const getFreshUserById = cache(async (id: string) => {
@@ -75,45 +69,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: {
     strategy: "jwt",
-    // 쿠키 물리 수명의 상한은 7일(자동로그인 최대 창). 미체크(12시간) 세션은
-    // 아래 session 콜백의 expiresAt claim으로 더 짧게 강제한다.
-    // (참고: NextAuth JWT 전략은 미들웨어/세션요청마다 쿠키를 재발급하지만,
-    //  그 갱신 경로에 DB 쓰기가 없으므로 동시 요청이 몰려도 폭주하지 않는다.
-    //  updateAge는 JWT 전략에선 재발급을 스로틀하지 않으므로 설정하지 않는다.)
+    // 쿠키 수명 상한 = 7일(자동로그인 슬라이딩 창). 로그인/세션 응답 시 이 값으로 발급된다.
+    // 미체크(12시간) 세션은 jwt에서 부여한 expiresAt claim을 session 콜백이 더 짧게 강제한다.
+    // 실제 7일 슬라이딩(접속 시 갱신)은 미들웨어(auth.config.ts)의 네이티브 롤링이 담당한다.
     maxAge: REMEMBER_MAX_AGE,
   },
   callbacks: {
-    // JWT 토큰 발급/재발급
+    // JWT 토큰 발급
     async jwt({ token, user }) {
-      // 1) 최초 로그인: 식별자 + rememberMe + 만료시각(expiresAt, epoch ms)을 설정한다.
-      //    name/role 등 변동 가능한 필드는 session 콜백에서 매 호출마다 DB로부터 다시 읽으므로
-      //    토큰에는 박제하지 않는다 (어드민의 변경이 재로그인 없이 반영되도록).
+      // 최초 로그인에만 식별자 + rememberMe를 설정한다.
+      // name/role 등 변동 가능한 필드는 session 콜백에서 매 호출마다 DB로부터 다시 읽으므로
+      // 토큰에는 박제하지 않는다 (어드민의 변경이 재로그인 없이 반영되도록).
       if (user) {
-        const rememberMe = user.rememberMe === true
-        const maxAge = rememberMe ? REMEMBER_MAX_AGE : FIXED_MAX_AGE
+        // 미체크: expiresAt(12시간)을 부여 → session 콜백이 12시간으로 cap.
+        // 체크(자동로그인): expiresAt를 두지 않는다 → 미들웨어의 네이티브 7일 롤링이
+        //   접속 시마다 쿠키를 7일로 갱신(슬라이딩)하도록 위임한다.
+        if (user.rememberMe === true) {
+          return { id: user.id, loginId: user.loginId, rememberMe: true }
+        }
         return {
           id: user.id,
           loginId: user.loginId,
-          rememberMe,
-          expiresAt: Date.now() + maxAge * 1000,
+          rememberMe: false,
+          expiresAt: Date.now() + FIXED_MAX_AGE * 1000,
         }
       }
 
-      // 2) 이후 요청: 자동로그인(rememberMe) 세션만 expiresAt를 슬라이딩 연장한다.
-      //    - 미체크 세션은 그대로 통과 → expiresAt(12시간) 고정.
-      //    - 이미 만료된 세션은 갱신하지 않는다(부활 방지). 만료 강제는 session 콜백이 담당.
-      //    - 남은 창이 SLIDE_THROTTLE 이상 줄었을 때만 expiresAt를 재계산한다.
-      //      → 그 외 요청은 token을 그대로 반환 → 동시 다발 요청이 와도 멱등(재계산 없음).
-      //        갱신 경로에 DB 쓰기/토큰 회전이 전혀 없어 갱신 폭주·연쇄 로그아웃이 불가능.
-      if (token.rememberMe === true && typeof token.expiresAt === "number") {
-        const now = Date.now()
-        if (now <= token.expiresAt) {
-          const next = now + REMEMBER_MAX_AGE * 1000
-          if (next - token.expiresAt > SLIDE_THROTTLE * 1000) {
-            return { ...token, expiresAt: next }
-          }
-        }
-      }
+      // 이후 요청: 토큰을 그대로 반환한다.
+      //   - 7일 슬라이딩은 미들웨어(auth.config.ts)의 네이티브 롤링이 담당(여기서 재발급 X).
+      //   - 미체크 세션의 12시간 만료 강제는 session 콜백이 담당.
+      //   - DB 쓰기/토큰 회전이 전혀 없어 동시 다발 요청에도 갱신 폭주가 불가능.
       return token
     },
     // 세션에 사용자 정보 전달 — 매 요청마다 DB에서 최신 사용자 정보를 조회한다.

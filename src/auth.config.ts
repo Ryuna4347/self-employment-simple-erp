@@ -1,10 +1,21 @@
 import type { NextAuthConfig } from "next-auth"
 import { NextResponse } from "next/server"
 
+// 자동로그인 슬라이딩 세션의 최대 유휴 기간(= JWT 쿠키 수명).
+// 미들웨어의 NextAuth 네이티브 롤링이 보호 라우트 접속마다 이 값으로 쿠키를 재발급하므로,
+// 실질적인 7일 슬라이딩(접속 시 기간 갱신)이 여기서 구현된다. (auth.ts와 공유)
+export const REMEMBER_MAX_AGE = 7 * 24 * 60 * 60  // 7일 (초 단위)
+
 // Edge 호환 설정 (Prisma, bcrypt 제외)
 export const authConfig = {
   pages: {
     signIn: "/",
+  },
+  // JWT 세션 + 7일 슬라이딩. maxAge 미설정 시 기본 30일이 적용되므로 명시한다.
+  // (미들웨어가 접속마다 쿠키를 now+maxAge로 롤링 → 자동로그인 기간 갱신)
+  session: {
+    strategy: "jwt",
+    maxAge: REMEMBER_MAX_AGE,
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
