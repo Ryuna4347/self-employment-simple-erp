@@ -17,3 +17,19 @@ export function decodeBase64(str: string): string {
       .join(""),
   );
 }
+
+/**
+ * 숫자를 천단위 콤마 문자열로 변환 (예: 1500000 → "1,500,000")
+ */
+export function formatNumber(value: number): string {
+  return value.toLocaleString("ko-KR");
+}
+
+/**
+ * 콤마가 포함된 입력 문자열에서 숫자만 추출 (예: "1,500,000원" → 1500000)
+ * 빈 문자열이거나 숫자가 없으면 0을 반환한다.
+ */
+export function parseNumber(input: string): number {
+  const digits = input.replace(/[^\d]/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}

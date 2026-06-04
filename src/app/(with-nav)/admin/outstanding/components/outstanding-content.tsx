@@ -17,6 +17,7 @@ import { RefreshFab } from "@/components/common/refresh-fab";
 import { useUser } from "@/components/providers/app-providers";
 import { canWrite } from "@/lib/role-utils";
 import { useUsers } from "@/hooks/use-users";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   useAgedOutstandingCount,
   useOutstanding,
@@ -71,9 +72,11 @@ export function OutstandingContent() {
   const [month, setMonth] = useState(initialMonth);
   const [view, setView] = useState<ViewMode>(initialView);
   const [storeName, setStoreName] = useState(initialStoreName);
-  const [searchStoreName, setSearchStoreName] = useState(initialStoreName);
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
   const [agedOnly, setAgedOnly] = useState<boolean>(initialAgedOnly);
+
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
+  const searchStoreName = useDebounce(storeName, 1000).trim();
 
   // 직원 목록 조회
   const { data: users } = useUsers();
@@ -211,7 +214,6 @@ export function OutstandingContent() {
 
   // 매장별 뷰에서 수금처리 클릭
   const handleStoreCollect = useCallback((group: StoreGroup) => {
-    console.log(group);
     if (!group.storeId) return;
     setModalStoreId(group.storeId);
     setModalStoreName(group.storeName);
@@ -225,11 +227,6 @@ export function OutstandingContent() {
     setModalStoreName(record.storeNameSnapshot ?? "-");
     setModalOpen(true);
   }, []);
-
-  // 매장명 검색 실행
-  const handleStoreSearch = useCallback(() => {
-    setSearchStoreName(storeName.trim());
-  }, [storeName]);
 
   const showAgedAlert = agedCount > 0 && !(view === "store" && agedOnly);
 
@@ -353,20 +350,15 @@ export function OutstandingContent() {
         </div>
       </div>
 
-      {/* 매장명 검색 */}
-      <div className="flex gap-1.5 mb-6">
+      {/* 매장명 검색 (실시간) */}
+      <div className="relative mb-6">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
         <Input
-          className="h-8 text-sm"
+          className="h-8 text-sm pl-8"
           placeholder="매장명/입금자 검색"
           value={storeName}
           onChange={(e) => setStoreName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleStoreSearch();
-          }}
         />
-        <Button variant="outline" size="sm" onClick={handleStoreSearch}>
-          <Search className="size-4" />
-        </Button>
       </div>
       {view === "store" && (
         <label className="flex items-center gap-2 mb-4 text-sm text-gray-700 cursor-pointer select-none">

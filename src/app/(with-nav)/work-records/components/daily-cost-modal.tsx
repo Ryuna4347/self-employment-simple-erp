@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
@@ -13,8 +13,8 @@ import {
   ResponsiveModalFooter,
 } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AmountInput } from "@/components/common"
 import { useUpsertDailyCost } from "../hooks/use-daily-cost"
 
 const dailyCostFormSchema = z.object({
@@ -35,7 +35,7 @@ export function DailyCostModal({ open, onOpenChange, date, title, currentAmount 
   const upsertMutation = useUpsertDailyCost()
 
   const {
-    register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isValid },
@@ -87,14 +87,20 @@ export function DailyCostModal({ open, onOpenChange, date, title, currentAmount 
           <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
             <div className="space-y-2">
               <Label htmlFor="daily-cost-amount">금액 (원)</Label>
-              <Input
-                id="daily-cost-amount"
-                type="number"
-                inputMode="numeric"
-                placeholder="0"
-                {...register("amount", { valueAsNumber: true })}
-                aria-invalid={!!errors.amount}
-                autoFocus
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <AmountInput
+                    id="daily-cost-amount"
+                    placeholder="0"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!errors.amount}
+                    autoFocus
+                  />
+                )}
               />
               {errors.amount && (
                 <p className="text-sm text-red-500">{errors.amount.message}</p>
