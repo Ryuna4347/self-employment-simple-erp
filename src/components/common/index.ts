@@ -3,6 +3,7 @@ export { ErrorView } from "./error-view";
 export { LoadingView } from "./loading-view";
 export { Header } from "./header";
 export { SearchableDropdown } from "./searchable-dropdown";
+export { AmountInput } from "./amount-input";
 export { UserFilter } from "./user-filter";
 export { RefreshFab } from "./refresh-fab";
 export { EmptyState } from "./empty-state";

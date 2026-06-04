@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import {
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { AmountInput } from "@/components/common"
 import { useCreateCost, useUpdateCost, type CostRecord } from "../hooks/use-costs"
 
 const costFormSchema = z.object({
@@ -40,6 +41,7 @@ export function CostModal({ open, onOpenChange, editingCost }: CostModalProps) {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isValid },
@@ -142,13 +144,19 @@ export function CostModal({ open, onOpenChange, editingCost }: CostModalProps) {
 
             <div className="space-y-2">
               <Label htmlFor="cost-amount">금액 (원)</Label>
-              <Input
-                id="cost-amount"
-                type="number"
-                inputMode="numeric"
-                placeholder="0"
-                {...register("amount", { valueAsNumber: true })}
-                aria-invalid={!!errors.amount}
+              <Controller
+                control={control}
+                name="amount"
+                render={({ field }) => (
+                  <AmountInput
+                    id="cost-amount"
+                    placeholder="0"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    aria-invalid={!!errors.amount}
+                  />
+                )}
               />
               {errors.amount && (
                 <p className="text-sm text-red-500">{errors.amount.message}</p>

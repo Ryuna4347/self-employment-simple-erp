@@ -94,6 +94,8 @@ export function DashboardContent() {
     useState(false);
 
   const yearOptions = getYearOptions();
+  const isCurrentPeriod =
+    year === now.getFullYear() && month === now.getMonth() + 1;
 
   // 월간 엑셀 다운로드
   const handleExportExcel = async () => {
@@ -166,6 +168,19 @@ export function DashboardContent() {
             </SelectContent>
           </Select>
         )}
+
+        {/* 이번 달로 돌아오기 */}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isCurrentPeriod}
+          onClick={() => {
+            setYear(now.getFullYear());
+            setMonth(now.getMonth() + 1);
+          }}
+        >
+          이번 달
+        </Button>
 
         {/* 기간 토글 버튼 */}
         <div className="flex gap-1 ml-auto">

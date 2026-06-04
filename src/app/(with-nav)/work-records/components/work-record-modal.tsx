@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo, useRef } from "react"
-import { useForm, useFieldArray, useWatch } from "react-hook-form"
+import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { SearchableDropdown } from "@/components/common"
+import { SearchableDropdown, AmountInput } from "@/components/common"
 import { apiClient } from "@/lib/api-client"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
@@ -575,15 +575,19 @@ export function WorkRecordModal({
                       {/* 금액 */}
                       <div className="col-span-3">
                         <Label className="text-xs text-gray-600">금액</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          {...register(`items.${index}.amount`, {
-                            valueAsNumber: true,
-                          })}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.amount}
+                        <Controller
+                          control={control}
+                          name={`items.${index}.amount`}
+                          render={({ field }) => (
+                            <AmountInput
+                              placeholder="0"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              className="mt-1"
+                              aria-invalid={!!errors.items?.[index]?.amount}
+                            />
+                          )}
                         />
                         {errors.items?.[index]?.amount && (
                           <p className="text-xs text-red-500 mt-1">
