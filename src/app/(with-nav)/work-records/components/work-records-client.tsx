@@ -27,6 +27,7 @@ import {
 } from "../hooks/use-work-records"
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface WorkRecordsClientProps {
   userId: string
@@ -37,7 +38,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [storeName, setStoreName] = useState("")
-  const [searchStoreName, setSearchStoreName] = useState("")
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
+  const searchStoreName = useDebounce(storeName, 1000).trim()
 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
@@ -112,11 +114,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     if (!summary) return { totalVisits: 0, totalSales: 0, collectedSales: 0, uncollectedSales: 0, collectedByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 }, pendingCollectionSales: 0, pendingCollectionByPaymentType: { CASH: 0, ACCOUNT: 0, CARD: 0 } }
     return summary
   }, [summary])
-
-  // 매장명 검색 실행
-  const handleSearch = useCallback(() => {
-    setSearchStoreName(storeName.trim())
-  }, [storeName])
 
   // 근무기록 추가 모달 열기
   const handleAddRecord = () => {
@@ -215,20 +212,15 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           </div>
         )}
 
-        {/* 매장명 검색 */}
-        <div className="flex gap-1.5 mb-4">
+        {/* 매장명 검색 (실시간) */}
+        <div className="relative mb-4">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
           <Input
-            className="h-8 text-sm"
+            className="h-8 text-sm pl-8"
             placeholder="매장명 검색"
             value={storeName}
             onChange={(e) => setStoreName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch()
-            }}
           />
-          <Button variant="outline" size="sm" onClick={handleSearch}>
-            <Search className="size-4" />
-          </Button>
         </div>
 
         {isLoading ? (

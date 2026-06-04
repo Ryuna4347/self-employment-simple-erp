@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect } from "react"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AmountInput } from "@/components/common"
 import {
   Select,
   SelectContent,
@@ -56,6 +57,7 @@ export function RecurringCostCard({
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setValue,
@@ -172,13 +174,19 @@ export function RecurringCostCard({
 
         <div className="space-y-1.5">
           <Label htmlFor={`rc-amount-${cost?.id ?? "new"}`}>금액 (원)</Label>
-          <Input
-            id={`rc-amount-${cost?.id ?? "new"}`}
-            type="number"
-            inputMode="numeric"
-            placeholder="0"
-            {...register("amount", { valueAsNumber: true })}
-            aria-invalid={!!errors.amount}
+          <Controller
+            control={control}
+            name="amount"
+            render={({ field }) => (
+              <AmountInput
+                id={`rc-amount-${cost?.id ?? "new"}`}
+                placeholder="0"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                aria-invalid={!!errors.amount}
+              />
+            )}
           />
           {errors.amount && (
             <p className="text-xs text-red-500">{errors.amount.message}</p>

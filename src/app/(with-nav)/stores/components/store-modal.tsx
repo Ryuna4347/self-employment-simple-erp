@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useForm, useFieldArray } from "react-hook-form"
+import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Plus, X } from "lucide-react"
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { AmountInput } from "@/components/common"
 import {
   Select,
   SelectContent,
@@ -385,12 +386,18 @@ export function StoreModal({
 
                       <div className="col-span-3">
                         <Label className="text-xs text-gray-600">금액</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          {...register(`items.${index}.amount`, { valueAsNumber: true })}
-                          className="mt-1"
+                        <Controller
+                          control={control}
+                          name={`items.${index}.amount`}
+                          render={({ field }) => (
+                            <AmountInput
+                              placeholder="0"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              className="mt-1"
+                            />
+                          )}
                         />
                         {errors.items?.[index]?.amount && (
                           <p className="text-xs text-red-500 mt-1">
