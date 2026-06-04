@@ -38,8 +38,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [storeName, setStoreName] = useState("")
-  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 300ms 후 적용)
-  const searchStoreName = useDebounce(storeName, 300).trim()
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
+  const searchStoreName = useDebounce(storeName, 1000).trim()
 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)

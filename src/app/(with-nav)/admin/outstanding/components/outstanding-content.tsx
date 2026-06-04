@@ -75,8 +75,8 @@ export function OutstandingContent() {
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
   const [agedOnly, setAgedOnly] = useState<boolean>(initialAgedOnly);
 
-  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 300ms 후 적용)
-  const searchStoreName = useDebounce(storeName, 300).trim();
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
+  const searchStoreName = useDebounce(storeName, 1000).trim();
 
   // 직원 목록 조회
   const { data: users } = useUsers();
