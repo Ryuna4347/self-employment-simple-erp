@@ -147,11 +147,13 @@ export function OutstandingContent() {
     const groupMap = new Map<string, StoreGroup>();
 
     for (const record of allRecords) {
-      const key = record.storeNameSnapshot ?? "-";
+      if (!record.storeId) continue;
+
+      const key = record.storeId;
 
       if (!groupMap.has(key)) {
         groupMap.set(key, {
-          storeName: key,
+          storeName: record.storeNameSnapshot ?? "-",
           storeId: record.storeId,
           storeAddress: record.storeAddressSnapshot,
           paymentType: record.paymentTypeSnapshot,
@@ -416,7 +418,7 @@ export function OutstandingContent() {
           storeGroups.length > 0 ? (
             storeGroups.map((group) => (
               <StoreOutstandingCard
-                key={group.storeName}
+                key={group.storeId}
                 group={group}
                 onCollect={writable ? handleStoreCollect : undefined}
               />
