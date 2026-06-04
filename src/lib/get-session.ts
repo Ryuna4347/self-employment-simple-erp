@@ -12,6 +12,7 @@ interface JWTPayload {
   name?: string
   loginId?: string
   role?: "ADMIN" | "USER"
+  expiresAt?: number
 }
 
 /**
@@ -40,6 +41,9 @@ export async function getSessionFromJWT(): Promise<{
     if (!decoded) return null
 
     const data = decoded as JWTPayload
+
+    // auth() 콜백을 거치지 않는 경로이므로 expiresAt 만료를 직접 검사한다.
+    if (data.expiresAt && Date.now() > data.expiresAt) return null
 
     // user.id 없음
     if (!data.id) return null

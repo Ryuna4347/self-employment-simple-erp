@@ -14,6 +14,7 @@ interface JWTPayload {
   loginId?: string
   role?: "ADMIN" | "USER"
   accessTokenExpires?: number
+  expiresAt?: number
   error?: string
 }
 
@@ -32,11 +33,15 @@ export async function getTokenDirect(): Promise<JWTPayload | null> {
   if (!token) return null
 
   try {
-    return await decode({
+    const decoded = await decode({
       token,
       secret,
       salt: COOKIE_NAME,
     }) as JWTPayload | null
+    // auth() 콜백을 거치지 않는 경로이므로 expiresAt 만료를 직접 검사한다.
+    // (전역 쿠키 수명 7일 > 12시간 고정 세션 — 쿠키만으로는 만료를 알 수 없음)
+    if (decoded?.expiresAt && Date.now() > decoded.expiresAt) return null
+    return decoded
   } catch {
     return null
   }
@@ -62,9 +67,11 @@ export async function getTokenFromRequest(
       token,
       secret,
       salt: COOKIE_NAME,
-    })
+    }) as JWTPayload | null
 
-    return decoded as JWTPayload | null
+    // auth() 콜백을 거치지 않는 경로이므로 expiresAt 만료를 직접 검사한다.
+    if (decoded?.expiresAt && Date.now() > decoded.expiresAt) return null
+    return decoded
   } catch {
     return null
   }
