@@ -166,6 +166,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
 
   const where: Prisma.WorkRecordWhereInput = {
     collectionStatus: "UNCOLLECTED",
+    storeId: { not: null },
     ...(storeName ? { OR: [
       { storeNameSnapshot: { contains: storeName, mode: "insensitive" } },
       { managerNameSnapshot: { contains: storeName, mode: "insensitive" } },
@@ -176,12 +177,12 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
 
   // 1. 매장명 목록 + 요약 + 상세 레코드를 병렬로 조회
   // 매장명 목록은 items 없이 경량 조회
-  const [allStoreNames, summaryRecords] = await Promise.all([
+  const [allStores, summaryRecords] = await Promise.all([
     prisma.workRecord.findMany({
       where,
-      select: { storeNameSnapshot: true },
-      distinct: ["storeNameSnapshot"],
-      orderBy: { storeNameSnapshot: "asc" },
+      select: { storeId: true },
+      distinct: ["storeId"],
+      orderBy: [{ storeNameSnapshot: "asc" }, { storeId: "asc" }],
     }),
     prisma.workRecord.findMany({
       where,
@@ -189,7 +190,7 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     }),
   ])
 
-  const totalStoreCount = allStoreNames.length
+  const totalStoreCount = allStores.length
   const totalPages = Math.ceil(totalStoreCount / limit)
   const totalOutstanding = summaryRecords.reduce(
     (sum, r) => sum + calcTotalAmount(r.items),
@@ -198,17 +199,17 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
   const totalRecordCount = summaryRecords.length
 
   // 2. 현재 페이지 매장 결정
-  const pageStoreNames = allStoreNames
+  const pageStoreIds = allStores
     .slice((page - 1) * limit, page * limit)
-    .map((r) => r.storeNameSnapshot)
-    .filter((name): name is string => name !== null)
+    .map((r) => r.storeId)
+    .filter((id): id is string => id !== null)
 
   // 3. 현재 페이지 매장의 상세 레코드 조회
-  const pageRecords = pageStoreNames.length > 0
+  const pageRecords = pageStoreIds.length > 0
     ? await prisma.workRecord.findMany({
         where: {
           collectionStatus: "UNCOLLECTED",
-          storeNameSnapshot: { in: pageStoreNames },
+          storeId: { in: pageStoreIds },
           ...(agedCutoff ? { date: { lt: agedCutoff } } : {}),
         },
         include: {
