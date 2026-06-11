@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useState, useMemo, useCallback } from "react"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Loader2, Search, Users } from "lucide-react"
 import {
   Select,
@@ -64,23 +65,7 @@ export function CollectionHistoryTab() {
   )
 
   // 무한 스크롤
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = loadMoreRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
-      },
-      { threshold: 0 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  const loadMoreRef = useInfiniteScroll({ hasNextPage, isFetchingNextPage, fetchNextPage })
 
   const handleSearch = useCallback(() => {
     setSearchStoreName(storeName.trim())

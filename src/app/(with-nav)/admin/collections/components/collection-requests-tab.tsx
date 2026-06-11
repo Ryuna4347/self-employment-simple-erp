@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo } from "react"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RefreshFab } from "@/components/common/refresh-fab"
@@ -31,23 +32,7 @@ export function CollectionRequestsTab() {
   )
 
   // 무한 스크롤
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = loadMoreRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
-      },
-      { threshold: 0 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  const loadMoreRef = useInfiniteScroll({ hasNextPage, isFetchingNextPage, fetchNextPage })
 
   return (
     <div>

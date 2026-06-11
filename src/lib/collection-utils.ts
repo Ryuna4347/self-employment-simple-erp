@@ -5,6 +5,13 @@ import type { PrismaClient } from "@/generated/prisma/client"
 type TransactionClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]
 
 /**
+ * 거래 품목 합계 계산 (서버/클라이언트 공용)
+ */
+export function calcTotalAmount(items: { amount: number }[]): number {
+  return items.reduce((sum, item) => sum + item.amount, 0)
+}
+
+/**
  * 이월 수금 통합 처리
  * - 날짜 ASC 정렬
  * - 마지막 건 제외 모든 RecordItem.amount → 0
@@ -39,7 +46,7 @@ export async function consolidateAndCollect(
   let accumulatedAmount = 0
 
   for (const record of recordsToZero) {
-    const recordTotal = record.items.reduce((sum, item) => sum + item.amount, 0)
+    const recordTotal = calcTotalAmount(record.items)
     accumulatedAmount += recordTotal
 
     await tx.recordItem.updateMany({

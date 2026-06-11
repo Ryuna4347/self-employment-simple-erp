@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useState, useMemo, useCallback } from "react"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { format } from "date-fns"
 import { Search, Fuel, Wrench } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -74,23 +75,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const totalCount = data?.pages[0]?.pagination.totalCount ?? 0
 
   // 무한 스크롤 트리거
-  const loadMoreRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = loadMoreRef.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
-      },
-      { threshold: 0 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  const loadMoreRef = useInfiniteScroll({ hasNextPage, isFetchingNextPage, fetchNextPage })
 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()

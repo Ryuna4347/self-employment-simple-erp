@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, Search, Users } from "lucide-react";
 import {
@@ -191,23 +192,7 @@ export function OutstandingContent() {
   }, [view, allRecords]);
 
   // 무한 스크롤 트리거
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const loadMoreRef = useInfiniteScroll({ hasNextPage, isFetchingNextPage, fetchNextPage });
 
   // 일괄 수금 모달 상태
   const [modalOpen, setModalOpen] = useState(false);

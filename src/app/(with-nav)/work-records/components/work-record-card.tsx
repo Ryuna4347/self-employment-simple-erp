@@ -18,11 +18,11 @@ import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
 import type {
   WorkRecordResponse,
-  WorkRecordItem,
   CollectionStatus,
 } from "../hooks/use-work-records";
 import type { PaymentType, Role } from "@/generated/prisma/client";
 import { canWrite } from "@/lib/role-utils";
+import { calcTotalAmount } from "@/lib/collection-utils";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
@@ -37,11 +37,6 @@ export interface WorkRecordCardProps {
   isDeleting?: boolean;
   isCollecting?: boolean;
   isDragging?: boolean;
-}
-
-// 유틸리티 함수: 총 금액 계산
-function calculateTotalAmount(items: WorkRecordItem[]): number {
-  return items.reduce((sum, item) => sum + item.amount, 0);
 }
 
 // 유틸리티 함수: 결제 방식 한글 변환
@@ -113,7 +108,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
 }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = useMemo(
-    () => calculateTotalAmount(record.items),
+    () => calcTotalAmount(record.items),
     [record.items],
   );
   const statusConfig = COLLECTION_STATUS_CONFIG[record.collectionStatus];
