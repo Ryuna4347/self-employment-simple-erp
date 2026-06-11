@@ -101,14 +101,14 @@ export const StoreTemplateCard = React.memo(function StoreTemplateCard({
                 소속 매장 (방문 순서)
               </h4>
               <div className="space-y-2">
-                {template.members.map((member) => (
+                {template.members.map((member, index) => (
                   <div
                     key={member.id}
                     className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
                   >
-                    {/* 순서 번호 */}
+                    {/* 순서 번호 (표시 순서 기준 - 삭제된 매장이 있어도 번호가 건너뛰지 않음) */}
                     <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-semibold flex-shrink-0">
-                      {member.order + 1}
+                      {index + 1}
                     </div>
                     {/* 매장 정보 */}
                     <div className="flex-1 min-w-0">

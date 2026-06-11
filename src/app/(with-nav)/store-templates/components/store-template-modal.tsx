@@ -65,9 +65,11 @@ interface StoreTemplateModalProps {
 // Sortable 매장 아이템 컴포넌트
 function SortableStoreItem({
   item,
+  index,
   onRemove,
 }: {
   item: SelectedStore
+  index: number
   onRemove: () => void
 }) {
   const {
@@ -103,9 +105,9 @@ function SortableStoreItem({
         <GripVertical className="size-5" />
       </button>
 
-      {/* 순서 번호 */}
+      {/* 순서 번호 (표시 순서 기준 - 삭제된 매장이 있어도 번호가 건너뛰지 않음) */}
       <div className="size-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-semibold flex-shrink-0">
-        {item.order + 1}
+        {index + 1}
       </div>
 
       {/* 매장 정보 */}
@@ -368,10 +370,11 @@ export function StoreTemplateModal({
                     strategy={verticalListSortingStrategy}
                   >
                     <div className="space-y-2">
-                      {selectedStores.map((item) => (
+                      {selectedStores.map((item, index) => (
                         <SortableStoreItem
                           key={item.id}
                           item={item}
+                          index={index}
                           onRemove={() => handleRemoveStore(item.id)}
                         />
                       ))}

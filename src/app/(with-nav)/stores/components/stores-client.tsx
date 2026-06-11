@@ -161,10 +161,11 @@ export function StoresClient() {
           </div>
         ) : (
           // 매장 리스트
-          stores.map((store) => (
+          stores.map((store, index) => (
             <StoreCard
               key={store.id}
               store={store}
+              index={index}
               onEdit={writable ? handleEditStore : undefined}
               onDelete={writable ? handleDeleteStore : undefined}
               isDeleting={deletingId === store.id}
