@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { CollectionRequestStatus } from "@/generated/prisma/client"
 
@@ -77,17 +78,10 @@ export interface CollectionHistoryItem {
   }[]
 }
 
-export const COLLECTION_REQUESTS_KEY = ["collection-requests"] as const
-export const COLLECTION_HISTORY_KEY = ["collection-history"] as const
-
-const OUTSTANDING_KEY = ["admin", "outstanding"] as const
-const WORK_RECORDS_KEY = ["work-records"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-
 // 수금 확인 요청 목록 조회
 export function useCollectionRequests(status: string) {
   return useInfiniteQuery({
-    queryKey: [...COLLECTION_REQUESTS_KEY, { status }],
+    queryKey: [...queryKeys.collectionRequests, { status }],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
         status,
@@ -108,7 +102,7 @@ export function useCollectionRequests(status: string) {
 // 수금 확인 요청 상세 조회
 export function useCollectionRequestDetail(id: string | null) {
   return useInfiniteQuery({
-    queryKey: [...COLLECTION_REQUESTS_KEY, id],
+    queryKey: [...queryKeys.collectionRequests, id],
     queryFn: async () => {
       const response = await apiClient<ApiResponse<CollectionRequestDetail>>(
         `/api/collection-requests/${id}`
@@ -134,11 +128,11 @@ export function useApproveCollectionRequest() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COLLECTION_REQUESTS_KEY })
-      queryClient.invalidateQueries({ queryKey: COLLECTION_HISTORY_KEY })
-      queryClient.invalidateQueries({ queryKey: OUTSTANDING_KEY })
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.collectionRequests })
+      queryClient.invalidateQueries({ queryKey: queryKeys.collectionHistory })
+      queryClient.invalidateQueries({ queryKey: queryKeys.outstanding })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
     },
   })
 }
@@ -156,8 +150,8 @@ export function useRejectCollectionRequest() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COLLECTION_REQUESTS_KEY })
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.collectionRequests })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
     },
   })
 }
@@ -172,7 +166,7 @@ export interface CollectionHistoryParams {
 
 export function useCollectionHistory(params: CollectionHistoryParams) {
   return useInfiniteQuery({
-    queryKey: [...COLLECTION_HISTORY_KEY, params],
+    queryKey: [...queryKeys.collectionHistory, params],
     queryFn: async ({ pageParam }) => {
       const searchParams = new URLSearchParams({
         year: String(params.year),

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 export interface EmployeeCashRow {
@@ -20,7 +21,7 @@ export interface DailyCashCollectionData {
 
 export function useDailyCashCollection(date: string | null, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ["work-records", "daily-cash-collection", date],
+    queryKey: [...queryKeys.dailyCashCollection, date],
     queryFn: async () => {
       if (!date) {
         throw new Error("조회할 날짜가 없습니다")

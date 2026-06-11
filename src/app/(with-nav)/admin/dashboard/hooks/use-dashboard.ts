@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 대시보드 요약 통계
@@ -64,9 +65,6 @@ export interface DashboardData {
 // 조회 기간 타입
 export type DashboardPeriod = "daily" | "monthly"
 
-// 쿼리 키
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-
 /**
  * 관리자 대시보드 데이터 조회 훅
  *
@@ -76,7 +74,7 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
  */
 export function useDashboard(period: DashboardPeriod, year: number, month?: number) {
   return useQuery({
-    queryKey: [...DASHBOARD_KEY, { period, year, month }],
+    queryKey: [...queryKeys.dashboard, { period, year, month }],
     queryFn: async () => {
       const params = new URLSearchParams({
         period,

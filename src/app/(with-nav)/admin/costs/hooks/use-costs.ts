@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 비용 레코드 타입
@@ -21,17 +22,12 @@ export interface CostInput {
   description?: string
 }
 
-// 쿼리 키
-const COSTS_KEY = ["admin", "costs"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-const DAILY_COST_KEY = ["daily-cost"] as const
-
 /**
  * 비용 목록 조회 훅
  */
 export function useCosts(year: number, month: number) {
   return useQuery({
-    queryKey: [...COSTS_KEY, { year, month }],
+    queryKey: [...queryKeys.costs, { year, month }],
     queryFn: async () => {
       const params = new URLSearchParams({
         year: String(year),
@@ -58,9 +54,9 @@ export function useCreateCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.costs })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dailyCost })
     },
   })
 }
@@ -78,9 +74,9 @@ export function useUpdateCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.costs })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dailyCost })
     },
   })
 }
@@ -97,9 +93,9 @@ export function useDeleteCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.costs })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dailyCost })
     },
   })
 }

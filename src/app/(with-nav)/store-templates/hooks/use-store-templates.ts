@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse, PaginationInfo } from "@/types/api"
 
 // 멤버 내 매장 정보
@@ -51,17 +52,13 @@ export interface ApplyTemplateResult {
   }>
 }
 
-// 쿼리 키
-const STORE_TEMPLATES_KEY = ["store-templates"] as const
-const WORK_RECORDS_KEY = ["work-records"] as const
-
 /**
  * 코스 목록 조회 훅
  * @param userId - 필터할 사용자 ID (생략 시 서버에서 본인 기본)
  */
 export function useStoreTemplates(userId?: string) {
   return useQuery({
-    queryKey: [...STORE_TEMPLATES_KEY, { userId }],
+    queryKey: [...queryKeys.storeTemplates, { userId }],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (userId) params.set("userId", userId)
@@ -85,7 +82,7 @@ export const STORE_TEMPLATES_LIMIT = 50
  */
 export function useStoreTemplatesInfinite(userId?: string, search?: string) {
   return useInfiniteQuery({
-    queryKey: [...STORE_TEMPLATES_KEY, "infinite", { userId, search }],
+    queryKey: [...queryKeys.storeTemplates, "infinite", { userId, search }],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams()
       if (userId) params.set("userId", userId)
@@ -118,7 +115,7 @@ export function useCreateStoreTemplate() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTemplates })
     },
   })
 }
@@ -138,7 +135,7 @@ export function useUpdateStoreTemplate() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTemplates })
     },
   })
 }
@@ -156,7 +153,7 @@ export function useDeleteStoreTemplate() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTemplates })
     },
   })
 }
@@ -180,7 +177,7 @@ export function useApplyStoreTemplate() {
     },
     onSuccess: () => {
       // WorkRecord 목록도 갱신
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
     },
   })
 }

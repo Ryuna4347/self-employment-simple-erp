@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 공지 레코드 타입
@@ -21,16 +22,12 @@ export interface NoticeInput {
   expiresAt: string | null
 }
 
-// 쿼리 키
-const NOTICES_KEY = ["admin", "notices"] as const
-const LATEST_NOTICE_KEY = ["notices", "latest"] as const
-
 /**
  * 공지 목록 조회 훅 (어드민)
  */
 export function useNotices() {
   return useQuery({
-    queryKey: [...NOTICES_KEY],
+    queryKey: queryKeys.adminNotices,
     queryFn: async () => {
       const response = await apiClient<ApiResponse<NoticeRecord[]>>(
         "/api/admin/notices"
@@ -53,8 +50,8 @@ export function useCreateNotice() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: NOTICES_KEY })
-      queryClient.invalidateQueries({ queryKey: LATEST_NOTICE_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminNotices })
+      queryClient.invalidateQueries({ queryKey: queryKeys.latestNotice })
     },
   })
 }
@@ -72,8 +69,8 @@ export function useUpdateNotice() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: NOTICES_KEY })
-      queryClient.invalidateQueries({ queryKey: LATEST_NOTICE_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminNotices })
+      queryClient.invalidateQueries({ queryKey: queryKeys.latestNotice })
     },
   })
 }
@@ -90,8 +87,8 @@ export function useDeleteNotice() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: NOTICES_KEY })
-      queryClient.invalidateQueries({ queryKey: LATEST_NOTICE_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminNotices })
+      queryClient.invalidateQueries({ queryKey: queryKeys.latestNotice })
     },
   })
 }

@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
-import { WORK_RECORDS_KEY } from "./use-work-records"
-import { STORE_UNCOLLECTED_KEY } from "./use-store-uncollected"
 
 interface CreateCollectionRequestInput {
   storeId?: string | null
@@ -23,8 +22,8 @@ export function useCreateCollectionRequest() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: STORE_UNCOLLECTED_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeUncollected })
     },
   })
 }

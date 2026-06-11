@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 뮤테이션 입력 타입
@@ -9,11 +10,6 @@ interface DailyCostInput {
   amount: number
 }
 
-// 쿼리 키
-const DAILY_COST_KEY = ["daily-cost"] as const
-const COSTS_KEY = ["admin", "costs"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-
 /**
  * 특정 날짜의 비용 조회 훅
  * @param title - 비용 타입 (예: "주유비", "차량수리비")
@@ -22,7 +18,7 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
  */
 export function useDailyCost(title: string, date: string, userId?: string) {
   return useQuery({
-    queryKey: [...DAILY_COST_KEY, title, { date, userId }],
+    queryKey: [...queryKeys.dailyCost, title, { date, userId }],
     queryFn: async () => {
       const params = new URLSearchParams({ date, title })
       if (userId) params.set("userId", userId)
@@ -48,9 +44,9 @@ export function useUpsertDailyCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DAILY_COST_KEY })
-      queryClient.invalidateQueries({ queryKey: COSTS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dailyCost })
+      queryClient.invalidateQueries({ queryKey: queryKeys.costs })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
     },
   })
 }

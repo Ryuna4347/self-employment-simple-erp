@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType, ReceiptType } from "@/generated/prisma/client"
 
@@ -49,16 +50,12 @@ export interface StoreInput {
   templateId?: string | null
 }
 
-// 쿼리 키
-const STORES_KEY = ["stores"] as const
-const STORE_TEMPLATES_KEY = ["store-templates"] as const
-
 /**
  * 매장 목록 조회 훅
  */
 export function useStores(search?: string) {
   return useQuery({
-    queryKey: [...STORES_KEY, { search }],
+    queryKey: [...queryKeys.stores, { search }],
     queryFn: async () => {
       const params = search ? `?search=${encodeURIComponent(search)}` : ""
       const response = await apiClient<ApiResponse<Store[]>>(`/api/stores${params}`)
@@ -76,7 +73,7 @@ export const STORES_LIMIT = 50
  */
 export function useStoresInfinite(search?: string) {
   return useInfiniteQuery({
-    queryKey: [...STORES_KEY, "infinite", { search }],
+    queryKey: [...queryKeys.stores, "infinite", { search }],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams()
       if (search) params.set("search", search)
@@ -108,10 +105,10 @@ export function useCreateStore() {
       return response.data
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores })
       // 코스에 매장이 추가되었으면 코스 캐시도 갱신
       if (variables.templateId) {
-        queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+        queryClient.invalidateQueries({ queryKey: queryKeys.storeTemplates })
       }
     },
   })
@@ -132,10 +129,11 @@ export function useUpdateStore() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores })
       // 매장 정보 변경 시 스냅샷 연동으로 인한 캐시 무효화
-      queryClient.invalidateQueries({ queryKey: ["work-records"] })
-      queryClient.invalidateQueries({ queryKey: ["admin"] })
+      // (adminScope 광범위 무효화는 의도 — 좁히면 미수금/대시보드 스냅샷 갱신 누락)
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminScope })
     },
   })
 }
@@ -153,9 +151,9 @@ export function useDeleteStore() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores })
       // 삭제된 매장이 코스에서 사라지므로 캐시 무효화
-      queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeTemplates })
     },
   })
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 직원 목록 타입
@@ -20,15 +21,12 @@ export interface InviteResult {
   inviteUrl: string
 }
 
-// 쿼리 키
-const STAFF_KEY = ["admin", "staff"] as const
-
 /**
  * 직원 목록 조회 훅
  */
 export function useStaff() {
   return useQuery({
-    queryKey: [...STAFF_KEY],
+    queryKey: queryKeys.staff,
     queryFn: async () => {
       const response = await apiClient<ApiResponse<StaffMember[]>>("/api/admin/staff")
       return response.data
@@ -54,7 +52,7 @@ export function useCreateInvite() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFF_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff })
     },
   })
 }
@@ -76,7 +74,7 @@ export function useDeleteStaff() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFF_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.staff })
     },
   })
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 export interface UserOption {
@@ -9,11 +10,9 @@ export interface UserOption {
   role: "ADMIN" | "USER"
 }
 
-const USERS_KEY = ["users"] as const
-
 export function useUsers(enabled: boolean = true) {
   return useQuery({
-    queryKey: USERS_KEY,
+    queryKey: queryKeys.users,
     queryFn: async () => {
       const response = await apiClient<ApiResponse<UserOption[]>>("/api/users")
       return response.data

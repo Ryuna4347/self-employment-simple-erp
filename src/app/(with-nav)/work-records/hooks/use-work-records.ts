@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-import { STORE_VISITS_KEY } from "./use-store-visits"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType } from "@/generated/prisma/client"
 
@@ -104,14 +104,11 @@ interface WorkRecordsPayload {
   pagination: PaginationInfo
 }
 
-export const WORK_RECORDS_KEY = ["work-records"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-
 export const WORK_RECORDS_LIMIT = 100
 
 export function useWorkRecords(date: string, userId?: string, search?: string) {
   return useInfiniteQuery({
-    queryKey: [...WORK_RECORDS_KEY, { date, userId, search }],
+    queryKey: [...queryKeys.workRecords, { date, userId, search }],
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ date })
       if (userId) params.set("userId", userId)
@@ -141,9 +138,9 @@ export function useCreateWorkRecord() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeVisits })
     },
   })
 }
@@ -161,9 +158,9 @@ export function useUpdateWorkRecord() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeVisits })
     },
   })
 }
@@ -177,9 +174,9 @@ export function useDeleteWorkRecord() {
       await apiClient(`/api/work-records/${id}`, { method: "DELETE" })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeVisits })
     },
   })
 }
@@ -213,9 +210,9 @@ export function useBulkDeleteWorkRecords() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeVisits })
     },
   })
 }
@@ -233,7 +230,7 @@ export function useReorderWorkRecords() {
     },
     onError: () => {
       // 실패 시 서버 상태로 복원
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
     },
   })
 }
@@ -252,8 +249,8 @@ export function useSaveStoreFromWorkRecord() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: ["stores"] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores })
     },
   })
 }

@@ -1,15 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
-import { WORK_RECORDS_KEY } from "./use-work-records"
-import { STORE_UNCOLLECTED_KEY } from "./use-store-uncollected"
-
-const OUTSTANDING_KEY = ["admin", "outstanding"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-// 어드민 batch-collect가 PENDING CollectionRequest를 자동 APPROVED로 종결하므로
-// /admin/collections 페이지(요청 목록 + 이력)도 함께 무효화해야 한다
-const COLLECTION_REQUESTS_KEY = ["collection-requests"] as const
-const COLLECTION_HISTORY_KEY = ["collection-history"] as const
 
 interface BatchCollectInput {
   workRecordIds: string[]
@@ -38,15 +30,16 @@ export function useBatchCollect() {
       return response.data
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: STORE_UNCOLLECTED_KEY })
-      queryClient.invalidateQueries({ queryKey: OUTSTANDING_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      // PENDING CollectionRequest가 자동 종결된 경우 수금 관리 페이지 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.storeUncollected })
+      queryClient.invalidateQueries({ queryKey: queryKeys.outstanding })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      // 어드민 batch-collect가 PENDING CollectionRequest를 자동 APPROVED로 종결하므로
+      // /admin/collections 페이지(요청 목록 + 이력)도 함께 무효화해야 한다
       // (단순화를 위해 무조건 무효화해도 무방하나, 응답에 종결 ID가 노출되므로 조건부 처리)
       if (result?.approvedRequestIds && result.approvedRequestIds.length > 0) {
-        queryClient.invalidateQueries({ queryKey: COLLECTION_REQUESTS_KEY })
-        queryClient.invalidateQueries({ queryKey: COLLECTION_HISTORY_KEY })
+        queryClient.invalidateQueries({ queryKey: queryKeys.collectionRequests })
+        queryClient.invalidateQueries({ queryKey: queryKeys.collectionHistory })
       }
     },
   })

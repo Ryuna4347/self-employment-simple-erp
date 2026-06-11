@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
@@ -56,12 +57,6 @@ export type OutstandingParams = DateFilterParams | StoreFilterParams
 // 페이지당 항목 수
 export const OUTSTANDING_LIMIT = 100
 
-// 쿼리 키
-export const OUTSTANDING_KEY = ["admin", "outstanding"] as const
-
-const WORK_RECORDS_KEY = ["work-records"] as const
-const DASHBOARD_KEY = ["admin", "dashboard"] as const
-
 /**
  * 미수금 목록 조회 훅 (무한 스크롤)
  *
@@ -69,7 +64,7 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
  */
 export function useOutstanding(params: OutstandingParams) {
   return useInfiniteQuery({
-    queryKey: [...OUTSTANDING_KEY, params],
+    queryKey: [...queryKeys.outstanding, params],
     queryFn: async ({ pageParam }) => {
       const searchParams = new URLSearchParams()
       searchParams.set("filter", params.filter)
@@ -114,7 +109,7 @@ export function useOutstanding(params: OutstandingParams) {
  */
 export function useAgedOutstandingCount() {
   return useQuery({
-    queryKey: [...OUTSTANDING_KEY, "aged-count"] as const,
+    queryKey: [...queryKeys.outstanding, "aged-count"] as const,
     queryFn: async () => {
       const response = await apiClient<ApiResponse<{ pagination: { totalCount: number } }>>(
         `/api/admin/outstanding?filter=store&agedOnly=true&page=1&limit=1`
@@ -147,9 +142,9 @@ export function useToggleCollection() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: OUTSTANDING_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.outstanding })
     },
   })
 }
@@ -174,9 +169,9 @@ export function useBatchToggleCollection() {
       return response.data
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
-      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
-      queryClient.invalidateQueries({ queryKey: OUTSTANDING_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workRecords })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.outstanding })
     },
   })
 }

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
 import type { ApiResponse } from "@/types/api"
 
 // 고정비용 레코드 타입
@@ -18,15 +19,12 @@ export interface RecurringCostInput {
   frequency: "WEEKLY" | "MONTHLY"
 }
 
-// 쿼리 키
-const RECURRING_COSTS_KEY = ["admin", "recurring-costs"] as const
-
 /**
  * 고정비용 목록 조회 훅
  */
 export function useRecurringCosts() {
   return useQuery({
-    queryKey: [...RECURRING_COSTS_KEY],
+    queryKey: queryKeys.recurringCosts,
     queryFn: async () => {
       const response = await apiClient<ApiResponse<RecurringCostRecord[]>>(
         "/api/admin/recurring-costs"
@@ -49,7 +47,7 @@ export function useCreateRecurringCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RECURRING_COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringCosts })
     },
   })
 }
@@ -67,7 +65,7 @@ export function useUpdateRecurringCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RECURRING_COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringCosts })
     },
   })
 }
@@ -84,7 +82,7 @@ export function useDeleteRecurringCost() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RECURRING_COSTS_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.recurringCosts })
     },
   })
 }
