@@ -9,6 +9,8 @@ import type { Store } from "../hooks/use-stores"
 
 interface StoreCardProps {
   store: Store
+  /** 목록 표시 순서 (0부터) - 카드 좌상단 순번 표시용 */
+  index: number
   onEdit?: (store: Store) => void
   onDelete?: (id: string) => void
   isDeleting?: boolean
@@ -28,6 +30,7 @@ const receiptTypeLabels: Record<string, string> = {
 
 export const StoreCard = React.memo(function StoreCard({
   store,
+  index,
   onEdit,
   onDelete,
   isDeleting,
@@ -77,6 +80,9 @@ export const StoreCard = React.memo(function StoreCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-gray-400 text-base flex-shrink-0">
+                {index + 1}.
+              </span>
               <h3 className="font-semibold text-gray-900 text-base">
                 {store.name}
               </h3>
