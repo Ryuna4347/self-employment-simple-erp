@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 // 대시보드 요약 통계
 interface DashboardSummary {
@@ -60,11 +61,6 @@ export interface DashboardData {
   collectionStatus: CollectionStatus
 }
 
-// API 응답 타입
-interface DashboardResponse {
-  data: DashboardData
-}
-
 // 조회 기간 타입
 export type DashboardPeriod = "daily" | "monthly"
 
@@ -89,7 +85,7 @@ export function useDashboard(period: DashboardPeriod, year: number, month?: numb
       if (month !== undefined) {
         params.set("month", String(month))
       }
-      const response = await apiClient<DashboardResponse>(
+      const response = await apiClient<ApiResponse<DashboardData>>(
         `/api/admin/dashboard?${params.toString()}`
       )
       return response.data

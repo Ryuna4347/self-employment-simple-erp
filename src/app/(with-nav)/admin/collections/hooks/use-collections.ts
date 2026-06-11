@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { CollectionRequestStatus } from "@/generated/prisma/client"
 
 // 수금 확인 요청 목록 아이템
@@ -76,32 +77,6 @@ export interface CollectionHistoryItem {
   }[]
 }
 
-// 페이지네이션
-interface PaginationInfo {
-  page: number
-  limit: number
-  totalCount: number
-  totalPages: number
-  hasNext: boolean
-  hasPrev: boolean
-}
-
-// 요청 목록 응답
-interface CollectionRequestsResponse {
-  data: {
-    requests: CollectionRequestListItem[]
-    pagination: PaginationInfo
-  }
-}
-
-// 이력 응답
-interface CollectionHistoryResponse {
-  data: {
-    items: CollectionHistoryItem[]
-    pagination: PaginationInfo
-  }
-}
-
 export const COLLECTION_REQUESTS_KEY = ["collection-requests"] as const
 export const COLLECTION_HISTORY_KEY = ["collection-history"] as const
 
@@ -119,9 +94,9 @@ export function useCollectionRequests(status: string) {
         page: String(pageParam),
         limit: "20",
       })
-      const response = await apiClient<CollectionRequestsResponse>(
-        `/api/collection-requests?${params.toString()}`
-      )
+      const response = await apiClient<
+        ApiResponse<{ requests: CollectionRequestListItem[]; pagination: PaginationInfo }>
+      >(`/api/collection-requests?${params.toString()}`)
       return response.data
     },
     initialPageParam: 1,
@@ -135,7 +110,7 @@ export function useCollectionRequestDetail(id: string | null) {
   return useInfiniteQuery({
     queryKey: [...COLLECTION_REQUESTS_KEY, id],
     queryFn: async () => {
-      const response = await apiClient<{ data: CollectionRequestDetail }>(
+      const response = await apiClient<ApiResponse<CollectionRequestDetail>>(
         `/api/collection-requests/${id}`
       )
       return response.data
@@ -152,7 +127,7 @@ export function useApproveCollectionRequest() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient<{ data: unknown }>(
+      const response = await apiClient<ApiResponse<unknown>>(
         `/api/collection-requests/${id}/approve`,
         { method: "POST" }
       )
@@ -174,7 +149,7 @@ export function useRejectCollectionRequest() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient<{ data: unknown }>(
+      const response = await apiClient<ApiResponse<unknown>>(
         `/api/collection-requests/${id}/reject`,
         { method: "POST" }
       )
@@ -207,9 +182,9 @@ export function useCollectionHistory(params: CollectionHistoryParams) {
       })
       if (params.userId) searchParams.set("userId", params.userId)
       if (params.search) searchParams.set("search", params.search)
-      const response = await apiClient<CollectionHistoryResponse>(
-        `/api/admin/collection-history?${searchParams.toString()}`
-      )
+      const response = await apiClient<
+        ApiResponse<{ items: CollectionHistoryItem[]; pagination: PaginationInfo }>
+      >(`/api/admin/collection-history?${searchParams.toString()}`)
       return response.data
     },
     initialPageParam: 1,

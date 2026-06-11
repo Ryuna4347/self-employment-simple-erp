@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 export interface EmployeeCashRow {
   userId: string
@@ -17,10 +18,6 @@ export interface DailyCashCollectionData {
   grandTotal: number
 }
 
-interface DailyCashCollectionResponse {
-  data: DailyCashCollectionData
-}
-
 export function useDailyCashCollection(date: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["work-records", "daily-cash-collection", date],
@@ -30,7 +27,7 @@ export function useDailyCashCollection(date: string | null, options?: { enabled?
       }
 
       const params = new URLSearchParams({ date })
-      const response = await apiClient<DailyCashCollectionResponse>(
+      const response = await apiClient<ApiResponse<DailyCashCollectionData>>(
         `/api/work-records/daily-cash-collection?${params.toString()}`,
         { method: "GET" }
       )

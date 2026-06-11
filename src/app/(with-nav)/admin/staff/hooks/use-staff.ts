@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 // 직원 목록 타입
 export interface StaffMember {
@@ -19,20 +20,6 @@ export interface InviteResult {
   inviteUrl: string
 }
 
-// API 응답 래퍼 타입
-interface StaffListResponse {
-  data: StaffMember[]
-}
-
-interface InviteResponse {
-  data: InviteResult
-}
-
-interface DeleteResponse {
-  data: { id: string }
-  message?: string
-}
-
 // 쿼리 키
 const STAFF_KEY = ["admin", "staff"] as const
 
@@ -43,7 +30,7 @@ export function useStaff() {
   return useQuery({
     queryKey: [...STAFF_KEY],
     queryFn: async () => {
-      const response = await apiClient<StaffListResponse>("/api/admin/staff")
+      const response = await apiClient<ApiResponse<StaffMember[]>>("/api/admin/staff")
       return response.data
     },
   })
@@ -57,7 +44,7 @@ export function useCreateInvite() {
 
   return useMutation({
     mutationFn: async (data: { name: string }) => {
-      const response = await apiClient<InviteResponse>(
+      const response = await apiClient<ApiResponse<InviteResult>>(
         "/api/admin/create-invite",
         {
           method: "POST",
@@ -80,7 +67,7 @@ export function useDeleteStaff() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient<DeleteResponse>(
+      const response = await apiClient<ApiResponse<{ id: string }>>(
         `/api/admin/staff/${id}`,
         {
           method: "DELETE",

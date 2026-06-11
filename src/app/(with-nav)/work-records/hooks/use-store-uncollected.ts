@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 export interface StoreUncollectedRecord {
   id: string
@@ -10,17 +11,13 @@ export interface StoreUncollectedRecord {
   pendingRequestId: string | null
 }
 
-interface StoreUncollectedResponse {
-  data: StoreUncollectedRecord[]
-}
-
 export const STORE_UNCOLLECTED_KEY = ["store-uncollected"] as const
 
 export function useStoreUncollected(storeId: string | null | undefined) {
   return useQuery({
     queryKey: [...STORE_UNCOLLECTED_KEY, storeId],
     queryFn: async () => {
-      const response = await apiClient<StoreUncollectedResponse>(
+      const response = await apiClient<ApiResponse<StoreUncollectedRecord[]>>(
         `/api/work-records/store-uncollected?storeId=${storeId}`
       )
       return response.data

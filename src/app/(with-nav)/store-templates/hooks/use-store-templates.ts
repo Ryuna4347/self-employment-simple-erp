@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse, PaginationInfo } from "@/types/api"
 
 // 멤버 내 매장 정보
 interface MemberStore {
@@ -50,36 +51,6 @@ export interface ApplyTemplateResult {
   }>
 }
 
-// API 응답 타입
-interface StoreTemplatesResponse {
-  data: StoreTemplate[]
-}
-
-// 페이지네이션 API 응답 타입
-interface PaginationInfo {
-  page: number
-  limit: number
-  totalCount: number
-  totalPages: number
-  hasNext: boolean
-  hasPrev: boolean
-}
-
-interface StoreTemplatesPaginatedResponse {
-  data: {
-    templates: StoreTemplate[]
-    pagination: PaginationInfo
-  }
-}
-
-interface StoreTemplateResponse {
-  data: StoreTemplate
-}
-
-interface ApplyTemplateResponse {
-  data: ApplyTemplateResult
-}
-
 // 쿼리 키
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
 const WORK_RECORDS_KEY = ["work-records"] as const
@@ -98,7 +69,7 @@ export function useStoreTemplates(userId?: string) {
       const url = queryString
         ? `/api/store-templates?${queryString}`
         : "/api/store-templates"
-      const response = await apiClient<StoreTemplatesResponse>(url)
+      const response = await apiClient<ApiResponse<StoreTemplate[]>>(url)
       return response.data
     },
   })
@@ -121,9 +92,9 @@ export function useStoreTemplatesInfinite(userId?: string, search?: string) {
       if (search) params.set("search", search)
       params.set("page", String(pageParam))
       params.set("limit", String(STORE_TEMPLATES_LIMIT))
-      const response = await apiClient<StoreTemplatesPaginatedResponse>(
-        `/api/store-templates?${params.toString()}`
-      )
+      const response = await apiClient<
+        ApiResponse<{ templates: StoreTemplate[]; pagination: PaginationInfo }>
+      >(`/api/store-templates?${params.toString()}`)
       return response.data
     },
     initialPageParam: 1,
@@ -140,7 +111,7 @@ export function useCreateStoreTemplate() {
 
   return useMutation({
     mutationFn: async (data: StoreTemplateInput) => {
-      const response = await apiClient<StoreTemplateResponse>("/api/store-templates", {
+      const response = await apiClient<ApiResponse<StoreTemplate>>("/api/store-templates", {
         method: "POST",
         json: data,
       })
@@ -160,7 +131,7 @@ export function useUpdateStoreTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: StoreTemplateInput & { id: string }) => {
-      const response = await apiClient<StoreTemplateResponse>(`/api/store-templates/${id}`, {
+      const response = await apiClient<ApiResponse<StoreTemplate>>(`/api/store-templates/${id}`, {
         method: "PUT",
         json: data,
       })
@@ -198,7 +169,7 @@ export function useApplyStoreTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, date }: { id: string; date: string }) => {
-      const response = await apiClient<ApplyTemplateResponse>(
+      const response = await apiClient<ApiResponse<ApplyTemplateResult>>(
         `/api/store-templates/${id}/apply`,
         {
           method: "POST",

@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType, ReceiptType } from "@/generated/prisma/client"
 
 // 매장 품목 타입
@@ -48,32 +49,6 @@ export interface StoreInput {
   templateId?: string | null
 }
 
-// API 응답 타입
-interface StoresResponse {
-  data: Store[]
-}
-
-interface StoreResponse {
-  data: Store
-}
-
-// 페이지네이션 API 응답 타입
-interface PaginationInfo {
-  page: number
-  limit: number
-  totalCount: number
-  totalPages: number
-  hasNext: boolean
-  hasPrev: boolean
-}
-
-interface StoresPaginatedResponse {
-  data: {
-    stores: Store[]
-    pagination: PaginationInfo
-  }
-}
-
 // 쿼리 키
 const STORES_KEY = ["stores"] as const
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
@@ -86,7 +61,7 @@ export function useStores(search?: string) {
     queryKey: [...STORES_KEY, { search }],
     queryFn: async () => {
       const params = search ? `?search=${encodeURIComponent(search)}` : ""
-      const response = await apiClient<StoresResponse>(`/api/stores${params}`)
+      const response = await apiClient<ApiResponse<Store[]>>(`/api/stores${params}`)
       return response.data
     },
   })
@@ -107,9 +82,9 @@ export function useStoresInfinite(search?: string) {
       if (search) params.set("search", search)
       params.set("page", String(pageParam))
       params.set("limit", String(STORES_LIMIT))
-      const response = await apiClient<StoresPaginatedResponse>(
-        `/api/stores?${params.toString()}`
-      )
+      const response = await apiClient<
+        ApiResponse<{ stores: Store[]; pagination: PaginationInfo }>
+      >(`/api/stores?${params.toString()}`)
       return response.data
     },
     initialPageParam: 1,
@@ -126,7 +101,7 @@ export function useCreateStore() {
 
   return useMutation({
     mutationFn: async (data: StoreInput) => {
-      const response = await apiClient<StoreResponse>("/api/stores", {
+      const response = await apiClient<ApiResponse<Store>>("/api/stores", {
         method: "POST",
         json: data,
       })
@@ -150,7 +125,7 @@ export function useUpdateStore() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: StoreInput & { id: string }) => {
-      const response = await apiClient<StoreResponse>(`/api/stores/${id}`, {
+      const response = await apiClient<ApiResponse<Store>>(`/api/stores/${id}`, {
         method: "PUT",
         json: data,
       })

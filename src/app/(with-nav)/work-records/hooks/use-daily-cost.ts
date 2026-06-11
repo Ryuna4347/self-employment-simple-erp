@@ -1,12 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
-
-// 응답 타입
-interface DailyCostResponse {
-  data: {
-    amount: number | null
-  }
-}
+import type { ApiResponse } from "@/types/api"
 
 // 뮤테이션 입력 타입
 interface DailyCostInput {
@@ -32,7 +26,7 @@ export function useDailyCost(title: string, date: string, userId?: string) {
     queryFn: async () => {
       const params = new URLSearchParams({ date, title })
       if (userId) params.set("userId", userId)
-      const response = await apiClient<DailyCostResponse>(
+      const response = await apiClient<ApiResponse<{ amount: number | null }>>(
         `/api/expenses/daily-cost?${params.toString()}`
       )
       return response.data

@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType } from "@/generated/prisma/client"
 import type { CollectionStatus } from "@/app/(with-nav)/work-records/hooks/use-work-records"
 
@@ -19,34 +20,19 @@ export interface OutstandingRecord {
   collectedByName: string | null
 }
 
-// 페이지네이션 정보
-interface PaginationInfo {
-  page: number
-  limit: number
-  totalCount: number
-  totalPages: number
-  hasNext: boolean
-  hasPrev: boolean
+// outstanding 전용 페이지네이션: 단위(레코드/매장) 필드가 추가된다
+interface OutstandingPagination extends PaginationInfo {
   unit: "record" | "store"
 }
 
-// API 응답 타입
-interface OutstandingResponse {
-  data: {
-    records: OutstandingRecord[]
-    summary: {
-      totalOutstanding: number
-      count: number
-    }
-    pagination: PaginationInfo
+// API 응답 페이로드
+interface OutstandingPayload {
+  records: OutstandingRecord[]
+  summary: {
+    totalOutstanding: number
+    count: number
   }
-}
-
-// 장기 미수 매장 수 응답 타입(totalCount만 사용)
-interface AgedCountResponse {
-  data: {
-    pagination: { totalCount: number }
-  }
+  pagination: OutstandingPagination
 }
 
 // 필터 파라미터 타입 (page 제거 - useInfiniteQuery가 관리)
@@ -109,7 +95,7 @@ export function useOutstanding(params: OutstandingParams) {
         searchParams.set("userId", params.userId)
       }
 
-      const response = await apiClient<OutstandingResponse>(
+      const response = await apiClient<ApiResponse<OutstandingPayload>>(
         `/api/admin/outstanding?${searchParams.toString()}`
       )
       return response.data
@@ -130,7 +116,7 @@ export function useAgedOutstandingCount() {
   return useQuery({
     queryKey: [...OUTSTANDING_KEY, "aged-count"] as const,
     queryFn: async () => {
-      const response = await apiClient<AgedCountResponse>(
+      const response = await apiClient<ApiResponse<{ pagination: { totalCount: number } }>>(
         `/api/admin/outstanding?filter=store&agedOnly=true&page=1&limit=1`
       )
       return response.data.pagination.totalCount
@@ -151,7 +137,7 @@ export function useToggleCollection() {
 
   return useMutation({
     mutationFn: async ({ id, collectionStatus }: { id: string; collectionStatus: CollectionStatus }) => {
-      const response = await apiClient<{ data: unknown }>(
+      const response = await apiClient<ApiResponse<unknown>>(
         `/api/work-records/${id}`,
         {
           method: "PUT",
@@ -178,7 +164,7 @@ export function useBatchToggleCollection() {
 
   return useMutation({
     mutationFn: async ({ ids, collectionStatus }: { ids: string[]; collectionStatus: CollectionStatus }) => {
-      const response = await apiClient<{ data: { updatedCount: number } }>(
+      const response = await apiClient<ApiResponse<{ updatedCount: number }>>(
         `/api/admin/outstanding/batch-collect`,
         {
           method: "POST",

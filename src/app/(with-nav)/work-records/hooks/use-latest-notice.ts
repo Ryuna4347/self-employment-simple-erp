@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 export interface LatestNotice {
   id: string
@@ -17,7 +18,7 @@ export function useLatestNotice() {
   return useQuery({
     queryKey: ["notices", "latest"],
     queryFn: async () => {
-      const response = await apiClient<{ data: LatestNotice | null }>(
+      const response = await apiClient<ApiResponse<LatestNotice | null>>(
         "/api/notices/latest"
       )
       return response.data

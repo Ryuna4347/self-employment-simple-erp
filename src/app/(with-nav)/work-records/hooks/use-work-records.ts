@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { STORE_VISITS_KEY } from "./use-store-visits"
+import type { ApiResponse, PaginationInfo } from "@/types/api"
 import type { PaymentType } from "@/generated/prisma/client"
 
 export type CollectionStatus = "UNCOLLECTED" | "COLLECTED" | "CLOSED"
@@ -96,23 +97,11 @@ export interface WorkRecordsSummary {
   pendingCollectionByPaymentType: Record<PaymentType, number>
 }
 
-// 페이지네이션 정보
-interface PaginationInfo {
-  page: number
-  limit: number
-  totalCount: number
-  totalPages: number
-  hasNext: boolean
-  hasPrev: boolean
-}
-
-// API 응답 타입
-interface WorkRecordsApiResponse {
-  data: {
-    records: WorkRecordResponse[]
-    summary: WorkRecordsSummary
-    pagination: PaginationInfo
-  }
+// API 응답 페이로드
+interface WorkRecordsPayload {
+  records: WorkRecordResponse[]
+  summary: WorkRecordsSummary
+  pagination: PaginationInfo
 }
 
 export const WORK_RECORDS_KEY = ["work-records"] as const
@@ -129,7 +118,7 @@ export function useWorkRecords(date: string, userId?: string, search?: string) {
       if (search) params.set("search", search)
       params.set("page", String(pageParam))
       params.set("limit", String(WORK_RECORDS_LIMIT))
-      const response = await apiClient<WorkRecordsApiResponse>(`/api/work-records?${params.toString()}`)
+      const response = await apiClient<ApiResponse<WorkRecordsPayload>>(`/api/work-records?${params.toString()}`)
       return response.data
     },
     initialPageParam: 1,
@@ -145,7 +134,7 @@ export function useCreateWorkRecord() {
 
   return useMutation({
     mutationFn: async (data: WorkRecordInput) => {
-      const response = await apiClient<{ data: WorkRecordResponse }>("/api/work-records", {
+      const response = await apiClient<ApiResponse<WorkRecordResponse>>("/api/work-records", {
         method: "POST",
         json: data,
       })
@@ -165,7 +154,7 @@ export function useUpdateWorkRecord() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: WorkRecordUpdateInput & { id: string }) => {
-      const response = await apiClient<{ data: WorkRecordResponse }>(`/api/work-records/${id}`, {
+      const response = await apiClient<ApiResponse<WorkRecordResponse>>(`/api/work-records/${id}`, {
         method: "PUT",
         json: data,
       })
@@ -217,7 +206,7 @@ export function useBulkDeleteWorkRecords() {
       const params = new URLSearchParams({ date: input.date })
       if (input.userId) params.set("userId", input.userId)
       if (input.search) params.set("search", input.search)
-      const response = await apiClient<{ data: BulkDeleteResult }>(
+      const response = await apiClient<ApiResponse<BulkDeleteResult>>(
         `/api/work-records/bulk?${params.toString()}`,
         { method: "DELETE" }
       )
@@ -255,9 +244,9 @@ export function useSaveStoreFromWorkRecord() {
 
   return useMutation({
     mutationFn: async (workRecordId: string) => {
-      const response = await apiClient<{
-        data: { store: unknown; workRecord: WorkRecordResponse }
-      }>(`/api/work-records/${workRecordId}/save-store`, {
+      const response = await apiClient<
+        ApiResponse<{ store: unknown; workRecord: WorkRecordResponse }>
+      >(`/api/work-records/${workRecordId}/save-store`, {
         method: "POST",
       })
       return response.data

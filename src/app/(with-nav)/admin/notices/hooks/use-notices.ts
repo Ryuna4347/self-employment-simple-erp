@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 // 공지 레코드 타입
 export interface NoticeRecord {
@@ -31,7 +32,7 @@ export function useNotices() {
   return useQuery({
     queryKey: [...NOTICES_KEY],
     queryFn: async () => {
-      const response = await apiClient<{ data: NoticeRecord[] }>(
+      const response = await apiClient<ApiResponse<NoticeRecord[]>>(
         "/api/admin/notices"
       )
       return response.data

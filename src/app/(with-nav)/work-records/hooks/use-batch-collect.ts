@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 import { WORK_RECORDS_KEY } from "./use-work-records"
 import { STORE_UNCOLLECTED_KEY } from "./use-store-uncollected"
 
@@ -27,7 +28,7 @@ export function useBatchCollect() {
 
   return useMutation({
     mutationFn: async (data: BatchCollectInput) => {
-      const response = await apiClient<{ data: BatchCollectResult }>(
+      const response = await apiClient<ApiResponse<BatchCollectResult>>(
         "/api/work-records/batch-collect",
         {
           method: "POST",

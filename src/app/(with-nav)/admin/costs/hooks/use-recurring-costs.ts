@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import type { ApiResponse } from "@/types/api"
 
 // 고정비용 레코드 타입
 export interface RecurringCostRecord {
@@ -17,11 +18,6 @@ export interface RecurringCostInput {
   frequency: "WEEKLY" | "MONTHLY"
 }
 
-// 고정비용 목록 응답 타입
-interface RecurringCostsResponse {
-  data: RecurringCostRecord[]
-}
-
 // 쿼리 키
 const RECURRING_COSTS_KEY = ["admin", "recurring-costs"] as const
 
@@ -32,7 +28,7 @@ export function useRecurringCosts() {
   return useQuery({
     queryKey: [...RECURRING_COSTS_KEY],
     queryFn: async () => {
-      const response = await apiClient<RecurringCostsResponse>(
+      const response = await apiClient<ApiResponse<RecurringCostRecord[]>>(
         "/api/admin/recurring-costs"
       )
       return response.data
