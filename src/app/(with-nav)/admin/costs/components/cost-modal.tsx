@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -17,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { AmountInput } from "@/components/common"
+import { useCrudModalForm } from "@/hooks/use-crud-modal-form"
 import { useCreateCost, useUpdateCost, type CostRecord } from "../hooks/use-costs"
 
 const costFormSchema = z.object({
@@ -28,6 +28,14 @@ const costFormSchema = z.object({
 
 type CostFormData = z.infer<typeof costFormSchema>
 
+// 생성 모드 기본값 (열 때마다 오늘 날짜로 재평가)
+const emptyCostValues = () => ({
+  date: new Date().toISOString().split("T")[0],
+  title: "",
+  amount: 0,
+  description: "",
+})
+
 interface CostModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -37,56 +45,38 @@ interface CostModalProps {
 export function CostModal({ open, onOpenChange, editingCost }: CostModalProps) {
   const createMutation = useCreateCost()
   const updateMutation = useUpdateCost()
-  const isEditing = !!editingCost
 
+  const form = useForm<CostFormData>({
+    resolver: zodResolver(costFormSchema),
+    mode: "onChange",
+    defaultValues: emptyCostValues(),
+  })
   const {
     register,
     control,
     handleSubmit,
-    reset,
     formState: { errors, isValid },
-  } = useForm<CostFormData>({
-    resolver: zodResolver(costFormSchema),
-    mode: "onChange",
-    defaultValues: {
-      date: new Date().toISOString().split("T")[0],
-      title: "",
-      amount: 0,
-      description: "",
-    },
+  } = form
+
+  const { isEditing, editingSnapshot, handleOpenChange } = useCrudModalForm({
+    open,
+    onOpenChange,
+    editing: editingCost,
+    form,
+    emptyValues: emptyCostValues,
+    toFormValues: (cost) => ({
+      date: cost.date,
+      title: cost.title,
+      amount: cost.amount,
+      description: cost.description ?? "",
+    }),
   })
-
-  // 수정 모드 시 기존 값 세팅
-  useEffect(() => {
-    if (open && editingCost) {
-      reset({
-        date: editingCost.date,
-        title: editingCost.title,
-        amount: editingCost.amount,
-        description: editingCost.description ?? "",
-      })
-    } else if (open && !editingCost) {
-      reset({
-        date: new Date().toISOString().split("T")[0],
-        title: "",
-        amount: 0,
-        description: "",
-      })
-    }
-  }, [open, editingCost, reset])
-
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      reset()
-    }
-    onOpenChange(newOpen)
-  }
 
   const onSubmit = (data: CostFormData) => {
     const payload = { ...data, amount: Number(data.amount) }
-    if (isEditing) {
+    if (editingSnapshot) {
       updateMutation.mutate(
-        { id: editingCost.id, ...payload },
+        { id: editingSnapshot.id, ...payload },
         { onSuccess: () => handleOpenChange(false) }
       )
     } else {

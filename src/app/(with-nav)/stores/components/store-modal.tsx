@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -26,6 +26,7 @@ import {
 import type { Store, StoreInput } from "../hooks/use-stores"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { useUsers } from "@/hooks/use-users"
+import { useCrudModalForm } from "@/hooks/use-crud-modal-form"
 
 const storeItemSchema = z.object({
   name: z.string().min(1, "품목명을 입력해주세요"),
@@ -48,6 +49,17 @@ const storeSchema = z.object({
 )
 
 type StoreFormData = z.infer<typeof storeSchema>
+
+const emptyStoreValues = () => ({
+  name: "",
+  address: "",
+  PaymentType: "ACCOUNT" as const,
+  receiptType: "NONE" as const,
+  managerName: "",
+  assignedUserId: "",
+  note: "",
+  items: [],
+})
 
 function isPaymentType(value: string): value is StoreFormData["PaymentType"] {
   return value === "CASH" || value === "ACCOUNT" || value === "CARD"
@@ -72,33 +84,23 @@ export function StoreModal({
   editStore,
   isLoading,
 }: StoreModalProps) {
-  const isEditMode = !!editStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const { data: templates = [] } = useStoreTemplates()
   const { data: users = [] } = useUsers()
 
+  const form = useForm<StoreFormData>({
+    resolver: zodResolver(storeSchema),
+    mode: "onChange",
+    defaultValues: emptyStoreValues(),
+  })
   const {
     register,
     control,
     handleSubmit,
-    reset,
     watch,
     setValue,
     formState: { errors, isValid },
-  } = useForm<StoreFormData>({
-    resolver: zodResolver(storeSchema),
-    mode: "onChange",
-    defaultValues: {
-      name: "",
-      address: "",
-      PaymentType: "ACCOUNT",
-      receiptType: "NONE",
-      managerName: "",
-      assignedUserId: "",
-      note: "",
-      items: [],
-    },
-  })
+  } = form
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -107,44 +109,35 @@ export function StoreModal({
 
   const paymentType = watch("PaymentType")
 
-  useEffect(() => {
-    if (!open) return
-
-    if (editStore) {
-      reset({
-        name: editStore.name,
-        address: editStore.address,
-        PaymentType: editStore.PaymentType,
-        receiptType: editStore.receiptType ?? "NONE",
-        managerName: editStore.managerName ?? "",
-        assignedUserId: editStore.assignedUserId ?? "",
-        note: editStore.note ?? "",
-        items: editStore.storeItems.map((item) => ({
+  const { isEditing: isEditMode, handleOpenChange: handleModalOpenChange } =
+    useCrudModalForm({
+      open,
+      onOpenChange,
+      editing: editStore,
+      form,
+      emptyValues: emptyStoreValues,
+      toFormValues: (store) => ({
+        name: store.name,
+        address: store.address,
+        PaymentType: store.PaymentType,
+        receiptType: store.receiptType ?? "NONE",
+        managerName: store.managerName ?? "",
+        assignedUserId: store.assignedUserId ?? "",
+        note: store.note ?? "",
+        items: store.storeItems.map((item) => ({
           name: item.name,
           amount: item.amount,
           quantity: item.quantity,
         })),
-      })
-      return
-    }
-
-    reset({
-      name: "",
-      address: "",
-      PaymentType: "ACCOUNT",
-      receiptType: "NONE",
-      managerName: "",
-      assignedUserId: "",
-      note: "",
-      items: [],
+      }),
+      resetOnClose: false,
     })
-  }, [open, editStore, reset])
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
       setSelectedTemplateId("")
     }
-    onOpenChange(nextOpen)
+    handleModalOpenChange(nextOpen)
   }
 
   const handleFormSubmit = (data: StoreFormData) => {

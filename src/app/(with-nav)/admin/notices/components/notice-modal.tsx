@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -16,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { useCrudModalForm } from "@/hooks/use-crud-modal-form"
 import { useCreateNotice, useUpdateNotice, type NoticeRecord } from "../hooks/use-notices"
 
 const noticeFormSchema = z.object({
@@ -26,6 +26,12 @@ const noticeFormSchema = z.object({
 
 type NoticeFormData = z.infer<typeof noticeFormSchema>
 
+const emptyNoticeValues = () => ({
+  title: "",
+  content: "",
+  expiresAt: "",
+})
+
 interface NoticeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -35,48 +41,32 @@ interface NoticeModalProps {
 export function NoticeModal({ open, onOpenChange, editingNotice }: NoticeModalProps) {
   const createMutation = useCreateNotice()
   const updateMutation = useUpdateNotice()
-  const isEditing = !!editingNotice
 
+  const form = useForm<NoticeFormData>({
+    resolver: zodResolver(noticeFormSchema),
+    mode: "onChange",
+    defaultValues: emptyNoticeValues(),
+  })
   const {
     register,
     handleSubmit,
-    reset,
     formState: { errors, isValid },
-  } = useForm<NoticeFormData>({
-    resolver: zodResolver(noticeFormSchema),
-    mode: "onChange",
-    defaultValues: {
-      title: "",
-      content: "",
-      expiresAt: "",
-    },
+  } = form
+
+  const { isEditing, editingSnapshot, handleOpenChange } = useCrudModalForm({
+    open,
+    onOpenChange,
+    editing: editingNotice,
+    form,
+    emptyValues: emptyNoticeValues,
+    toFormValues: (notice) => ({
+      title: notice.title,
+      content: notice.content,
+      expiresAt: notice.expiresAt
+        ? new Date(notice.expiresAt).toISOString().split("T")[0]
+        : "",
+    }),
   })
-
-  // 수정 모드 시 기존 값 세팅
-  useEffect(() => {
-    if (open && editingNotice) {
-      reset({
-        title: editingNotice.title,
-        content: editingNotice.content,
-        expiresAt: editingNotice.expiresAt
-          ? new Date(editingNotice.expiresAt).toISOString().split("T")[0]
-          : "",
-      })
-    } else if (open && !editingNotice) {
-      reset({
-        title: "",
-        content: "",
-        expiresAt: "",
-      })
-    }
-  }, [open, editingNotice, reset])
-
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      reset()
-    }
-    onOpenChange(newOpen)
-  }
 
   const onSubmit = (data: NoticeFormData) => {
     const payload = {
@@ -84,9 +74,9 @@ export function NoticeModal({ open, onOpenChange, editingNotice }: NoticeModalPr
       content: data.content,
       expiresAt: data.expiresAt || null,
     }
-    if (isEditing) {
+    if (editingSnapshot) {
       updateMutation.mutate(
-        { id: editingNotice.id, ...payload },
+        { id: editingSnapshot.id, ...payload },
         { onSuccess: () => handleOpenChange(false) }
       )
     } else {

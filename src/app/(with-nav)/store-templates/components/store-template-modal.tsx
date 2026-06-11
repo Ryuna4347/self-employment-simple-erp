@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SearchableDropdown } from "@/components/common"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
+import { useCrudModalForm } from "@/hooks/use-crud-modal-form"
 import { cn } from "@/lib/utils"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { StoreTemplate, StoreTemplateInput } from "../hooks/use-store-templates"
@@ -139,10 +140,6 @@ export function StoreTemplateModal({
   editTemplate,
   isLoading,
 }: StoreTemplateModalProps) {
-  // 닫힘 애니메이션 중 라벨 변경 방지
-  const [internalEditTemplate, setInternalEditTemplate] = useState<StoreTemplate | null>(null)
-  const isEditMode = !!internalEditTemplate
-
   // 매장 검색 상태 (공용 Hook 사용)
   const storeDropdown = useDropdownState()
 
@@ -160,12 +157,7 @@ export function StoreTemplateModal({
     })
   )
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isValid },
-  } = useForm<TemplateFormData>({
+  const form = useForm<TemplateFormData>({
     resolver: zodResolver(templateSchema),
     mode: "onChange",
     defaultValues: {
@@ -173,23 +165,28 @@ export function StoreTemplateModal({
       description: "",
     },
   })
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = form
 
-  // 모달 열릴 때 초기화
-  // open prop을 트리거로 한 외부 시스템(폼/선택 매장/드롭다운) 동기화 — useEffect가 적합한 케이스
-  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
-  useEffect(() => {
-    if (open) {
-      setInternalEditTemplate(editTemplate ?? null)
+  // 모달 열릴 때 폼/드롭다운/선택 매장 초기화 (isEditMode는 스냅샷 기반 — 닫힘 애니메이션 중 라벨 유지)
+  const { isEditing: isEditMode, handleOpenChange } = useCrudModalForm({
+    open,
+    onOpenChange,
+    editing: editTemplate,
+    form,
+    emptyValues: () => ({ name: "", description: "" }),
+    toFormValues: (template) => ({
+      name: template.name,
+      description: template.description ?? "",
+    }),
+    onOpenSync: (template) => {
       storeDropdown.reset()
-
-      if (editTemplate) {
-        // 수정 모드
-        reset({
-          name: editTemplate.name,
-          description: editTemplate.description ?? "",
-        })
+      if (template) {
         // 기존 멤버를 SelectedStore로 변환
-        const existingStores: SelectedStore[] = editTemplate.members.map((member, index) => ({
+        const existingStores: SelectedStore[] = template.members.map((member, index) => ({
           id: `store-${member.storeId}-${index}`,
           storeId: member.storeId,
           store: {
@@ -211,12 +208,11 @@ export function StoreTemplateModal({
         }))
         setSelectedStores(existingStores)
       } else {
-        reset({ name: "", description: "" })
         setSelectedStores([])
       }
-    }
-  }, [open, editTemplate, reset])
-  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+    },
+    resetOnClose: false,
+  })
 
   // 드래그 종료 핸들러
   const handleDragEnd = (event: DragEndEvent) => {
@@ -282,7 +278,7 @@ export function StoreTemplateModal({
   }
 
   return (
-    <ResponsiveModal open={open} onOpenChange={onOpenChange} mobileVariant="fullscreen">
+    <ResponsiveModal open={open} onOpenChange={handleOpenChange} mobileVariant="fullscreen">
       <ResponsiveModalContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
@@ -391,7 +387,7 @@ export function StoreTemplateModal({
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={isLoading}
             >
               취소
