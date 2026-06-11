@@ -19,12 +19,12 @@ import { DailyCashCollectionModal } from "./daily-cash-collection-modal"
 import { DailyCostModal } from "./daily-cost-modal"
 import { NoticeBanner } from "./notice-banner"
 import { useDailyCost } from "../hooks/use-daily-cost"
+import { useWorkRecordsModals } from "../hooks/use-work-records-modals"
 import {
   useWorkRecords,
   useDeleteWorkRecord,
   useUpdateWorkRecord,
   useReorderWorkRecords,
-  type WorkRecordResponse,
 } from "../hooks/use-work-records"
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
@@ -42,16 +42,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
   const searchStoreName = useDebounce(storeName, 1000).trim()
 
-  // 모달 상태
-  const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
-  const [templateModalOpen, setTemplateModalOpen] = useState(false)
-  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false)
-  const [collectionRequestModalOpen, setCollectionRequestModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<WorkRecordResponse | null>(null)
-  const [collectionRequestTarget, setCollectionRequestTarget] = useState<WorkRecordResponse | null>(null)
-  const [fuelCostModalOpen, setFuelCostModalOpen] = useState(false)
-  const [repairCostModalOpen, setRepairCostModalOpen] = useState(false)
-  const [dailyCashModalOpen, setDailyCashModalOpen] = useState(false)
+  // 모달 상태 (열기 핸들러 포함)
+  const modals = useWorkRecordsModals()
 
   const isAdmin = userRole === "ADMIN"
   const writable = canWrite(userRole)
@@ -100,23 +92,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     return summary
   }, [summary])
 
-  // 근무기록 추가 모달 열기
-  const handleAddRecord = () => {
-    setEditingRecord(null)
-    setWorkRecordModalOpen(true)
-  }
-
-  // 코스 적용 모달 열기
-  const handleApplyTemplate = () => {
-    setTemplateModalOpen(true)
-  }
-
-  // 근무기록 수정 모달 열기
-  const handleEditRecord = (record: WorkRecordResponse) => {
-    setEditingRecord(record)
-    setWorkRecordModalOpen(true)
-  }
-
   // 근무기록 삭제 (확인 창은 work-record-card에서 처리)
   const handleDeleteRecord = (id: string) => {
     deleteMutation.mutate(id)
@@ -125,12 +100,6 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   // 수금처리
   const handleCollectRecord = (id: string) => {
     updateMutation.mutate({ id, collectionStatus: "COLLECTED" })
-  }
-
-  // 수금 확인 요청 모달 열기
-  const handleRequestCollect = (record: WorkRecordResponse) => {
-    setCollectionRequestTarget(record)
-    setCollectionRequestModalOpen(true)
   }
 
   return (
@@ -145,7 +114,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-1.5 text-sm"
-                  onClick={canEditCost ? () => setRepairCostModalOpen(true) : undefined}
+                  onClick={canEditCost ? () => modals.setRepairCostModalOpen(true) : undefined}
                   disabled={!canEditCost && repairCost?.amount == null}
                 >
                   <Wrench className="size-4" />
@@ -157,7 +126,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-1.5 text-sm"
-                  onClick={canEditCost ? () => setFuelCostModalOpen(true) : undefined}
+                  onClick={canEditCost ? () => modals.setFuelCostModalOpen(true) : undefined}
                   disabled={!canEditCost && fuelCost?.amount == null}
                 >
                   <Fuel className="size-4" />
@@ -190,7 +159,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setDailyCashModalOpen(true)}
+              onClick={() => modals.setDailyCashModalOpen(true)}
             >
               전날 직원별 현금 수금
             </Button>
@@ -213,7 +182,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
+          <WorkRecordList records={records} onEdit={writable ? modals.openEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? modals.openRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
         )}
 
         {/* 무한 스크롤 트리거 */}
@@ -224,9 +193,9 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
         {writable && (
           <FabMenu
-            onAddRecord={handleAddRecord}
-            onApplyTemplate={handleApplyTemplate}
-            onBulkDelete={() => setBulkDeleteModalOpen(true)}
+            onAddRecord={modals.openAddRecord}
+            onApplyTemplate={modals.openApplyTemplate}
+            onBulkDelete={() => modals.setBulkDeleteModalOpen(true)}
             onRefresh={() => refetch()}
             isRefreshing={isFetching}
             hasRecords={records.length > 0}
@@ -238,25 +207,25 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         <>
           {/* 근무기록 추가/수정 모달 */}
           <WorkRecordModal
-            open={workRecordModalOpen}
-            onOpenChange={setWorkRecordModalOpen}
+            open={modals.workRecordModalOpen}
+            onOpenChange={modals.setWorkRecordModalOpen}
             selectedDate={selectedDate}
-            editRecord={editingRecord}
+            editRecord={modals.editingRecord}
             userRole={userRole}
           />
 
           {/* 코스 적용 모달 */}
           <TemplateApplyModal
-            open={templateModalOpen}
-            onOpenChange={setTemplateModalOpen}
+            open={modals.templateModalOpen}
+            onOpenChange={modals.setTemplateModalOpen}
             selectedDate={selectedDate}
             userId={userId}
           />
 
           {/* 근무기록 전체 삭제 모달 */}
           <BulkDeleteModal
-            open={bulkDeleteModalOpen}
-            onOpenChange={setBulkDeleteModalOpen}
+            open={modals.bulkDeleteModalOpen}
+            onOpenChange={modals.setBulkDeleteModalOpen}
             selectedDate={selectedDate}
             userId={isAdmin ? selectedUserId : undefined}
             search={searchStoreName || undefined}
@@ -265,8 +234,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
           {/* 주유비 입력 모달 */}
           <DailyCostModal
-            open={fuelCostModalOpen}
-            onOpenChange={setFuelCostModalOpen}
+            open={modals.fuelCostModalOpen}
+            onOpenChange={modals.setFuelCostModalOpen}
             date={dateString}
             title="주유비"
             currentAmount={fuelCost?.amount ?? null}
@@ -274,8 +243,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
           {/* 차량수리비 입력 모달 */}
           <DailyCostModal
-            open={repairCostModalOpen}
-            onOpenChange={setRepairCostModalOpen}
+            open={modals.repairCostModalOpen}
+            onOpenChange={modals.setRepairCostModalOpen}
             date={dateString}
             title="차량수리비"
             currentAmount={repairCost?.amount ?? null}
@@ -283,10 +252,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
           {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
           <CollectionRequestModal
-            open={collectionRequestModalOpen}
-            onOpenChange={setCollectionRequestModalOpen}
-            storeId={collectionRequestTarget?.storeId ?? null}
-            storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
+            open={modals.collectionRequestModalOpen}
+            onOpenChange={modals.setCollectionRequestModalOpen}
+            storeId={modals.collectionRequestTarget?.storeId ?? null}
+            storeName={modals.collectionRequestTarget?.storeNameSnapshot ?? modals.collectionRequestTarget?.store?.name ?? "알 수 없음"}
             userRole={userRole}
           />
         </>
@@ -294,8 +263,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
       {isAdmin && (
         <DailyCashCollectionModal
-          open={dailyCashModalOpen}
-          onOpenChange={setDailyCashModalOpen}
+          open={modals.dailyCashModalOpen}
+          onOpenChange={modals.setDailyCashModalOpen}
           baseDate={selectedDate}
         />
       )}

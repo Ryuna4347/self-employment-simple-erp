@@ -6,15 +6,14 @@ import {
   ChevronDown,
   Pencil,
   Trash2,
-  AlertTriangle,
-  CircleCheck,
   ImageIcon,
   Loader2,
-  Clock,
-  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StoreVisitHistory } from "./store-visit-history";
+import { OutstandingBadge } from "./outstanding-badge";
+import { CollectAction } from "./collect-action";
+import { RecordItemsTable } from "./record-items-table";
 import { Button } from "@/components/ui/button";
 import type {
   WorkRecordResponse,
@@ -145,16 +144,6 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
     }
   };
 
-  const handleCollect = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onCollect?.(record.id);
-  };
-
-  const handleRequestCollect = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onRequestCollect?.(record);
-  };
-
   return (
     <div
       className={cn(
@@ -188,26 +177,10 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                     record.store?.name ??
                     "알 수 없음"}
                 </h3>
-                {record.storeOutstanding &&
-                  record.storeOutstanding.count > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-amber-100 text-amber-700 border border-amber-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
-                      <AlertTriangle className="size-3" />
-                      미수 {record.storeOutstanding.count}건{" "}
-                      {record.storeOutstanding.totalAmount.toLocaleString()}원
-                    </span>
-                  )}
-                {(() => {
-                  const note = record.store?.note
-                  if (!note) return null
-                  const match = note.match(/^미수\s+([\d,]+)\s*원?/)
-                  if (!match) return null
-                  const amount = match[1]
-                  return (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-orange-100 text-orange-700 border border-orange-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
-                      전 미수: {Number(amount.replace(/,/g, "")).toLocaleString()}원
-                    </span>
-                  )
-                })()}
+                <OutstandingBadge
+                  storeOutstanding={record.storeOutstanding}
+                  storeNote={record.store?.note}
+                />
               </div>
               <button
                 type="button"
@@ -287,60 +260,14 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                           </span>
                         )}
                     </p>
-                    {record.collectionStatus === "UNCOLLECTED" && (
-                      record.hasPendingRequest ? (
-                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
-                          <Clock className="size-3" />
-                          수금 확인 요청 중
-                        </span>
-                      ) : record.hasPreviousUncollected ? (
-                        // 다른 날짜 미수건이 있으면 모달로 일괄 처리
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRequestCollect}
-                          disabled={isActionPending}
-                          className={userRole === "ADMIN"
-                            ? "h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            : "h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          }
-                        >
-                          {userRole === "ADMIN" ? (
-                            <><CircleCheck className="size-3" />일괄 수금처리</>
-                          ) : (
-                            <><Send className="size-3" />수금 확인 요청</>
-                          )}
-                        </Button>
-                      ) : record.canDirectCollect || userRole === "ADMIN" ? (
-                        // 이전 미수 없음 → 바로 단건 수금
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCollect}
-                          disabled={isActionPending}
-                          className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          {isCollecting ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <CircleCheck className="size-3" />
-                          )}
-                          {isCollecting ? "처리 중..." : "수금처리"}
-                        </Button>
-                      ) : (
-                        // 기한 초과 → 수금 확인 요청
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRequestCollect}
-                          disabled={isActionPending}
-                          className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                        >
-                          <Send className="size-3" />
-                          수금 확인 요청
-                        </Button>
-                      )
-                    )}
+                    <CollectAction
+                      record={record}
+                      userRole={userRole}
+                      isActionPending={!!isActionPending}
+                      isCollecting={isCollecting}
+                      onCollect={onCollect}
+                      onRequestCollect={onRequestCollect}
+                    />
                   </div>
                 </div>
                 {(record.managerNameSnapshot ?? record.store?.managerName) && (
@@ -359,56 +286,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                   휴업&폐업 상태에서는 거래 품목이 없습니다
                 </div>
               ) : (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    거래 품목
-                  </h4>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-gray-700 font-medium">
-                            품명
-                          </th>
-                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                            수량
-                          </th>
-                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                            금액
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {record.items.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-gray-900">
-                              {item.name}
-                            </td>
-                            <td className="px-3 py-2 text-right text-gray-700">
-                              {item.quantity}
-                            </td>
-                            <td className="px-3 py-2 text-right font-medium text-gray-900">
-                              {item.amount.toLocaleString()}원
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="px-3 py-2 text-right font-semibold text-gray-900"
-                          >
-                            합계
-                          </td>
-                          <td className="px-3 py-2 text-right font-bold text-gray-900">
-                            {totalAmount.toLocaleString()}원
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
+                <RecordItemsTable items={record.items} totalAmount={totalAmount} />
               )}
 
               {/* 방문 이력 (최근 6개월) */}

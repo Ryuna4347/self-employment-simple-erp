@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
-import { useForm, useFieldArray, useWatch, Controller } from "react-hook-form"
+import { useEffect, useState, useRef } from "react"
+import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
-import { Plus, X, MapPin, ImagePlus, Trash2 } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -15,11 +14,9 @@ import {
   ResponsiveModalFooter,
 } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { SearchableDropdown, AmountInput } from "@/components/common"
 import { apiClient } from "@/lib/api-client"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
@@ -30,6 +27,9 @@ import {
   type WorkRecordResponse,
   type CollectionStatus,
 } from "../hooks/use-work-records"
+import { StoreSearchSection } from "./store-search-section"
+import { WorkRecordItemsSection } from "./work-record-items-section"
+import { WorkRecordImageSection } from "./work-record-image-section"
 
 // 품목 스키마
 const recordItemSchema = z.object({
@@ -58,7 +58,7 @@ const workRecordFormSchema = z.object({
     })
   }
 })
-type WorkRecordFormData = z.infer<typeof workRecordFormSchema>
+export type WorkRecordFormData = z.infer<typeof workRecordFormSchema>
 
 interface WorkRecordModalProps {
   open: boolean
@@ -105,18 +105,6 @@ export function WorkRecordModal({
   const createMutation = useCreateWorkRecord()
   const updateMutation = useUpdateWorkRecord()
   const isLoading = createMutation.isPending || updateMutation.isPending
-
-  // 매장 검색 필터링
-  const filteredStores = useMemo(() => {
-    if (!storeDropdown.searchTerm) return stores.slice(0, 10)
-    return stores
-      .filter(
-        (store) =>
-          store.name.toLowerCase().includes(storeDropdown.searchTerm.toLowerCase()) ||
-          store.address.toLowerCase().includes(storeDropdown.searchTerm.toLowerCase())
-      )
-      .slice(0, 10)
-  }, [stores, storeDropdown.searchTerm])
 
   const {
     register,
@@ -376,36 +364,12 @@ export function WorkRecordModal({
 
           {/* 매장 검색 (추가 모드에서만) */}
           {!isEditMode && (
-            <div className="space-y-2">
-              <Label htmlFor="storeSearch">
-                매장 선택 <span className="text-red-500">*</span>
-              </Label>
-              <SearchableDropdown
-                id="storeSearch"
-                searchTerm={storeDropdown.searchTerm}
-                onSearchChange={storeDropdown.handleSearchChange}
-                showDropdown={storeDropdown.showDropdown}
-                onFocus={() => storeDropdown.setShowDropdown(true)}
-                onBlur={storeDropdown.handleBlur}
-                items={filteredStores}
-                getItemKey={(store) => store.id}
-                renderItem={(store) => (
-                  <>
-                    <p className="text-sm font-medium text-gray-900">{store.name}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      <MapPin className="size-3" />
-                      {store.address}
-                    </p>
-                  </>
-                )}
-                onItemSelect={handleStoreSelect}
-                placeholder="기존 매장을 검색하여 자동 입력..."
-                emptyMessage="검색 결과가 없습니다"
-              />
-              {errors.storeId && (
-                <p className="text-xs text-red-500">{errors.storeId.message}</p>
-              )}
-            </div>
+            <StoreSearchSection
+              dropdown={storeDropdown}
+              stores={stores}
+              error={errors.storeId?.message}
+              onSelect={handleStoreSelect}
+            />
           )}
 
           {/* 매장 정보 섹션 */}
@@ -519,160 +483,25 @@ export function WorkRecordModal({
               </div>
             </div>
           ) : (
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <Label>거래 품목</Label>
-                <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
-                  <Plus className="size-4" />
-                  품목 추가
-                </Button>
-              </div>
-
-              {errors.items?.root && (
-                <p className="text-sm text-red-500 mb-2">{errors.items.root.message}</p>
-              )}
-
-              <div className="space-y-3">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
-                    <div className="grid grid-cols-12 gap-2 items-start">
-                      {/* 품명 */}
-                      <div className="col-span-5">
-                        <Label className="text-xs text-gray-600">품명</Label>
-                        <Input
-                          placeholder="품목명 입력"
-                          {...register(`items.${index}.name`)}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.name}
-                        />
-                        {errors.items?.[index]?.name && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.name?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* 수량 */}
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">수량</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="1"
-                          {...register(`items.${index}.quantity`, {
-                            valueAsNumber: true,
-                          })}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.quantity}
-                        />
-                        {errors.items?.[index]?.quantity && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.quantity?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* 금액 */}
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">금액</Label>
-                        <Controller
-                          control={control}
-                          name={`items.${index}.amount`}
-                          render={({ field }) => (
-                            <AmountInput
-                              placeholder="0"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              className="mt-1"
-                              aria-invalid={!!errors.items?.[index]?.amount}
-                            />
-                          )}
-                        />
-                        {errors.items?.[index]?.amount && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.amount?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* 삭제 버튼 */}
-                      <div className="col-span-1 flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {fields.length === 0 && (
-                  <div className="text-center py-6 text-gray-400 text-sm">
-                    품목을 추가해주세요
-                  </div>
-                )}
-              </div>
-
-              {/* 총 금액 */}
-              {fields.length > 0 && (
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-900">총 금액</span>
-                    <span className="text-lg font-bold text-blue-600">
-                      {totalAmount.toLocaleString()}원
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
+            <WorkRecordItemsSection
+              fields={fields}
+              register={register}
+              control={control}
+              errors={errors}
+              onAdd={handleAddItem}
+              onRemove={handleRemoveItem}
+              totalAmount={totalAmount}
+            />
           )}
 
           {/* 이미지 업로드 (휴업&폐업일 때만) */}
           {isClosed && (
-            <div className="space-y-2">
-              <Label>이미지 첨부</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleImageSelect}
-                className="hidden"
-              />
-              {imagePreview ? (
-                <div className="relative">
-                  <img
-                    src={imagePreview}
-                    alt="첨부 이미지"
-                    className="w-full max-h-48 object-contain rounded-lg border border-gray-200"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon-sm"
-                    onClick={handleImageRemove}
-                    className="absolute top-2 right-2"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
-                >
-                  <ImagePlus className="size-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">클릭하여 이미지 첨부</p>
-                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP / 최대 5MB</p>
-                </button>
-              )}
-            </div>
+            <WorkRecordImageSection
+              imagePreview={imagePreview}
+              fileInputRef={fileInputRef}
+              onSelectFile={handleImageSelect}
+              onRemove={handleImageRemove}
+            />
           )}
 
           {/* 메모 */}

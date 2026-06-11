@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useForm, useFieldArray, Controller } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, X } from "lucide-react"
+import { X } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { AmountInput } from "@/components/common"
 import {
   Select,
   SelectContent,
@@ -27,6 +26,7 @@ import type { Store, StoreInput } from "../hooks/use-stores"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { useUsers } from "@/hooks/use-users"
 import { useCrudModalForm } from "@/hooks/use-crud-modal-form"
+import { StoreItemsSection } from "./store-items-section"
 
 const storeItemSchema = z.object({
   name: z.string().min(1, "품목명을 입력해주세요"),
@@ -48,7 +48,7 @@ const storeSchema = z.object({
   { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }
 )
 
-type StoreFormData = z.infer<typeof storeSchema>
+export type StoreFormData = z.infer<typeof storeSchema>
 
 const emptyStoreValues = () => ({
   name: "",
@@ -328,99 +328,14 @@ export function StoreModal({
               </div>
             )}
 
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <Label>매장 기본 품목</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => append({ name: "", amount: 0, quantity: 0 })}
-                >
-                  <Plus className="size-4" />
-                  품목 추가
-                </Button>
-              </div>
-
-              <div className="space-y-3">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="bg-gray-50 rounded-lg p-3 space-y-3">
-                    <div className="grid grid-cols-12 gap-2 items-start">
-                      <div className="col-span-5">
-                        <Label className="text-xs text-gray-600">품목명</Label>
-                        <Input
-                          placeholder="품목명 입력"
-                          {...register(`items.${index}.name`)}
-                          className="mt-1"
-                          aria-invalid={!!errors.items?.[index]?.name}
-                        />
-                        {errors.items?.[index]?.name && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.name?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">기본 수량</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="0"
-                          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                          className="mt-1"
-                        />
-                        {errors.items?.[index]?.quantity && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.quantity?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="col-span-3">
-                        <Label className="text-xs text-gray-600">금액</Label>
-                        <Controller
-                          control={control}
-                          name={`items.${index}.amount`}
-                          render={({ field }) => (
-                            <AmountInput
-                              placeholder="0"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              className="mt-1"
-                            />
-                          )}
-                        />
-                        {errors.items?.[index]?.amount && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.items[index]?.amount?.message}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="col-span-1 flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => remove(index)}
-                          className="text-red-500 hover:text-red-600 hover:bg-red-50 mt-6"
-                        >
-                          <X className="size-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {fields.length === 0 && (
-                  <div className="text-center py-6 text-gray-400 text-sm">
-                    품목을 추가해주세요
-                  </div>
-                )}
-              </div>
-            </div>
+            <StoreItemsSection
+              fields={fields}
+              register={register}
+              control={control}
+              errors={errors}
+              onAdd={() => append({ name: "", amount: 0, quantity: 0 })}
+              onRemove={remove}
+            />
           </div>
 
           <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
