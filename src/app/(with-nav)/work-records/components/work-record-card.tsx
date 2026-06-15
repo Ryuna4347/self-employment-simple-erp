@@ -178,7 +178,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
       />
 
       {/* 카드 콘텐츠 영역 */}
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         {/* 축약 모드 - 클릭 가능 영역 */}
         <div
           role="button"
