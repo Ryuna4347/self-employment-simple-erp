@@ -190,7 +190,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           <div className="flex items-start justify-between gap-3">
             {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
                 <span className="font-semibold text-gray-400 text-base flex-shrink-0">
                   {index + 1}.
                 </span>
