@@ -29,6 +29,8 @@ import { cn } from "@/lib/utils";
 
 export interface WorkRecordCardProps {
   record: WorkRecordResponse;
+  /** 목록 표시 순서 (0부터) - 카드 좌상단 순번 표시용 */
+  index: number;
   onEdit?: (record: WorkRecordResponse) => void;
   onDelete?: (id: string) => void;
   onCollect?: (id: string) => void;
@@ -102,6 +104,7 @@ const COLLECTION_STATUS_CONFIG: Record<
  */
 export const WorkRecordCard = React.memo(function WorkRecordCard({
   record,
+  index,
   onEdit,
   onDelete,
   onCollect,
@@ -188,6 +191,9 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
             {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-gray-400 text-base flex-shrink-0">
+                  {index + 1}.
+                </span>
                 <h3 className="font-semibold text-gray-900 text-base truncate">
                   {record.storeNameSnapshot ??
                     record.store?.name ??

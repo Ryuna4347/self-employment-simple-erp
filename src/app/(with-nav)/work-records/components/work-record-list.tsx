@@ -139,10 +139,11 @@ export function WorkRecordList({
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-3">
-            {localRecords.map((record) => (
+            {localRecords.map((record, index) => (
               <SortableWorkRecordCard
                 key={record.id}
                 record={record}
+                index={index}
                 {...cardProps}
                 isDeleting={deletingId === record.id}
                 isCollecting={collectingId === record.id}
@@ -157,10 +158,11 @@ export function WorkRecordList({
   // 기본 렌더링 (드래그 비활성화)
   return (
     <div className="space-y-3">
-      {localRecords.map((record) => (
+      {localRecords.map((record, index) => (
         <WorkRecordCard
           key={record.id}
           record={record}
+          index={index}
           {...cardProps}
           isDeleting={deletingId === record.id}
           isCollecting={collectingId === record.id}
