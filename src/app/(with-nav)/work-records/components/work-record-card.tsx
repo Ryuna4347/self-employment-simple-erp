@@ -194,7 +194,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                 <span className="font-semibold text-gray-400 text-base flex-shrink-0">
                   {index + 1}.
                 </span>
-                <h3 className="font-semibold text-gray-900 text-base truncate">
+                <h3 className="font-semibold text-gray-900 text-base truncate min-w-0">
                   {record.storeNameSnapshot ??
                     record.store?.name ??
                     "알 수 없음"}
