@@ -185,7 +185,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           tabIndex={0}
           onClick={toggleExpand}
           onKeyDown={handleToggleKeyDown}
-          className="w-full text-left focus:outline-none p-4 cursor-pointer"
+          className="w-full text-left focus:outline-none p-2 cursor-pointer"
         >
           <div className="flex items-start justify-between gap-3">
             {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
