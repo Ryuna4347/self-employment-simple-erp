@@ -209,7 +209,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                   const amount = match[1]
                   return (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-orange-100 text-orange-700 border border-orange-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
-                      전 미수: {Number(amount.replace(/,/g, "")).toLocaleString()}원
+                      {Number(amount.replace(/,/g, "")).toLocaleString()}원
                     </span>
                   )
                 })()}
