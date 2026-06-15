@@ -317,9 +317,9 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                           }
                         >
                           {userRole === "ADMIN" ? (
-                            <><CircleCheck className="size-3" />일괄 수금처리</>
+                            <><CircleCheck className="size-3" />일괄 수금</>
                           ) : (
-                            <><Send className="size-3" />수금 확인 요청</>
+                            <><Send className="size-3" />확인 요청</>
                           )}
                         </Button>
                       ) : record.canDirectCollect || userRole === "ADMIN" ? (
@@ -348,7 +348,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                           className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                         >
                           <Send className="size-3" />
-                          수금 확인 요청
+                          확인 요청
                         </Button>
                       )
                     )}
