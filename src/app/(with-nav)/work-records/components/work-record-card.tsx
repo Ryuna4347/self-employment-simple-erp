@@ -188,8 +188,9 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           className="w-full text-left focus:outline-none px-2 py-3 cursor-pointer"
         >
           <div className="flex items-start justify-between gap-3">
-            {/* 좌측: 매장 정보 (스냅샷 우선 사용) */}
+            {/* 좌측: 매장 정보 2줄 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
+              {/* 1줄: 번호 + 가게명 */}
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-semibold text-gray-400 text-base flex-shrink-0">
                   {index + 1}.
@@ -199,27 +200,8 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                     record.store?.name ??
                     "알 수 없음"}
                 </h3>
-                {record.storeOutstanding &&
-                  record.storeOutstanding.count > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-amber-100 text-amber-700 border border-amber-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
-                      <AlertTriangle className="size-3" />
-                      {record.storeOutstanding.count}건{" "}
-                      {record.storeOutstanding.totalAmount.toLocaleString()}원
-                    </span>
-                  )}
-                {(() => {
-                  const note = record.store?.note
-                  if (!note) return null
-                  const match = note.match(/^미수\s+([\d,]+)\s*원?/)
-                  if (!match) return null
-                  const amount = match[1]
-                  return (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-orange-100 text-orange-700 border border-orange-300 flex-shrink-0 whitespace-nowrap" style={{ fontSize: '13px' }}>
-                      전 미수: {Number(amount.replace(/,/g, "")).toLocaleString()}원
-                    </span>
-                  )
-                })()}
               </div>
+              {/* 2줄: 주소 */}
               <button
                 type="button"
                 aria-label={`주소 복사: ${storeAddressLabel}`}
@@ -242,10 +224,32 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
               </button>
             </div>
 
-            {/* 우측: 금액 및 확장 아이콘 */}
+            {/* 우측: 미수액 + 금액 + 확장 아이콘 */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">합계</p>
+              <div className="flex flex-col items-end gap-1">
+                {/* 미수액 (가게명 우측 → 합계 위로 이동, 없어도 공간 유지) */}
+                <div className="flex flex-col items-end gap-1 min-h-[1.5rem]">
+                  {record.storeOutstanding &&
+                    record.storeOutstanding.count > 0 && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-amber-100 text-amber-700 border border-amber-300 whitespace-nowrap" style={{ fontSize: '13px' }}>
+                        <AlertTriangle className="size-3" />
+                        {record.storeOutstanding.count}건{" "}
+                        {record.storeOutstanding.totalAmount.toLocaleString()}원
+                      </span>
+                    )}
+                  {(() => {
+                    const note = record.store?.note
+                    if (!note) return null
+                    const match = note.match(/^미수\s+([\d,]+)\s*원?/)
+                    if (!match) return null
+                    const amount = match[1]
+                    return (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium bg-orange-100 text-orange-700 border border-orange-300 whitespace-nowrap" style={{ fontSize: '13px' }}>
+                        전 미수: {Number(amount.replace(/,/g, "")).toLocaleString()}원
+                      </span>
+                    )
+                  })()}
+                </div>
                 <p
                   className={cn(
                     "text-lg font-bold",
