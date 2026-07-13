@@ -29,7 +29,7 @@ interface BulkDeleteModalProps {
   onDeleted?: () => void
 }
 
-const CONFIRM_TEXT = "전체 삭제"
+const CONFIRM_TEXT = "삭제"
 
 export function BulkDeleteModal({
   open,

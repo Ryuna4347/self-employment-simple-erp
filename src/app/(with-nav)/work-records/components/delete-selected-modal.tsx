@@ -24,7 +24,7 @@ interface DeleteSelectedModalProps {
   onDeleted?: () => void
 }
 
-const CONFIRM_TEXT = "선택 삭제"
+const CONFIRM_TEXT = "삭제"
 
 export function DeleteSelectedModal({
   open,
