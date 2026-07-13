@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -11,6 +12,8 @@ import {
   ResponsiveModalDescription,
 } from "@/components/ui/responsive-modal"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useBulkDeleteWorkRecordsByIds } from "../hooks/use-work-records"
 
 interface DeleteSelectedModalProps {
@@ -21,17 +24,24 @@ interface DeleteSelectedModalProps {
   onDeleted?: () => void
 }
 
+const CONFIRM_TEXT = "선택 삭제"
+
 export function DeleteSelectedModal({
   open,
   onOpenChange,
   selectedIds,
   onDeleted,
 }: DeleteSelectedModalProps) {
+  const [confirmText, setConfirmText] = useState("")
   const bulkDeleteMutation = useBulkDeleteWorkRecordsByIds()
   const isPending = bulkDeleteMutation.isPending
 
+  // 2건 이상 삭제 시에는 전체 삭제와 동일하게 확인 텍스트 입력을 요구한다
+  const requiresConfirmText = selectedIds.length >= 2
+  const isConfirmed = !requiresConfirmText || confirmText === CONFIRM_TEXT
+
   const handleDelete = () => {
-    if (selectedIds.length === 0) return
+    if (selectedIds.length === 0 || !isConfirmed) return
 
     bulkDeleteMutation.mutate(selectedIds, {
       onSuccess: (result) => {
@@ -44,6 +54,7 @@ export function DeleteSelectedModal({
         } else {
           toast.info("삭제할 기록이 없습니다")
         }
+        setConfirmText("")
         onOpenChange(false)
         onDeleted?.()
       },
@@ -52,6 +63,7 @@ export function DeleteSelectedModal({
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isPending) return
+    if (!isOpen) setConfirmText("")
     onOpenChange(isOpen)
   }
 
@@ -68,7 +80,7 @@ export function DeleteSelectedModal({
           </ResponsiveModalDescription>
         </ResponsiveModalHeader>
 
-        <div className="py-4 px-4 sm:px-1">
+        <div className="space-y-4 py-4 px-4 sm:px-1">
           {/* 경고 박스 */}
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-start gap-2">
@@ -83,6 +95,24 @@ export function DeleteSelectedModal({
               </div>
             </div>
           </div>
+
+          {/* 확인 입력 (2건 이상 삭제 시) */}
+          {requiresConfirmText && (
+            <div className="space-y-2">
+              <Label htmlFor="confirm-selected-text">
+                계속하려면 아래 칸에 <span className="font-bold text-red-600">{CONFIRM_TEXT}</span>
+                {" "}라고 정확히 입력하세요
+              </Label>
+              <Input
+                id="confirm-selected-text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={CONFIRM_TEXT}
+                disabled={isPending}
+                autoComplete="off"
+              />
+            </div>
+          )}
         </div>
 
         <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
@@ -98,7 +128,7 @@ export function DeleteSelectedModal({
             type="button"
             variant="destructive"
             onClick={handleDelete}
-            disabled={selectedIds.length === 0 || isPending}
+            disabled={selectedIds.length === 0 || !isConfirmed || isPending}
           >
             {isPending ? "삭제 중..." : `${selectedIds.length}건 삭제`}
           </Button>
