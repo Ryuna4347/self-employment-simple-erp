@@ -34,6 +34,13 @@ interface WorkRecordListProps {
   collectingId?: string | null;
   canReorder?: boolean;
   onReorder?: (records: { id: string; sortOrder: number }[]) => void;
+  /** 삭제 모드: 카드 순번 대신 체크박스 표시 */
+  deleteMode?: boolean;
+  /** 삭제 모드에서 선택된 기록 ID 집합 */
+  selectedIds?: Set<string>;
+  /** 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID 집합 */
+  selectableIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 /**
@@ -53,6 +60,10 @@ export function WorkRecordList({
   collectingId,
   canReorder = false,
   onReorder,
+  deleteMode = false,
+  selectedIds,
+  selectableIds,
+  onToggleSelect,
 }: WorkRecordListProps) {
   // 드래그 정렬을 위한 로컬 상태
   const [localRecords, setLocalRecords] = useState(records);
@@ -109,8 +120,10 @@ export function WorkRecordList({
       onCollect,
       onRequestCollect,
       userRole,
+      deleteMode,
+      onToggleSelect,
     }),
-    [onEdit, onDelete, onCollect, onRequestCollect, userRole],
+    [onEdit, onDelete, onCollect, onRequestCollect, userRole, deleteMode, onToggleSelect],
   );
 
   if (localRecords.length === 0) {
@@ -147,6 +160,8 @@ export function WorkRecordList({
                 {...cardProps}
                 isDeleting={deletingId === record.id}
                 isCollecting={collectingId === record.id}
+                selected={selectedIds?.has(record.id) ?? false}
+                selectable={selectableIds?.has(record.id) ?? false}
               />
             ))}
           </div>
@@ -166,6 +181,8 @@ export function WorkRecordList({
           {...cardProps}
           isDeleting={deletingId === record.id}
           isCollecting={collectingId === record.id}
+          selected={selectedIds?.has(record.id) ?? false}
+          selectable={selectableIds?.has(record.id) ?? false}
         />
       ))}
     </div>

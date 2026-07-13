@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { StoreVisitHistory } from "./store-visit-history";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import type {
   WorkRecordResponse,
   WorkRecordItem,
@@ -39,6 +40,13 @@ export interface WorkRecordCardProps {
   isDeleting?: boolean;
   isCollecting?: boolean;
   isDragging?: boolean;
+  /** 삭제 모드: 순번 대신 체크박스 표시, 카드 탭이 선택 토글로 동작 */
+  deleteMode?: boolean;
+  /** 삭제 모드에서 이 카드가 선택되었는지 */
+  selected?: boolean;
+  /** 삭제 모드에서 선택(삭제) 가능한 카드인지 (권한 없는 카드는 비활성화) */
+  selectable?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 // 유틸리티 함수: 총 금액 계산
@@ -113,6 +121,10 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
   isDeleting,
   isCollecting,
   isDragging,
+  deleteMode = false,
+  selected = false,
+  selectable = false,
+  onToggleSelect,
 }: WorkRecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const totalAmount = useMemo(
@@ -128,8 +140,20 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
   const storeAddressLabel = storeAddress || "주소 없음";
 
   const toggleExpand = useCallback(() => {
+    // 삭제 모드에서는 아코디언 확장 대신 선택 토글로 동작
+    if (deleteMode) {
+      if (selectable) onToggleSelect?.(record.id);
+      return;
+    }
     setIsExpanded((v) => !v);
-  }, []);
+  }, [deleteMode, selectable, onToggleSelect, record.id]);
+
+  // 삭제 모드 진입 시 확장된 카드는 자동으로 접는다 (렌더 중 상태 조정 패턴)
+  const [prevDeleteMode, setPrevDeleteMode] = useState(deleteMode);
+  if (prevDeleteMode !== deleteMode) {
+    setPrevDeleteMode(deleteMode);
+    if (deleteMode) setIsExpanded(false);
+  }
 
   const handleToggleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -169,6 +193,8 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
         "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden transition-all flex",
         "hover:shadow-md",
         isDragging && "opacity-50 shadow-lg border-blue-400 scale-[1.02]",
+        deleteMode && selected && "border-red-300 bg-red-50/50",
+        deleteMode && !selectable && "opacity-70",
       )}
     >
       {/* 수금 상태 컬러 바 - 전체 높이 */}
@@ -190,11 +216,22 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           <div className="flex items-start justify-between gap-3">
             {/* 좌측: 매장 정보 2줄 (스냅샷 우선 사용) */}
             <div className="flex-1 min-w-0">
-              {/* 1줄: 번호 + 가게명 */}
+              {/* 1줄: 번호(삭제 모드에서는 체크박스) + 가게명 */}
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-gray-400 text-base flex-shrink-0">
-                  {index + 1}.
-                </span>
+                {deleteMode ? (
+                  <Checkbox
+                    checked={selected}
+                    disabled={!selectable}
+                    onCheckedChange={() => onToggleSelect?.(record.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="삭제 대상 선택"
+                    className="size-5 flex-shrink-0"
+                  />
+                ) : (
+                  <span className="font-semibold text-gray-400 text-base flex-shrink-0">
+                    {index + 1}.
+                  </span>
+                )}
                 <h3 className="font-semibold text-gray-900 text-base truncate min-w-0">
                   {record.storeNameSnapshot ??
                     record.store?.name ??

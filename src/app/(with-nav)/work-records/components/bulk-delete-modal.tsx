@@ -25,6 +25,8 @@ interface BulkDeleteModalProps {
   userId?: string
   search?: string
   estimatedCount: number
+  /** 삭제 성공 시 호출 (삭제 모드 종료용) */
+  onDeleted?: () => void
 }
 
 const CONFIRM_TEXT = "전체 삭제"
@@ -36,6 +38,7 @@ export function BulkDeleteModal({
   userId,
   search,
   estimatedCount,
+  onDeleted,
 }: BulkDeleteModalProps) {
   const [confirmText, setConfirmText] = useState("")
   const bulkDeleteMutation = useBulkDeleteWorkRecords()
@@ -65,6 +68,7 @@ export function BulkDeleteModal({
           }
           setConfirmText("")
           onOpenChange(false)
+          onDeleted?.()
         },
       }
     )

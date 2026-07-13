@@ -13,6 +13,8 @@ import { UserFilter } from "./user-filter"
 import { WorkRecordModal } from "./work-record-modal"
 import { TemplateApplyModal } from "./template-apply-modal"
 import { BulkDeleteModal } from "./bulk-delete-modal"
+import { DeleteModeActionBar } from "./delete-mode-action-bar"
+import { DeleteSelectedModal } from "./delete-selected-modal"
 import { CollectionRequestModal } from "./collection-request-modal"
 import { DailyCashCollectionModal } from "./daily-cash-collection-modal"
 import { DailyCostModal } from "./daily-cost-modal"
@@ -28,6 +30,7 @@ import {
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
 import { useDebounce } from "@/hooks/use-debounce"
+import { cn } from "@/lib/utils"
 
 interface WorkRecordsClientProps {
   userId: string
@@ -51,6 +54,11 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [fuelCostModalOpen, setFuelCostModalOpen] = useState(false)
   const [repairCostModalOpen, setRepairCostModalOpen] = useState(false)
   const [dailyCashModalOpen, setDailyCashModalOpen] = useState(false)
+
+  // 삭제 모드 (체크박스 선택 삭제 / 전체 삭제)
+  const [deleteMode, setDeleteMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false)
 
   const isAdmin = userRole === "ADMIN"
   const writable = canWrite(userRole)
@@ -96,8 +104,54 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const updateMutation = useUpdateWorkRecord()
   const reorderMutation = useReorderWorkRecords()
 
-  // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중에는 비활성화)
-  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName
+  // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중, 삭제 모드에는 비활성화)
+  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode
+
+  // 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID
+  // 일반 사용자는 미수금(UNCOLLECTED) 기록만 삭제할 수 있다 (서버 권한 모델과 동일)
+  const selectableIds = useMemo(
+    () =>
+      new Set(
+        records
+          .filter((r) => isAdmin || r.collectionStatus === "UNCOLLECTED")
+          .map((r) => r.id)
+      ),
+    [records, isAdmin]
+  )
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const allSelected = selectableIds.size > 0 && selectedIds.size === selectableIds.size
+
+  const toggleAll = useCallback(() => {
+    setSelectedIds((prev) =>
+      prev.size === selectableIds.size ? new Set() : new Set(selectableIds)
+    )
+  }, [selectableIds])
+
+  const exitDeleteMode = useCallback(() => {
+    setDeleteMode(false)
+    setSelectedIds(new Set())
+  }, [])
+
+  // 날짜/유저 필터/검색어가 바뀌면 선택 대상이 달라지므로 삭제 모드 종료 (stale 선택 방지)
+  // effect 대신 렌더 중 상태 조정 패턴 사용
+  const filterKey = `${dateString}|${selectedUserId}|${searchStoreName}`
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey)
+    if (deleteMode) {
+      setDeleteMode(false)
+      setSelectedIds(new Set())
+    }
+  }
 
   const handleReorder = useCallback((reorderedRecords: { id: string; sortOrder: number }[]) => {
     reorderMutation.mutate({ date: dateString, records: reorderedRecords })
@@ -150,7 +204,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
-      <div className="max-w-4xl mx-auto px-4 py-6 pb-8">
+      <div className={cn("max-w-4xl mx-auto px-4 py-6", deleteMode ? "pb-28" : "pb-8")}>
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">근무 기록</h1>
@@ -228,7 +282,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} />
+          <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} deleteMode={deleteMode} selectedIds={selectedIds} selectableIds={selectableIds} onToggleSelect={toggleSelect} />
         )}
 
         {/* 무한 스크롤 트리거 */}
@@ -237,14 +291,27 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
           <div className="text-center py-4 text-gray-500 text-sm">불러오는 중...</div>
         )}
 
-        {writable && (
+        {writable && !deleteMode && (
           <FabMenu
             onAddRecord={handleAddRecord}
             onApplyTemplate={handleApplyTemplate}
-            onBulkDelete={() => setBulkDeleteModalOpen(true)}
+            onBulkDelete={() => setDeleteMode(true)}
             onRefresh={() => refetch()}
             isRefreshing={isFetching}
             hasRecords={records.length > 0}
+          />
+        )}
+
+        {/* 삭제 모드 하단 액션 바 */}
+        {writable && deleteMode && (
+          <DeleteModeActionBar
+            selectedCount={selectedIds.size}
+            selectableCount={selectableIds.size}
+            allSelected={allSelected}
+            onToggleAll={toggleAll}
+            onDeleteSelected={() => setDeleteSelectedModalOpen(true)}
+            onDeleteAll={() => setBulkDeleteModalOpen(true)}
+            onCancel={exitDeleteMode}
           />
         )}
       </div>
@@ -276,6 +343,15 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             userId={isAdmin ? selectedUserId : undefined}
             search={searchStoreName || undefined}
             estimatedCount={totalCount}
+            onDeleted={exitDeleteMode}
+          />
+
+          {/* 근무기록 선택 삭제 확인 모달 */}
+          <DeleteSelectedModal
+            open={deleteSelectedModalOpen}
+            onOpenChange={setDeleteSelectedModalOpen}
+            selectedIds={[...selectedIds]}
+            onDeleted={exitDeleteMode}
           />
 
           {/* 주유비 입력 모달 */}
