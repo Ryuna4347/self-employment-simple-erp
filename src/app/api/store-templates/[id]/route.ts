@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, requireAdmin, isErrorResponse } from "@/lib/auth-guard"
+import { requireAuth, requireAdmin, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 
 // 코스 수정 스키마
@@ -73,10 +73,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * 코스 수정
  */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-  // 관리자만 코스 수정 가능
-  const authResult = await requireAdmin()
+  // 쓰기 권한(USER 이상) 코스 수정 가능
+  const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
 
+  const { user } = authResult
   const { id } = await params
 
   try {
@@ -87,6 +88,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (!existingTemplate) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
+    }
+
+    // 본인 코스만 수정 가능 (ADMIN은 전체 허용)
+    if (user.role !== "ADMIN" && existingTemplate.userId !== user.id) {
+      return ApiErrors.forbidden("본인이 만든 코스만 수정할 수 있습니다")
     }
 
     const body = await request.json()

@@ -125,29 +125,33 @@ export const StoreTemplateCard = React.memo(function StoreTemplateCard({
               </div>
             </div>
 
-            {/* 액션 버튼 (관리자 + 쓰기 권한) */}
-            {isAdmin && onEdit && onDelete && (
+            {/* 액션 버튼 (수정: 쓰기 권한 / 삭제: 관리자 전용) */}
+            {(onEdit || (isAdmin && onDelete)) && (
               <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEdit}
-                  disabled={isDeleting}
-                  className="flex-1"
-                >
-                  <Pencil className="size-4" />
-                  수정
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  {isDeleting ? "삭제 중..." : "삭제"}
-                </Button>
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEdit}
+                    disabled={isDeleting}
+                    className="flex-1"
+                  >
+                    <Pencil className="size-4" />
+                    수정
+                  </Button>
+                )}
+                {isAdmin && onDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    {isDeleting ? "삭제 중..." : "삭제"}
+                  </Button>
+                )}
               </div>
             )}
           </div>
