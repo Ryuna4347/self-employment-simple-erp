@@ -231,6 +231,26 @@ export function useBulkDeleteWorkRecords() {
   })
 }
 
+// 근무기록 선택 삭제 훅 (ID 배열 기반)
+export function useBulkDeleteWorkRecordsByIds() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const response = await apiClient<{ data: BulkDeleteResult }>(
+        "/api/work-records/bulk-delete",
+        { method: "POST", json: { ids } }
+      )
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORK_RECORDS_KEY })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_KEY })
+      queryClient.invalidateQueries({ queryKey: [...STORE_VISITS_KEY] })
+    },
+  })
+}
+
 // 근무기록 순서 변경 훅
 export function useReorderWorkRecords() {
   const queryClient = useQueryClient()
