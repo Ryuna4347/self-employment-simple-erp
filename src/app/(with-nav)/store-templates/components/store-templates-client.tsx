@@ -180,7 +180,11 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
             <StoreTemplateCard
               key={template.id}
               template={template}
-              onEdit={writable ? handleEditTemplate : undefined}
+              onEdit={
+                writable && (isAdmin || template.userId === userId)
+                  ? handleEditTemplate
+                  : undefined
+              }
               onDelete={writable ? handleDeleteTemplate : undefined}
               isAdmin={isAdmin}
               isDeleting={deletingId === template.id}
