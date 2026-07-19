@@ -135,6 +135,9 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
   // 미수 상태가 아닌 기록은 관리자만 수정/삭제 가능, VIEWER는 수정 불가
   const canModify =
     (record.collectionStatus === "UNCOLLECTED" || userRole === "ADMIN") && canWrite(userRole);
+  // PENDING 수금 확인 요청에 묶인 기록은 USER가 삭제 불가 (서버 가드와 동일 규칙)
+  const canDelete =
+    canModify && (userRole === "ADMIN" || !record.pendingRequestId);
   const isActionPending = isDeleting || isCollecting;
   const storeAddress = record.storeAddressSnapshot ?? record.store?.address ?? "";
   const storeAddressLabel = storeAddress || "주소 없음";
@@ -518,20 +521,22 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                     <Pencil className="size-4" />
                     수정
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDelete}
-                    disabled={isActionPending}
-                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="size-4" />
-                    )}
-                    {isDeleting ? "삭제 중..." : "삭제"}
-                  </Button>
+                  {canDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDelete}
+                      disabled={isActionPending}
+                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4" />
+                      )}
+                      {isDeleting ? "삭제 중..." : "삭제"}
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-gray-400 text-center pt-2">
