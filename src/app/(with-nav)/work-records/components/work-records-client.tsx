@@ -109,11 +109,16 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
   // 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID
   // 일반 사용자는 미수금(UNCOLLECTED) 기록만 삭제할 수 있다 (서버 권한 모델과 동일)
+  // PENDING 수금 확인 요청에 묶인 기록도 일반 사용자는 삭제 불가
   const selectableIds = useMemo(
     () =>
       new Set(
         records
-          .filter((r) => isAdmin || r.collectionStatus === "UNCOLLECTED")
+          .filter(
+            (r) =>
+              isAdmin ||
+              (r.collectionStatus === "UNCOLLECTED" && !r.pendingRequestId)
+          )
           .map((r) => r.id)
       ),
     [records, isAdmin]

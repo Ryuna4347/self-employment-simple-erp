@@ -221,6 +221,20 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return ApiErrors.forbidden("미수 상태가 아닌 근무기록은 관리자만 삭제할 수 있습니다")
   }
 
+  // 수금 확인 요청중인 기록은 USER가 삭제 불가 (UI 차단의 서버 가드)
+  if (user.role !== "ADMIN") {
+    const pendingRequestItem = await prisma.collectionRequestItem.findFirst({
+      where: {
+        workRecordId: workRecord.id,
+        collectionRequest: { status: "PENDING" },
+      },
+      select: { id: true },
+    })
+    if (pendingRequestItem) {
+      return ApiErrors.forbidden("수금 확인 요청 중인 기록은 삭제할 수 없습니다.")
+    }
+  }
+
   // Cascade로 RecordItem도 자동 삭제
   await prisma.workRecord.delete({
     where: { id },

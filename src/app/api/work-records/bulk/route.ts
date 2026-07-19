@@ -15,6 +15,7 @@ const bulkDeleteSchema = z.object({
 // 근무기록 일괄 삭제
 // 현재 화면 필터(date, userId, search)에 매칭되는 근무기록을 일괄 삭제한다.
 // 일반 사용자는 본인의 UNCOLLECTED 기록만 삭제할 수 있고, 관리자는 모든 상태를 삭제할 수 있다.
+// 일반 사용자는 PENDING 수금 확인 요청에 묶인 기록을 삭제할 수 없다.
 export async function DELETE(request: NextRequest) {
   const authResult = await requireWriteAccess()
   if (isErrorResponse(authResult)) return authResult
@@ -68,7 +69,11 @@ export async function DELETE(request: NextRequest) {
   // 일반 사용자는 UNCOLLECTED 만 삭제 가능 (단건 DELETE 와 동일한 권한 모델)
   const deleteWhere: Prisma.WorkRecordWhereInput = isAdmin
     ? matchWhere
-    : { ...matchWhere, collectionStatus: "UNCOLLECTED" }
+    : {
+        ...matchWhere,
+        collectionStatus: "UNCOLLECTED",
+        collectionRequestItems: { none: { collectionRequest: { status: "PENDING" } } },
+      }
 
   const [matchCount, result] = await prisma.$transaction([
     prisma.workRecord.count({ where: matchWhere }),

@@ -9,6 +9,7 @@ const bulkDeleteByIdsSchema = z.object({
 
 // 근무기록 선택 삭제 (ID 배열 기반)
 // 일반 사용자는 본인의 UNCOLLECTED 기록만 삭제할 수 있고, 관리자는 모든 상태를 삭제할 수 있다.
+// 일반 사용자는 PENDING 수금 확인 요청에 묶인 기록을 삭제할 수 없다.
 // 권한이 없어 삭제되지 않은 건수는 skipped로 반환한다.
 export async function POST(request: Request) {
   const authResult = await requireWriteAccess()
@@ -32,7 +33,13 @@ export async function POST(request: Request) {
   const result = await prisma.workRecord.deleteMany({
     where: {
       id: { in: uniqueIds },
-      ...(isAdmin ? {} : { userId: user.id, collectionStatus: "UNCOLLECTED" }),
+      ...(isAdmin
+        ? {}
+        : {
+            userId: user.id,
+            collectionStatus: "UNCOLLECTED",
+            collectionRequestItems: { none: { collectionRequest: { status: "PENDING" } } },
+          }),
     },
   })
 
