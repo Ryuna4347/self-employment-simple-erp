@@ -5,6 +5,7 @@ import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-gua
 import { hasAdminAccess } from "@/lib/role-utils"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay, toKSTDateString } from "@/lib/date-utils"
+import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
@@ -282,10 +283,10 @@ export async function GET(request: NextRequest) {
     if (r.collectionStatus === "UNCOLLECTED") {
       hasPendingRequest = r.storeId ? pendingRequestStoreIds.has(r.storeId) : false
 
-      // 직접 수금 가능 여부: 24시간 이내 + 다른 날짜 미수 없음
+      // 직접 수금 가능 여부: 48시간(2일) 이내 + 다른 날짜 미수 없음
       const referenceDate = new Date(Math.max(r.createdAt.getTime(), r.date.getTime()))
-      const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
-      const withinOneDay = now <= oneDayLater
+      const deadline = new Date(referenceDate.getTime() + DIRECT_COLLECT_WINDOW_MS)
+      const withinWindow = now <= deadline
 
       hasPreviousUncollected = false
       if (r.storeId) {
@@ -295,7 +296,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      canDirectCollect = withinOneDay && !hasPreviousUncollected
+      canDirectCollect = withinWindow && !hasPreviousUncollected
     }
 
     const { collectionRequestItems, ...rest } = r

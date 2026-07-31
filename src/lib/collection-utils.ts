@@ -5,6 +5,12 @@ import type { PrismaClient } from "@/generated/prisma/client"
 type TransactionClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]
 
 /**
+ * 일반 사용자(비 ADMIN)가 근무기록을 직접 수금처리할 수 있는 기한.
+ * max(createdAt, date) 기준 2일(48시간). 기한이 지나면 수금 확인 요청만 가능.
+ */
+export const DIRECT_COLLECT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
+
+/**
  * 이월 수금 통합 처리
  * - 날짜 ASC 정렬
  * - 마지막 건 제외 모든 RecordItem.amount → 0

@@ -3,6 +3,7 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
 
 // 근무기록 수정 스키마
 const updateWorkRecordSchema = z.object({
@@ -105,15 +106,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   // 일반 사용자의 직접 수금처리 제한
   if (collectionStatus === "COLLECTED" && workRecord.collectionStatus === "UNCOLLECTED" && user.role !== "ADMIN") {
-    // 1. 시간 제한: max(createdAt, date) 기준 24시간 이내인지 확인
+    // 1. 시간 제한: max(createdAt, date) 기준 48시간(2일) 이내인지 확인
     const referenceDate = new Date(Math.max(
       workRecord.createdAt.getTime(),
       workRecord.date.getTime()
     ))
-    const oneDayLater = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000)
+    const deadline = new Date(referenceDate.getTime() + DIRECT_COLLECT_WINDOW_MS)
     const now = new Date()
 
-    if (now > oneDayLater) {
+    if (now > deadline) {
       return ApiErrors.forbidden("수금 처리 기한이 지났습니다. 수금 확인 요청을 이용해주세요.")
     }
 
