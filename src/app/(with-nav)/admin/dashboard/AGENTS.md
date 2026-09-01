@@ -38,14 +38,14 @@ dashboard/
 │   ├── dashboard-content.tsx   # 메인 뷰 (필터 + 차트 + 카드)
 │   └── index.ts
 └── hooks/
-    └── use-dashboard.ts        # TanStack Query (period/year/month 파라미터)
+    └── use-dashboard.ts        # TanStack Query (period/year/month/compare 파라미터)
 ```
 
 ---
 
 ## 관련 API
 
-- `GET /api/admin/dashboard` - 대시보드 데이터 (period, year, month 쿼리)
+- `GET /api/admin/dashboard` - 대시보드 데이터 (period, year, month, compare 쿼리)
 - `POST /api/admin/export/monthly` - 월간 엑셀 내보내기
 
 ---
@@ -53,3 +53,22 @@ dashboard/
 ## 관련 페이지
 
 - `/admin/dashboard` - 대시보드
+
+## 매출 그래프 데이터 출처
+
+매출 추이 차트는 원장(WorkRecord/RecordItem) 직접 집계가 아니라
+`getDailySalesSeries()` (`src/lib/reports/daily-sales.ts`)를 통해 읽는다.
+
+수금 처리가 과거 `RecordItem.amount` 를 0 으로 덮어쓰기 때문이다
+(`consolidateAndCollect`, 미수금 일괄 수금). 그래서 매일 밤 크론
+(`/api/cron/daily-sales-snapshot`, 00:10 KST)이 그날 매출을
+`DailySalesSnapshot` 에 고정하고, 차트는 **스냅샷이 있으면 스냅샷을,
+없으면 원장 계산값을** 쓴다.
+
+- `summary.totalRevenue` 도 같은 시리즈에서 도출해 차트 합계와 일치시킨다.
+  단 `outstandingAmount` 는 현재 상태값이라 원장에서 그대로 읽는다.
+- `compare` 파라미터로 비교 시리즈를 함께 받는다.
+  - 일별 모드: `prevMonth`(전월 같은 일자) / `prevYear`(전년 같은 월·일)
+  - 월별 모드: `prevYear` 만 유효, `prevMonth` 는 무시된다
+  - 대응되는 날이 없으면(31일 ↔ 30일 등) `compareRevenue` 는 `null`
+- 크론 가동 이전 구간은 스냅샷이 없어 여전히 부정확할 수 있다(백필 미실시).

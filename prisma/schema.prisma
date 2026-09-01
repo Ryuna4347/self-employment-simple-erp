@@ -314,3 +314,20 @@ model RecordItemClone {
   @@index([workRecordCloneId])
   @@index([sourceId])
 }
+
+/// 일별 매출 스냅샷.
+/// 수금 처리(consolidateAndCollect / 미수금 일괄 수금)가 과거 RecordItem.amount 를
+/// 0으로 덮어쓰기 때문에, 원장에서 계산한 일별 매출은 시간이 지나면 변한다.
+/// 매일 밤 크론이 그날의 매출을 여기에 고정 저장해 전월/전년 동일 시점 비교에 사용한다.
+model DailySalesSnapshot {
+  id             String   @id @default(cuid())
+  date           DateTime @unique // KST 자정 정규화 (WorkRecord.date 와 동일 규약)
+  totalRevenue   Int      @default(0)
+  cashRevenue    Int      @default(0)
+  accountRevenue Int      @default(0)
+  cardRevenue    Int      @default(0)
+  recordCount    Int      @default(0) // 근무기록(방문) 건수
+  storeCount     Int      @default(0) // 고유 매장 수
+  capturedAt     DateTime @default(now()) // 최초 스냅샷 시각
+  updatedAt      DateTime @updatedAt
+}

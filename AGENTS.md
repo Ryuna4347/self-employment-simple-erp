@@ -146,10 +146,11 @@ src/app/api/
 ├── notices/
 │   └── latest/route.ts                # GET 최신 공지 조회
 ├── cron/
-│   └── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
+│   ├── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
+│   └── daily-sales-snapshot/route.ts     # GET 일별 매출 스냅샷 (매일 00:10 KST)
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
-    ├── dashboard/route.ts              # GET 대시보드 데이터
+    ├── dashboard/route.ts              # GET 대시보드 데이터 (compare=none|prevMonth|prevYear)
     ├── staff/
     │   ├── route.ts                    # GET/POST 직원 목록/초대
     │   └── [id]/route.ts              # DELETE 직원 삭제 (soft delete)
@@ -291,3 +292,4 @@ src/app/api/
 | 2026-05-05 | 코드 작성을 Codex MCP에 위임. CLAUDE.md → AGENTS.md 통합 | 전체 | 단일 도메인 문서(AGENTS.md)로 Codex와 Claude가 동일 컨텍스트 공유 |
 | 2026-05-16 | 현재 구현 반영 — 점검 모드, daily-cash-collection API, Store 소프트 삭제 필드, Clone 모델, `src/lib/reports/` 추가 | 라우트/모델/lib 섹션 | 그동안 추가된 기능(현금 수금 집계, MAINTENANCE_MODE, Sandbox Clone 테이블)을 문서와 일치시킴 |
 | 2026-05-29 | 미수금 장기 미수(2달 이상) 필터·알림 배너 반영, batch-collect 메서드 PATCH→POST 정정 | outstanding AGENTS.md, 루트 API 섹션 | 신규 장기 미수 기능 문서화 및 실제 라우트 메서드와 불일치 수정 |
+| 2026-09-01 | 일별 매출 스냅샷(DailySalesSnapshot) + 크론 + 대시보드 전월/전년 비교 그래프 추가 | 스키마/cron/admin dashboard | 수금 처리가 과거 RecordItem.amount 를 0 으로 덮어써 과거 매출이 소실되는 문제 — 매일 밤 값을 고정해 동기 비교를 가능하게 함 |

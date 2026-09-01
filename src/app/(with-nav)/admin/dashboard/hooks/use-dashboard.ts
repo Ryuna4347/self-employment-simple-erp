@@ -35,6 +35,15 @@ interface ChartDataPoint {
   cash: number
   account: number
   card: number
+  // 비교 구간의 같은 날/월 매출. 대응되는 날이 없으면 null
+  compareRevenue: number | null
+}
+
+// 비교 구간 정보 (비교 안 함이면 null)
+export interface CompareRange {
+  label: string
+  from: string
+  to: string
 }
 
 // 비용 추이 차트 데이터 포인트
@@ -54,6 +63,7 @@ interface CollectionStatus {
 export interface DashboardData {
   summary: DashboardSummary
   chart: ChartDataPoint[]
+  compare: CompareRange | null
   expenseChart: ExpenseChartDataPoint[]
   deletedStores: DeletedStore[]
   newlyAddedStores: NewlyAddedStore[]
@@ -68,6 +78,9 @@ interface DashboardResponse {
 // 조회 기간 타입
 export type DashboardPeriod = "daily" | "monthly"
 
+// 매출 그래프 비교 기준
+export type DashboardCompare = "none" | "prevMonth" | "prevYear"
+
 // 쿼리 키
 const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
@@ -77,14 +90,21 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
  * @param period - 조회 기간 (daily: 일별, monthly: 월별)
  * @param year - 조회 연도
  * @param month - 조회 월 (daily 모드에서만 사용)
+ * @param compare - 매출 그래프 비교 기준 (none: 비교 없음)
  */
-export function useDashboard(period: DashboardPeriod, year: number, month?: number) {
+export function useDashboard(
+  period: DashboardPeriod,
+  year: number,
+  month?: number,
+  compare: DashboardCompare = "none"
+) {
   return useQuery({
-    queryKey: [...DASHBOARD_KEY, { period, year, month }],
+    queryKey: [...DASHBOARD_KEY, { period, year, month, compare }],
     queryFn: async () => {
       const params = new URLSearchParams({
         period,
         year: String(year),
+        compare,
       })
       if (month !== undefined) {
         params.set("month", String(month))

@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  BarChart,
   Bar,
+  ComposedChart,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -40,7 +40,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useDashboard, type DashboardPeriod } from "../hooks/use-dashboard";
+import {
+  useDashboard,
+  type DashboardCompare,
+  type DashboardPeriod,
+} from "../hooks/use-dashboard";
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
@@ -72,12 +76,18 @@ export function DashboardContent() {
   const [period, setPeriod] = useState<DashboardPeriod>("monthly");
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [compare, setCompare] = useState<DashboardCompare>("none");
+
+  // 월별 모드에서는 전월 비교가 의미 없으므로 전년 비교만 허용한다
+  const effectiveCompare: DashboardCompare =
+    period === "monthly" && compare === "prevMonth" ? "none" : compare;
 
   // 월별 모드에서는 month를 전달하지 않음
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(
     period,
     year,
     period === "daily" ? month : undefined,
+    effectiveCompare,
   );
 
   const [isExporting, setIsExporting] = useState(false);
@@ -403,12 +413,29 @@ export function DashboardContent() {
           <div className="space-y-6 mb-6">
             {/* 매출 추이 차트 */}
             <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                매출 추이
-              </h3>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h3 className="text-sm font-medium text-gray-900">매출 추이</h3>
+
+                {/* 비교 기준 선택 (월별 모드에서는 전월 비교 제외) */}
+                <Select
+                  value={effectiveCompare}
+                  onValueChange={(v) => setCompare(v as DashboardCompare)}
+                >
+                  <SelectTrigger className="w-[130px]" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">비교 없음</SelectItem>
+                    {period === "daily" && (
+                      <SelectItem value="prevMonth">전월 대비</SelectItem>
+                    )}
+                    <SelectItem value="prevYear">전년 대비</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {data.chart.length > 0 ? (
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart
+                  <ComposedChart
                     data={data.chart}
                     onClick={(state) => {
                       if (state?.activeLabel != null) {
@@ -431,9 +458,23 @@ export function DashboardContent() {
                       ]}
                       labelFormatter={(label) => {
                         const point = data.chart.find((d) => d.label === label);
-                        return point
-                          ? `${label} (합계: ${point.revenue.toLocaleString()}원)`
-                          : String(label);
+                        if (!point) return String(label);
+
+                        const base = `${label} (합계: ${point.revenue.toLocaleString()}원)`;
+                        if (point.compareRevenue == null) return base;
+
+                        const diff = point.revenue - point.compareRevenue;
+                        const sign = diff >= 0 ? "+" : "";
+                        const rate =
+                          point.compareRevenue === 0
+                            ? null
+                            : Math.round(
+                                (diff / point.compareRevenue) * 1000,
+                              ) / 10;
+
+                        return rate === null
+                          ? `${base} · 대비 ${sign}${diff.toLocaleString()}원`
+                          : `${base} · 대비 ${sign}${diff.toLocaleString()}원 (${sign}${rate}%)`;
                       }}
                     />
                     <Legend />
@@ -456,7 +497,19 @@ export function DashboardContent() {
                       name="계좌이체"
                       radius={[4, 4, 0, 0]}
                     />
-                  </BarChart>
+                    {data.compare && (
+                      <Line
+                        type="monotone"
+                        dataKey="compareRevenue"
+                        stroke="#64748b"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        dot={false}
+                        connectNulls
+                        name={data.compare.label}
+                      />
+                    )}
+                  </ComposedChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
