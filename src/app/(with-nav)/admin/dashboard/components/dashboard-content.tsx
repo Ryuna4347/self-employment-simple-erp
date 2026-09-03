@@ -43,7 +43,7 @@ import {
 import {
   useDashboard,
   type DashboardPeriod,
-  type DashboardCompareMode,
+  type ChartDataPoint,
 } from "../hooks/use-dashboard";
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
@@ -65,14 +65,8 @@ const COLLECTION_COLORS = {
   uncollected: "#ef4444",
 } as const;
 
-// 비교 기간 라인 색상 (결제유형 색상과 구분되는 중립 회색 + 점선)
+// 전월 비교 라인 색상 (결제유형 색상과 구분되는 중립 회색 + 점선)
 const COMPARE_LINE_COLOR = "#6b7280";
-
-// 증감률 계산 (비교 기간 매출이 0이면 null)
-function calcChangeRate(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return ((current - previous) / previous) * 100;
-}
 
 /**
  * 관리자 대시보드 메인 컨텐츠
@@ -85,18 +79,12 @@ export function DashboardContent() {
   const [period, setPeriod] = useState<DashboardPeriod>("monthly");
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [compare, setCompare] = useState<DashboardCompareMode>("none");
 
-  // 전월 비교는 일별 모드 전용. 월별 모드에서는 비교 없음으로 처리
-  const effectiveCompare: DashboardCompareMode =
-    period === "monthly" && compare === "prevMonth" ? "none" : compare;
-
-  // 월별 모드에서는 month를 전달하지 않음
+  // 월별 모드에서는 month를 전달하지 않음. 일별 모드면 API가 전월 비교를 항상 함께 반환
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(
     period,
     year,
     period === "daily" ? month : undefined,
-    effectiveCompare,
   );
 
   const [isExporting, setIsExporting] = useState(false);
@@ -201,23 +189,6 @@ export function DashboardContent() {
           이번 달
         </Button>
 
-        {/* 비교 기간 선택 (전월은 일별 모드에서만) */}
-        <Select
-          value={effectiveCompare}
-          onValueChange={(v) => setCompare(v as DashboardCompareMode)}
-        >
-          <SelectTrigger className="w-[110px]" size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">비교 없음</SelectItem>
-            {period === "daily" && (
-              <SelectItem value="prevMonth">전월 비교</SelectItem>
-            )}
-            <SelectItem value="prevYear">전년 비교</SelectItem>
-          </SelectContent>
-        </Select>
-
         {/* 기간 토글 버튼 */}
         <div className="flex gap-1 ml-auto">
           <Button
@@ -285,31 +256,6 @@ export function DashboardContent() {
                 <p className="text-lg font-semibold text-blue-600">
                   {data.summary.totalRevenue.toLocaleString()}원
                 </p>
-                {data.compare &&
-                  (() => {
-                    const rate = calcChangeRate(
-                      data.summary.totalRevenue,
-                      data.compare.totalRevenue,
-                    );
-                    return (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {data.compare.label}{" "}
-                        {data.compare.totalRevenue.toLocaleString()}원
-                        {rate !== null && (
-                          <span
-                            className={
-                              rate >= 0
-                                ? "text-emerald-600 ml-1"
-                                : "text-red-500 ml-1"
-                            }
-                          >
-                            ({rate >= 0 ? "+" : ""}
-                            {rate.toFixed(1)}%)
-                          </span>
-                        )}
-                      </p>
-                    );
-                  })()}
               </div>
             </div>
 
@@ -455,12 +401,6 @@ export function DashboardContent() {
                   </div>
                   <p className="text-xs text-gray-500 text-right mt-2">
                     합계: {point.revenue.toLocaleString()}원
-                    {data.compare && point.compareRevenue !== null && (
-                      <span className="ml-2">
-                        · {data.compare.label}{" "}
-                        {point.compareRevenue.toLocaleString()}원
-                      </span>
-                    )}
                   </p>
                 </div>
               );
@@ -492,10 +432,15 @@ export function DashboardContent() {
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value, name) => [
-                        `${Number(value).toLocaleString()}원`,
-                        name,
-                      ]}
+                      formatter={(value, name, item) => {
+                        // 전월 비교 라인은 시리즈명("2026년 8월") 대신 해당 전월 일자("08/03")로 표기
+                        const point = item?.payload as ChartDataPoint | undefined;
+                        const displayName =
+                          item?.dataKey === "compareRevenue" && point?.compareLabel
+                            ? point.compareLabel
+                            : name;
+                        return [`${Number(value).toLocaleString()}원`, displayName];
+                      }}
                       labelFormatter={(label) => {
                         const point = data.chart.find((d) => d.label === label);
                         return point
@@ -523,12 +468,12 @@ export function DashboardContent() {
                       name="계좌이체"
                       radius={[4, 4, 0, 0]}
                     />
-                    {/* 비교 기간 매출 (같은 축, 점선). 비교 기간에 없는 날짜는 끊어서 표시 */}
-                    {data.compare && (
+                    {/* 전월 매출 (같은 축, 점선). 일별 모드에서 항상 표시, 전월에 없는 날짜는 끊어서 표시 */}
+                    {period === "daily" && (
                       <Line
                         type="monotone"
                         dataKey="compareRevenue"
-                        name={data.compare.label}
+                        name="전월"
                         stroke={COMPARE_LINE_COLOR}
                         strokeWidth={2}
                         strokeDasharray="4 4"

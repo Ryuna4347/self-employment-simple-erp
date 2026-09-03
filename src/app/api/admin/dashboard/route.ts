@@ -17,11 +17,7 @@ const querySchema = z.object({
   period: z.enum(["daily", "monthly"]).default("monthly"),
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12).optional(),
-  // 비교 기간: prevMonth(전월, 일별 모드 전용) / prevYear(전년 동기)
-  compare: z.enum(["none", "prevMonth", "prevYear"]).default("none"),
 })
-
-type CompareMode = z.infer<typeof querySchema>["compare"]
 
 // KST 기준 DATE_TRUNC용 타임존 변환식
 // date 컬럼은 timestamp without time zone이므로
@@ -53,46 +49,26 @@ async function fetchRevenueByPeriod(
   `
 }
 
-/** 비교 기간 계산. 적용 불가한 조합이면 null */
+/**
+ * 전월 비교 기간 계산 (매출 차트 점선용)
+ *
+ * 일별 모드에서는 항상 전월(같은 일자끼리)을 비교한다. 월별 모드는 "전월" 개념이 없어 null.
+ */
 function resolveCompareRange(
-  compare: CompareMode,
   period: "daily" | "monthly",
   year: number,
   month: number | undefined,
-): { start: Date; end: Date; label: string; year: number; month?: number } | null {
-  if (compare === "none") return null
+): { start: Date; end: Date; year: number; month: number } | null {
+  if (period !== "daily" || !month) return null
 
-  if (period === "daily" && month) {
-    if (compare === "prevMonth") {
-      const prevYear = month === 1 ? year - 1 : year
-      const prevMonth = month === 1 ? 12 : month - 1
-      return {
-        start: startOfMonthKST(prevYear, prevMonth),
-        end: endOfMonthKST(prevYear, prevMonth),
-        label: `${prevYear}년 ${prevMonth}월`,
-        year: prevYear,
-        month: prevMonth,
-      }
-    }
-    return {
-      start: startOfMonthKST(year - 1, month),
-      end: endOfMonthKST(year - 1, month),
-      label: `${year - 1}년 ${month}월`,
-      year: year - 1,
-      month,
-    }
+  const prevYear = month === 1 ? year - 1 : year
+  const prevMonth = month === 1 ? 12 : month - 1
+  return {
+    start: startOfMonthKST(prevYear, prevMonth),
+    end: endOfMonthKST(prevYear, prevMonth),
+    year: prevYear,
+    month: prevMonth,
   }
-
-  // 월별 모드는 전년 비교만 의미가 있다
-  if (compare === "prevYear") {
-    return {
-      start: startOfMonthKST(year - 1, 1),
-      end: endOfMonthKST(year - 1, 12),
-      label: `${year - 1}년`,
-      year: year - 1,
-    }
-  }
-  return null
 }
 
 export async function GET(request: NextRequest) {
@@ -105,7 +81,6 @@ export async function GET(request: NextRequest) {
       period: searchParams.get("period") ?? "monthly",
       year: searchParams.get("year") ?? new Date().getFullYear(),
       month: searchParams.get("month") ?? undefined,
-      compare: searchParams.get("compare") ?? "none",
     })
 
     if (!parseResult.success) {
@@ -115,7 +90,7 @@ export async function GET(request: NextRequest) {
       ])
     }
 
-    const { period, year, month, compare } = parseResult.data
+    const { period, year, month } = parseResult.data
 
     // KST 기준 날짜 범위 계산
     let dateStart: Date
@@ -130,7 +105,7 @@ export async function GET(request: NextRequest) {
     }
 
     const truncUnit = period === "daily" && month ? "day" : "month"
-    const compareRange = resolveCompareRange(compare, period, year, month)
+    const compareRange = resolveCompareRange(period, year, month)
 
     // 모든 집계를 DB 레벨에서 병렬 실행
     const [
@@ -173,7 +148,7 @@ export async function GET(request: NextRequest) {
       // 4) 기간별 + 결제유형별 매출 (차트)
       fetchRevenueByPeriod(truncUnit, dateStart, dateEnd),
 
-      // 4-1) 비교 기간 매출 (compare 지정 시)
+      // 4-1) 전월 비교 매출 (일별 모드)
       compareRange
         ? fetchRevenueByPeriod(truncUnit, compareRange.start, compareRange.end)
         : Promise.resolve([]),
@@ -293,28 +268,29 @@ export async function GET(request: NextRequest) {
       chartRevenueMap.set(idx, entry)
     }
 
-    // 비교 기간: 인덱스별 매출 합계. 비교 기간에 존재하지 않는 날(예: 30일 → 2월)은 null
-    let compareTotalRevenue = 0
+    // 전월 비교(매출 차트 점선 전용): 일(1~말일)별 매출 합계. 전월에 존재하지 않는 날(예: 31일 ↔ 2월)은 null
     const compareRevenueMap = new Map<number, number>()
     if (compareRange) {
-      const compareIndexCount = isDaily
-        ? getDaysInMonth(new Date(compareRange.year, (compareRange.month ?? 1) - 1, 1))
-        : 12
+      const compareIndexCount = getDaysInMonth(new Date(compareRange.year, compareRange.month - 1, 1))
       for (let i = 1; i <= compareIndexCount; i++) {
         compareRevenueMap.set(i, 0)
       }
       for (const row of compareChartData) {
         const idx = periodToIndex(row.period)
-        const amount = Number(row.revenue)
-        compareRevenueMap.set(idx, (compareRevenueMap.get(idx) ?? 0) + amount)
-        compareTotalRevenue += amount
+        compareRevenueMap.set(idx, (compareRevenueMap.get(idx) ?? 0) + Number(row.revenue))
       }
     }
+    // 전월 같은 일자 라벨 "MM/DD" (툴팁/상세 패널 표기용). 전월에 없는 날은 null
+    const compareIndexToLabel = (idx: number) =>
+      compareRange && compareRevenueMap.has(idx)
+        ? `${String(compareRange.month).padStart(2, "0")}/${String(idx).padStart(2, "0")}`
+        : null
 
     const chart = Array.from(chartRevenueMap.entries()).map(([idx, entry]) => ({
       label: indexToLabel(idx),
       ...entry,
       compareRevenue: compareRange ? (compareRevenueMap.get(idx) ?? null) : null,
+      compareLabel: compareIndexToLabel(idx),
     }))
 
     // === expenseChart 조립 (월별 빈 월 채우기) ===
@@ -344,10 +320,6 @@ export async function GET(request: NextRequest) {
     return apiSuccess({
       summary,
       chart,
-      // 비교 기간 정보 (compare=none 또는 적용 불가 조합이면 null)
-      compare: compareRange
-        ? { mode: compare, label: compareRange.label, totalRevenue: compareTotalRevenue }
-        : null,
       expenseChart,
       deletedStores,
       newlyAddedStores,

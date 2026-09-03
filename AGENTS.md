@@ -150,7 +150,7 @@ src/app/api/
 │   └── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
-    ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month/compare)
+    ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month, 일별 모드는 전월 비교 포함)
     ├── staff/
     │   ├── route.ts                    # GET/POST 직원 목록/초대
     │   └── [id]/route.ts              # DELETE 직원 삭제 (soft delete)
@@ -296,3 +296,4 @@ src/app/api/
 | 2026-05-29 | 미수금 장기 미수(2달 이상) 필터·알림 배너 반영, batch-collect 메서드 PATCH→POST 정정 | outstanding AGENTS.md, 루트 API 섹션 | 신규 장기 미수 기능 문서화 및 실제 라우트 메서드와 불일치 수정 |
 | 2026-09-03 | RecordItem.salesAmount(매출 원금) 추가, 대시보드 매출 집계를 salesAmount 기준으로 전환 + 전월/전년 비교 | 데이터 모델, lib, dashboard AGENTS.md | 일괄 수금 시 amount가 0/이월 처리되어 과거 날짜 매출이 사라지는 문제. 매출 추이용 값을 별도 필드로 고정 보관 |
 | 2026-09-03 | 근무기록 수정(PUT) 시 기존 품목의 salesAmount 보존 (`toRecordItemDataPreservingSales`: 품목 단위 매칭 + 기록 단위 합계 보존) | lib/sales-utils, work-records/[id] API, work-records AGENTS.md | 수정은 품목 삭제 후 재생성 구조라, 수금 처리로 amount가 0이 된 기록을 어드민이 고치면 매출 원금이 0으로 덮어써지는 회귀 방지. 최상위 품목 1개에 기록 합계를 적는 현장 관행(품목명 변경/삭제 시 개별 매칭 실패)을 기록 합계 보존으로 반영. 기준일 09-03, 배포 전 생성 기록은 배포 직후 백필(salesAmount = amount)로 보정 |
+| 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
