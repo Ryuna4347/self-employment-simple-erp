@@ -1,5 +1,6 @@
 import { format } from "date-fns"
 import { toKSTLocal } from "@/lib/date-utils"
+import { CARRYOVER_ITEM_PREFIX } from "@/lib/sales-utils"
 import type { PrismaClient } from "@/generated/prisma/client"
 
 type TransactionClient = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0]
@@ -13,8 +14,8 @@ export const DIRECT_COLLECT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000
 /**
  * 이월 수금 통합 처리
  * - 날짜 ASC 정렬
- * - 마지막 건 제외 모든 RecordItem.amount → 0
- * - 마지막 건에 "이월 수금" 항목 추가 (누적 금액)
+ * - 마지막 건 제외 모든 RecordItem.amount → 0 (salesAmount는 유지)
+ * - 마지막 건에 "이월 수금" 항목 추가 (누적 금액, salesAmount = 0)
  * - 전체 COLLECTED 처리
  */
 export async function consolidateAndCollect(
@@ -58,9 +59,11 @@ export async function consolidateAndCollect(
       await tx.recordItem.create({
         data: {
           workRecordId: lastRecord.id,
-          name: `이월 수금 (${format(toKSTLocal(record.date), "yyyy-MM-dd")})`,
+          name: `${CARRYOVER_ITEM_PREFIX}${format(toKSTLocal(record.date), "yyyy-MM-dd")})`,
           amount: recordTotal,
           quantity: 1,
+          // 이월분은 새 매출이 아니라 이전 방문 매출의 이동이므로 매출 원금은 0
+          salesAmount: 0,
         },
       })
     }

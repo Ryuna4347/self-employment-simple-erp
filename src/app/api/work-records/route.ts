@@ -6,6 +6,7 @@ import { hasAdminAccess } from "@/lib/role-utils"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay, toKSTDateString } from "@/lib/date-utils"
 import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
+import { toRecordItemData } from "@/lib/sales-utils"
 import type { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
@@ -418,11 +419,8 @@ export async function POST(request: NextRequest) {
       paymentTypeSnapshot: store.PaymentType,
       ...(finalItems.length > 0 && {
         items: {
-          create: finalItems.map((item) => ({
-            name: item.name,
-            amount: item.amount,
-            quantity: item.quantity,
-          })),
+          // salesAmount(매출 원금)도 함께 저장
+          create: finalItems.map(toRecordItemData),
         },
       }),
     },

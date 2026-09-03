@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
+import { toRecordItemData } from "@/lib/sales-utils"
 
 // 근무기록 수정 스키마
 const updateWorkRecordSchema = z.object({
@@ -174,11 +175,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         ...(note !== undefined && { note: note || null }),
         ...(!isClosed && items && {
           items: {
-            create: items.map((item) => ({
-              name: item.name,
-              amount: item.amount,
-              quantity: item.quantity,
-            })),
+            // salesAmount(매출 원금)도 함께 저장. 이월 수금 항목은 0으로 가드
+            create: items.map(toRecordItemData),
           },
         }),
       },

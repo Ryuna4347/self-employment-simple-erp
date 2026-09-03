@@ -36,7 +36,8 @@
 
 ### RecordItem (거래 상세 - 스냅샷)
 - `name`: 품목명
-- `amount`: 금액
+- `amount`: 현재 잔액(수금 장부). 수금 처리 시 0, 이월 수금 시 마지막 건으로 이동
+- `salesAmount`: 매출 원금. 저장 시 `toRecordItemData()`(`src/lib/sales-utils.ts`)로 amount와 동일하게 기록, 수금 처리로 변하지 않음. 이월 수금 항목은 0
 - `quantity`: 수량
 
 ---
@@ -50,7 +51,8 @@
 
 ### 금액 계산
 - totalAmount는 DB 저장 안 함
-- `SUM(amount)`로 실시간 계산
+- `SUM(amount)`로 실시간 계산 (근무기록 화면의 매출/수금/미수 표시는 amount 기준 유지)
+- 품목 생성 경로(생성/수정/템플릿 적용/이월 수금)는 모두 `salesAmount`를 함께 저장해야 한다
 
 ### 수금 관리
 - `collectionStatus: UNCOLLECTED` → 미수금
