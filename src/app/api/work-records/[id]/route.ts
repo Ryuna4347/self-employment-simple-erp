@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
+import { toRecordItemDataPreservingSales, type RecordItemData } from "@/lib/sales-utils"
 
 // 근무기록 수정 스키마
 const updateWorkRecordSchema = z.object({
@@ -153,6 +154,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   // 트랜잭션으로 업데이트
   const updatedRecord = await prisma.$transaction(async (tx) => {
+    // 재생성할 품목 데이터 (삭제 전에 계산)
+    // 기존 품목의 salesAmount(매출 원금)를 보존한다. 수금 처리로 amount가 0/이월 이동된
+    // 기록을 어드민이 메모·사진만 수정해도 매출 원금이 0으로 덮어써지지 않도록,
+    // 품목명이 같고 amount가 바뀌지 않은 항목은 기존 salesAmount를 이어받는다.
+    let itemsToCreate: RecordItemData[] = []
+    if (!isClosed && items) {
+      const existingItems = await tx.recordItem.findMany({
+        where: { workRecordId: id },
+        select: { name: true, amount: true, salesAmount: true },
+        orderBy: { id: "asc" },
+      })
+      itemsToCreate = toRecordItemDataPreservingSales(items, existingItems)
+    }
+
     // 휴업/폐업 변경 시 기존 품목 삭제
     if (isClosed) {
       await tx.recordItem.deleteMany({
@@ -174,11 +189,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         ...(note !== undefined && { note: note || null }),
         ...(!isClosed && items && {
           items: {
-            create: items.map((item) => ({
-              name: item.name,
-              amount: item.amount,
-              quantity: item.quantity,
-            })),
+            create: itemsToCreate,
           },
         }),
       },

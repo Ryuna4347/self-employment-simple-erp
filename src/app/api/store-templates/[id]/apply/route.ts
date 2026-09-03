@@ -138,6 +138,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           workRecordId: storeToRecordId.get(member.storeId)!,
           name: item.name,
           amount: item.amount,
+          salesAmount: item.amount, // 매출 원금
           quantity: item.quantity,
         }))
       )

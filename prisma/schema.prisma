@@ -118,7 +118,8 @@ model RecordItem {
   id           String     @id @default(cuid())
   workRecordId String
   name         String
-  amount       Int
+  amount       Int // 현재 잔액(수금 장부): 수금 처리 시 0, 이월 수금 시 마지막 건으로 이동
+  salesAmount  Int        @default(0) // 매출 원금: 등록 시점에 amount와 동일하게 저장, 수금 처리로 변하지 않음 (이월 수금 항목은 0)
   quantity     Int
   workRecord   WorkRecord @relation(fields: [workRecordId], references: [id], onDelete: Cascade)
 }

@@ -3,23 +3,97 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAdminRead, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
-import {
-  eachDayOfInterval,
-  eachMonthOfInterval,
-  format,
-} from "date-fns"
+import { eachMonthOfInterval, format, getDaysInMonth } from "date-fns"
 import { Prisma } from "@/generated/prisma/client"
 import {
   startOfMonthKST,
   endOfMonthKST,
   toKSTLocal,
+  dateToKSTMidnight,
 } from "@/lib/date-utils"
+import { SALES_AMOUNT_CUTOVER_DATE } from "@/lib/sales-utils"
 
 const querySchema = z.object({
   period: z.enum(["daily", "monthly"]).default("monthly"),
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12).optional(),
+  // 비교 기간: prevMonth(전월, 일별 모드 전용) / prevYear(전년 동기)
+  compare: z.enum(["none", "prevMonth", "prevYear"]).default("none"),
 })
+
+type CompareMode = z.infer<typeof querySchema>["compare"]
+
+// KST 기준 DATE_TRUNC용 타임존 변환식
+// date 컬럼은 timestamp without time zone이므로
+// AT TIME ZONE 'UTC'로 먼저 UTC 해석 → AT TIME ZONE 'Asia/Seoul'로 KST 변환
+const KST_TZ = Prisma.raw("AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'")
+
+/**
+ * 매출 집계 기준 금액 식
+ *
+ * 기준일(SALES_AMOUNT_CUTOVER_DATE) 이후 기록은 salesAmount(매출 원금),
+ * 이전 기록은 salesAmount가 백필되지 않았으므로 amount(기존 방식)를 사용한다.
+ * 수금 처리로 amount가 0/이월 이동되어도 기준일 이후 매출은 원래 날짜에 남는다.
+ */
+const cutoverDate = dateToKSTMidnight(SALES_AMOUNT_CUTOVER_DATE)
+const salesAmountExpr = Prisma.sql`CASE WHEN wr.date >= ${cutoverDate} THEN ri."salesAmount" ELSE ri.amount END`
+
+/** 기간별 매출 집계 (차트/비교용) */
+async function fetchRevenueByPeriod(
+  truncUnit: "day" | "month",
+  dateStart: Date,
+  dateEnd: Date,
+) {
+  return prisma.$queryRaw<{ period: Date; paymentType: string; revenue: bigint }[]>`
+    SELECT DATE_TRUNC(${truncUnit}, wr.date ${KST_TZ}) as period, wr."paymentTypeSnapshot" as "paymentType", COALESCE(SUM(${salesAmountExpr}), 0) as revenue
+    FROM "WorkRecord" wr
+    LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
+    WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
+    GROUP BY period, wr."paymentTypeSnapshot" ORDER BY period
+  `
+}
+
+/** 비교 기간 계산. 적용 불가한 조합이면 null */
+function resolveCompareRange(
+  compare: CompareMode,
+  period: "daily" | "monthly",
+  year: number,
+  month: number | undefined,
+): { start: Date; end: Date; label: string; year: number; month?: number } | null {
+  if (compare === "none") return null
+
+  if (period === "daily" && month) {
+    if (compare === "prevMonth") {
+      const prevYear = month === 1 ? year - 1 : year
+      const prevMonth = month === 1 ? 12 : month - 1
+      return {
+        start: startOfMonthKST(prevYear, prevMonth),
+        end: endOfMonthKST(prevYear, prevMonth),
+        label: `${prevYear}년 ${prevMonth}월`,
+        year: prevYear,
+        month: prevMonth,
+      }
+    }
+    return {
+      start: startOfMonthKST(year - 1, month),
+      end: endOfMonthKST(year - 1, month),
+      label: `${year - 1}년 ${month}월`,
+      year: year - 1,
+      month,
+    }
+  }
+
+  // 월별 모드는 전년 비교만 의미가 있다
+  if (compare === "prevYear") {
+    return {
+      start: startOfMonthKST(year - 1, 1),
+      end: endOfMonthKST(year - 1, 12),
+      label: `${year - 1}년`,
+      year: year - 1,
+    }
+  }
+  return null
+}
 
 export async function GET(request: NextRequest) {
   const authResult = await requireAdminRead()
@@ -31,6 +105,7 @@ export async function GET(request: NextRequest) {
       period: searchParams.get("period") ?? "monthly",
       year: searchParams.get("year") ?? new Date().getFullYear(),
       month: searchParams.get("month") ?? undefined,
+      compare: searchParams.get("compare") ?? "none",
     })
 
     if (!parseResult.success) {
@@ -40,7 +115,7 @@ export async function GET(request: NextRequest) {
       ])
     }
 
-    const { period, year, month } = parseResult.data
+    const { period, year, month, compare } = parseResult.data
 
     // KST 기준 날짜 범위 계산
     let dateStart: Date
@@ -55,6 +130,7 @@ export async function GET(request: NextRequest) {
     }
 
     const truncUnit = period === "daily" && month ? "day" : "month"
+    const compareRange = resolveCompareRange(compare, period, year, month)
 
     // 모든 집계를 DB 레벨에서 병렬 실행
     const [
@@ -62,6 +138,7 @@ export async function GET(request: NextRequest) {
       revenueByStatus,
       uniqueStoresResult,
       chartData,
+      compareChartData,
       expenseChartData,
       expenseAggregate,
       deletedStoresList,
@@ -74,9 +151,12 @@ export async function GET(request: NextRequest) {
         where: { date: { gte: dateStart, lte: dateEnd } },
       }),
 
-      // 2) collectionStatus별 매출 합계 (총매출 + 미수금액)
-      prisma.$queryRaw<{ collectionStatus: string; total: bigint }[]>`
-        SELECT wr."collectionStatus", COALESCE(SUM(ri.amount), 0) as total
+      // 2) collectionStatus별 매출(salesAmount 기준) + 잔액(amount 기준) 합계
+      //    총매출은 sales, 미수금액은 UNCOLLECTED의 outstanding을 사용
+      prisma.$queryRaw<{ collectionStatus: string; sales: bigint; outstanding: bigint }[]>`
+        SELECT wr."collectionStatus",
+               COALESCE(SUM(${salesAmountExpr}), 0) as sales,
+               COALESCE(SUM(ri.amount), 0) as outstanding
         FROM "WorkRecord" wr
         LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
         WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
@@ -90,22 +170,17 @@ export async function GET(request: NextRequest) {
         select: { storeId: true },
       }),
 
-      // 4) 기간별 + 결제유형별 매출 (차트) - KST 타임존 기준 DATE_TRUNC
-      // date 컬럼은 timestamp without time zone이므로
-      // AT TIME ZONE 'UTC'로 먼저 UTC 해석 → AT TIME ZONE 'Asia/Seoul'로 KST 변환
-      prisma.$queryRaw<{ period: Date; paymentType: string; revenue: bigint }[]>`
-        SELECT DATE_TRUNC(${truncUnit}, wr.date ${Prisma.raw("AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'")}) as period, wr."paymentTypeSnapshot" as "paymentType", COALESCE(SUM(ri.amount), 0) as revenue
-        FROM "WorkRecord" wr
-        LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
-        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd}
-        GROUP BY period, wr."paymentTypeSnapshot" ORDER BY period
-      `,
+      // 4) 기간별 + 결제유형별 매출 (차트)
+      fetchRevenueByPeriod(truncUnit, dateStart, dateEnd),
+
+      // 4-1) 비교 기간 매출 (compare 지정 시)
+      compareRange
+        ? fetchRevenueByPeriod(truncUnit, compareRange.start, compareRange.end)
+        : Promise.resolve([]),
 
       // 5) 비용 추이 (항상 연도 전체 월별 집계)
-      // date 컬럼은 timestamp without time zone이므로
-      // AT TIME ZONE 'UTC'로 먼저 UTC 해석 → AT TIME ZONE 'Asia/Seoul'로 KST 변환
       prisma.$queryRaw<{ period: Date; amount: bigint }[]>`
-        SELECT DATE_TRUNC('month', e.date ${Prisma.raw("AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Seoul'")}) as period,
+        SELECT DATE_TRUNC('month', e.date ${KST_TZ}) as period,
                COALESCE(SUM(e.amount), 0) as amount
         FROM "Expense" e
         WHERE e.date >= ${startOfMonthKST(year, 1)} AND e.date <= ${endOfMonthKST(year, 12)}
@@ -146,10 +221,9 @@ export async function GET(request: NextRequest) {
     let totalRevenue = 0
     let outstandingAmount = 0
     for (const row of revenueByStatus) {
-      const amount = Number(row.total)
-      totalRevenue += amount
+      totalRevenue += Number(row.sales)
       if (row.collectionStatus === "UNCOLLECTED") {
-        outstandingAmount = amount
+        outstandingAmount = Number(row.outstanding)
       }
     }
 
@@ -183,10 +257,10 @@ export async function GET(request: NextRequest) {
       createdAt: format(toKSTLocal(store.createdAt), "yyyy-MM-dd"),
     }))
 
-    // === chart 조립 (빈 날짜/월 채우기 + 결제유형별 분리) ===
-    // toKSTLocal로 보정하여 eachDayOfInterval/eachMonthOfInterval이 KST 날짜 생성
+    // === chart 조립 (빈 날짜/월 채우기 + 결제유형별 분리 + 비교값) ===
     type ChartEntry = { revenue: number; cash: number; account: number; card: number }
-    const chartRevenueMap = new Map<string, ChartEntry>()
+    // key: 일별 모드는 일(1~31), 월별 모드는 월(1~12) — 비교 기간과 같은 위치끼리 정렬하기 위한 인덱스
+    const chartRevenueMap = new Map<number, ChartEntry>()
     const emptyEntry = (): ChartEntry => ({ revenue: 0, cash: 0, account: 0, card: 0 })
 
     // paymentType → 필드명 매핑
@@ -196,39 +270,51 @@ export async function GET(request: NextRequest) {
       CARD: "card",
     }
 
-    if (period === "daily" && month) {
-      const days = eachDayOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
-      for (const day of days) {
-        chartRevenueMap.set(format(day, "MM/dd"), emptyEntry())
+    const isDaily = period === "daily" && !!month
+    // DB period(KST 벽시계 값의 timestamp without time zone → JS에서는 UTC로 해석됨) → 인덱스(일 또는 월)
+    const periodToIndex = (p: Date) =>
+      isDaily ? new Date(p).getUTCDate() : new Date(p).getUTCMonth() + 1
+    const indexToLabel = (idx: number) =>
+      isDaily ? `${String(month).padStart(2, "0")}/${String(idx).padStart(2, "0")}` : `${idx}월`
+
+    // 빈 날짜/월 채우기 (일별: 1~말일, 월별: 1~12월)
+    const indexCount = isDaily ? getDaysInMonth(new Date(year, (month ?? 1) - 1, 1)) : 12
+    for (let i = 1; i <= indexCount; i++) {
+      chartRevenueMap.set(i, emptyEntry())
+    }
+
+    for (const row of chartData) {
+      const idx = periodToIndex(row.period)
+      const entry = chartRevenueMap.get(idx) ?? emptyEntry()
+      const amount = Number(row.revenue)
+      entry.revenue += amount
+      const field = paymentTypeField[row.paymentType]
+      if (field) entry[field] += amount
+      chartRevenueMap.set(idx, entry)
+    }
+
+    // 비교 기간: 인덱스별 매출 합계. 비교 기간에 존재하지 않는 날(예: 30일 → 2월)은 null
+    let compareTotalRevenue = 0
+    const compareRevenueMap = new Map<number, number>()
+    if (compareRange) {
+      const compareIndexCount = isDaily
+        ? getDaysInMonth(new Date(compareRange.year, (compareRange.month ?? 1) - 1, 1))
+        : 12
+      for (let i = 1; i <= compareIndexCount; i++) {
+        compareRevenueMap.set(i, 0)
       }
-      for (const row of chartData) {
-        const label = format(new Date(row.period), "MM/dd")
-        const entry = chartRevenueMap.get(label) ?? emptyEntry()
+      for (const row of compareChartData) {
+        const idx = periodToIndex(row.period)
         const amount = Number(row.revenue)
-        entry.revenue += amount
-        const field = paymentTypeField[row.paymentType]
-        if (field) entry[field] += amount
-        chartRevenueMap.set(label, entry)
-      }
-    } else {
-      const months = eachMonthOfInterval({ start: toKSTLocal(dateStart), end: toKSTLocal(dateEnd) })
-      for (const m of months) {
-        chartRevenueMap.set(format(m, "M월"), emptyEntry())
-      }
-      for (const row of chartData) {
-        const label = format(new Date(row.period), "M월")
-        const entry = chartRevenueMap.get(label) ?? emptyEntry()
-        const amount = Number(row.revenue)
-        entry.revenue += amount
-        const field = paymentTypeField[row.paymentType]
-        if (field) entry[field] += amount
-        chartRevenueMap.set(label, entry)
+        compareRevenueMap.set(idx, (compareRevenueMap.get(idx) ?? 0) + amount)
+        compareTotalRevenue += amount
       }
     }
 
-    const chart = Array.from(chartRevenueMap.entries()).map(([label, entry]) => ({
-      label,
+    const chart = Array.from(chartRevenueMap.entries()).map(([idx, entry]) => ({
+      label: indexToLabel(idx),
       ...entry,
+      compareRevenue: compareRange ? (compareRevenueMap.get(idx) ?? null) : null,
     }))
 
     // === expenseChart 조립 (월별 빈 월 채우기) ===
@@ -258,6 +344,10 @@ export async function GET(request: NextRequest) {
     return apiSuccess({
       summary,
       chart,
+      // 비교 기간 정보 (compare=none 또는 적용 불가 조합이면 null)
+      compare: compareRange
+        ? { mode: compare, label: compareRange.label, totalRevenue: compareTotalRevenue }
+        : null,
       expenseChart,
       deletedStores,
       newlyAddedStores,
