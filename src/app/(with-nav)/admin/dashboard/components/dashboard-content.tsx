@@ -68,6 +68,11 @@ const COLLECTION_COLORS = {
 // 전월 비교 라인 색상 (결제유형 색상과 구분되는 중립 회색 + 점선)
 const COMPARE_LINE_COLOR = "#6b7280";
 
+// 매출 차트 툴팁 정렬: 전월 항목을 맨 위에, 나머지는 기본 정렬(시리즈명순) 그대로
+// Recharts 3 Tooltip 기본 itemSorter는 "name"이라 "전월"이 결제유형 사이에 끼어들어 이를 분리한다
+const revenueTooltipSorter = (item: { dataKey?: unknown; name?: unknown }) =>
+  item.dataKey === "compareRevenue" ? "" : String(item.name ?? "");
+
 /**
  * 관리자 대시보드 메인 컨텐츠
  *
@@ -432,6 +437,7 @@ export function DashboardContent() {
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip
+                      itemSorter={revenueTooltipSorter}
                       formatter={(value, name, item) => {
                         // 전월 비교 라인은 시리즈명("2026년 8월") 대신 해당 전월 일자("08/03")로 표기
                         const point = item?.payload as ChartDataPoint | undefined;
