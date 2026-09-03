@@ -14,12 +14,11 @@
  * 과거 데이터는 백필하지 않으므로 이 날짜 이전 근무기록은 salesAmount가 0이다.
  * 대시보드는 기준일 이전 기록을 amount(기존 방식)로, 이후 기록을 salesAmount로 집계한다.
  *
- * 기준일은 "새 코드가 하루 전체의 기록 생성을 커버하는 첫날"이어야 한다.
- * 배포 당일에 구버전 코드로 생성된 기록은 salesAmount가 0이라 기준일에 포함되면 그날 매출이 0으로 보인다.
- * 마이그레이션은 2026-09-03 적용, 코드 배포는 2026-09-03 밤 예정 → 기준일 2026-09-04.
- * 배포가 09-04 첫 기록 이후로 밀리면 배포 다음 날로 옮길 것.
+ * 기준일 이후 날짜인데 구버전 코드로 생성된 기록(배포 전 등록분)은 salesAmount가 0이므로,
+ * 배포 직후 백필(salesAmount = amount, amount > 0인 일반 품목만)을 한 번 실행해 채운다.
+ * 2026-09-03: 컬럼 마이그레이션 적용 + 코드 배포 + 백필 실행.
  */
-export const SALES_AMOUNT_CUTOVER_DATE = "2026-09-04"
+export const SALES_AMOUNT_CUTOVER_DATE = "2026-09-03"
 
 /** 이월 수금 항목 이름 접두사. consolidateAndCollect가 생성하는 `이월 수금 (YYYY-MM-DD)` 형식 */
 export const CARRYOVER_ITEM_PREFIX = "이월 수금 ("
