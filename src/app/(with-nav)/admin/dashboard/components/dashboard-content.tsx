@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ComposedChart,
   Bar,
@@ -40,10 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toKSTDateString } from "@/lib/date-utils";
 import {
   useDashboard,
   type DashboardPeriod,
   type ChartDataPoint,
+  type CompareTailPoint,
 } from "../hooks/use-dashboard";
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
@@ -68,10 +70,114 @@ const COLLECTION_COLORS = {
 // 전월 비교 라인 색상 (결제유형 색상과 구분되는 중립 회색 + 점선)
 const COMPARE_LINE_COLOR = "#6b7280";
 
-// 매출 차트 툴팁 정렬: 전월 항목을 맨 위에, 나머지는 기본 정렬(시리즈명순) 그대로
+// 누적 매출 라인 색상 (결제유형 색상·전월 회색과 구분되는 파랑)
+const CUMULATIVE_LINE_COLOR = "#2563eb";
+
+// 매출/누적 차트 툴팁 정렬: 전월 항목을 맨 위에, 나머지는 기본 정렬(시리즈명순) 그대로
 // Recharts 3 Tooltip 기본 itemSorter는 "name"이라 "전월"이 결제유형 사이에 끼어들어 이를 분리한다
-const revenueTooltipSorter = (item: { dataKey?: unknown; name?: unknown }) =>
-  item.dataKey === "compareRevenue" ? "" : String(item.name ?? "");
+const compareFirstTooltipSorter = (item: {
+  dataKey?: unknown;
+  name?: unknown;
+}) =>
+  item.dataKey === "compareRevenue" || item.dataKey === "compareCumulative"
+    ? ""
+    : String(item.name ?? "");
+
+/** 누적 매출 차트 데이터 포인트. chart[]·compareTail[]에서 클라이언트 파생 */
+interface CumulativeChartPoint {
+  label: string;
+  compareLabel: string | null;
+  // 당월(일별)/당해(월별) 누적 매출. 오늘/이번 달 이후 구간과 당월에 없는 일자는 null → 라인 끊김
+  cumulative: number | null;
+  // 전월 같은 일자까지의 누적 매출 (일별 모드 전용). 전월에 없는 날짜부터 null
+  compareCumulative: number | null;
+}
+
+/** KST 기준 오늘 (연/월/일) */
+interface TodayParts {
+  year: number;
+  month: number;
+  day: number;
+}
+
+function getTodayKST(now: Date): TodayParts {
+  const [year, month, day] = toKSTDateString(now).split("-").map(Number);
+  return { year, month, day };
+}
+
+/**
+ * 누적 라인을 그릴 선행 포인트 개수 (chart[] 인덱스 기준)
+ * - 과거 기간: Infinity (전체)
+ * - 현재 기간: 오늘 일자(일별) / 이번 달(월별)까지
+ * - 미래 기간: 0 (그리지 않음)
+ */
+function resolveVisibleCount(
+  period: DashboardPeriod,
+  year: number,
+  month: number,
+  today: TodayParts,
+): number {
+  if (year < today.year) return Infinity;
+  if (year > today.year) return 0;
+  if (period === "monthly") return today.month;
+  if (month < today.month) return Infinity;
+  if (month > today.month) return 0;
+  return today.day;
+}
+
+/**
+ * chart[]의 revenue / compareRevenue를 누적합으로 변환
+ * 서버가 1일~말일(일별) 또는 1~12월(월별) 순서로 빈 구간까지 채워 보내므로 인덱스 = 일/월 - 1
+ *
+ * 전월이 당월보다 긴 달이면(예: 9월 30일 ↔ 8월 31일) compareTail[]로 가로축을 긴 달에 맞춰
+ * 늘리고, 그 구간은 전월 라인만 그린다
+ */
+function buildCumulativeChart(
+  chart: readonly ChartDataPoint[],
+  compareTail: readonly CompareTailPoint[],
+  visibleCount: number,
+  compareVisibleCount: number,
+): CumulativeChartPoint[] {
+  let running = 0;
+  let compareRunning: number | null = 0;
+  const points = chart.map((point, index) => {
+    running += point.revenue;
+    if (compareRunning !== null) {
+      compareRunning =
+        point.compareRevenue === null
+          ? null
+          : compareRunning + point.compareRevenue;
+    }
+    return {
+      label: point.label,
+      compareLabel: point.compareLabel,
+      cumulative: index < visibleCount ? running : null,
+      compareCumulative:
+        compareRunning !== null && index < compareVisibleCount
+          ? compareRunning
+          : null,
+    };
+  });
+
+  // 당월에 없는 일자(예: 9월 조회 시 8월 31일)는 당월 누적을 항상 null로 두고 전월 누적만 잇는다
+  compareTail.forEach((point, offset) => {
+    const index = chart.length + offset;
+    if (compareRunning !== null) {
+      compareRunning += point.compareRevenue;
+    }
+    points.push({
+      label: point.label,
+      compareLabel: point.compareLabel,
+      cumulative: null,
+      compareCumulative:
+        compareRunning !== null && index < compareVisibleCount
+          ? compareRunning
+          : null,
+    });
+  });
+
+  return points;
+}
 
 /**
  * 관리자 대시보드 메인 컨텐츠
@@ -143,6 +249,30 @@ export function DashboardContent() {
     COLLECTION_COLORS.collected,
     COLLECTION_COLORS.uncollected,
   ];
+
+  // 누적 매출 차트: 현재 기간은 오늘(KST)/이번 달까지만 그리고,
+  // 전월 라인은 전월이 이번 달인 경우(미래 월 조회)에만 오늘까지 자른다.
+  // 가로축은 당월/전월 중 일수가 많은 달 기준 (data.compareTail)
+  const today = getTodayKST(now);
+  const visibleCount = resolveVisibleCount(period, year, month, today);
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const compareVisibleCount =
+    period === "daily"
+      ? resolveVisibleCount("daily", prevYear, prevMonth, today)
+      : 0;
+  const cumulativeChart = useMemo(
+    () =>
+      data
+        ? buildCumulativeChart(
+            data.chart,
+            data.compareTail,
+            visibleCount,
+            compareVisibleCount,
+          )
+        : [],
+    [data, visibleCount, compareVisibleCount],
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4">
@@ -435,9 +565,9 @@ export function DashboardContent() {
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} width="auto" />
                     <Tooltip
-                      itemSorter={revenueTooltipSorter}
+                      itemSorter={compareFirstTooltipSorter}
                       formatter={(value, name, item) => {
                         // 전월 비교 라인은 시리즈명("2026년 8월") 대신 해당 전월 일자("08/03")로 표기
                         const point = item?.payload as ChartDataPoint | undefined;
@@ -490,6 +620,77 @@ export function DashboardContent() {
                       />
                     )}
                   </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+                  데이터가 없습니다
+                </div>
+              )}
+            </div>
+
+            {/* 누적 매출 차트. 일별: 당월 누적 + 전월 같은 일자까지 누적(점선), 월별: 당해 연 누적 */}
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <h3 className="text-sm font-medium text-gray-900 mb-4">
+                {period === "daily" ? "월 누적 매출" : "연 누적 매출"}
+              </h3>
+              {cumulativeChart.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={cumulativeChart}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} width="auto" />
+                    <Tooltip
+                      itemSorter={compareFirstTooltipSorter}
+                      // 두 라인 모두 일자로 표기하므로 툴팁 상단 라벨 행(현재 일자)은 숨긴다
+                      labelStyle={{ display: "none" }}
+                      formatter={(value, name, item) => {
+                        // 시리즈명("9월 누적"/"전월") 대신 해당 일자("09/03"/"08/03")로 표기
+                        const point = item?.payload as
+                          | CumulativeChartPoint
+                          | undefined;
+                        const dateLabel =
+                          item?.dataKey === "compareCumulative"
+                            ? point?.compareLabel
+                            : point?.label;
+                        return [
+                          `${Number(value).toLocaleString()}원`,
+                          dateLabel ?? name,
+                        ];
+                      }}
+                    />
+                    <Legend />
+                    {/* 보이는 포인트가 1개뿐이면(매월 1일, 1월) 선이 그려지지 않으므로 점으로 표시 */}
+                    <Line
+                      type="monotone"
+                      dataKey="cumulative"
+                      name={
+                        period === "daily"
+                          ? `${month}월 누적`
+                          : `${year}년 누적`
+                      }
+                      stroke={CUMULATIVE_LINE_COLOR}
+                      strokeWidth={2}
+                      dot={visibleCount <= 1}
+                      activeDot={{ r: 4 }}
+                      connectNulls={false}
+                      isAnimationActive={false}
+                    />
+                    {/* 전월 누적 (점선). 일별 모드에서만, 전월에 없는 날짜부터 끊어서 표시 */}
+                    {period === "daily" && (
+                      <Line
+                        type="monotone"
+                        dataKey="compareCumulative"
+                        name="전월"
+                        stroke={COMPARE_LINE_COLOR}
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                        connectNulls={false}
+                        isAnimationActive={false}
+                      />
+                    )}
+                  </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
