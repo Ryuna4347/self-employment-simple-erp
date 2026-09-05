@@ -40,6 +40,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 address: true,
                 managerName: true,
                 PaymentType: true,
+                note: true,
                 isDeleted: true,
                 storeItems: {
                   select: {
@@ -121,6 +122,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           storeId: member.storeId,
           userId: user.id,
           collectionStatus: "UNCOLLECTED" as const,
+          // 매장 특이사항을 근무기록 메모 기본값으로 반영
+          note: member.store.note?.trim() ? member.store.note : null,
           storeNameSnapshot: member.store.name,
           storeAddressSnapshot: member.store.address,
           managerNameSnapshot: member.store.managerName,
