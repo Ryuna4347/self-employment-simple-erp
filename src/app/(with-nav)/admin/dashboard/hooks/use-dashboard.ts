@@ -41,6 +41,15 @@ export interface ChartDataPoint {
   compareLabel: string | null
 }
 
+// 전월이 당월보다 긴 달일 때(예: 9월 조회 ↔ 8월 31일) 당월에 없는 일자의 전월 매출.
+// 누적 매출 차트 가로축을 일수가 많은 달에 맞추는 용도. 그 외에는 빈 배열
+export interface CompareTailPoint {
+  // 당월에 없는 날이라 "MM/DD"가 아닌 일자 번호("31")
+  label: string
+  compareRevenue: number
+  compareLabel: string | null
+}
+
 // 비용 추이 차트 데이터 포인트
 interface ExpenseChartDataPoint {
   label: string
@@ -58,6 +67,7 @@ interface CollectionStatus {
 export interface DashboardData {
   summary: DashboardSummary
   chart: ChartDataPoint[]
+  compareTail: CompareTailPoint[]
   expenseChart: ExpenseChartDataPoint[]
   deletedStores: DeletedStore[]
   newlyAddedStores: NewlyAddedStore[]
@@ -79,6 +89,7 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
  * 관리자 대시보드 데이터 조회 훅
  *
  * 일별 모드에서는 API가 매출 차트용 전월 값(chart[].compareRevenue/compareLabel)을 항상 함께 반환한다.
+ * 전월이 당월보다 긴 달이면 당월에 없는 일자의 전월 매출을 compareTail[]로 덧붙인다.
  *
  * @param period - 조회 기간 (daily: 일별, monthly: 월별)
  * @param year - 조회 연도

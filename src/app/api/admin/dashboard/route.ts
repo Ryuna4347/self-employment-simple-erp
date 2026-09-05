@@ -293,6 +293,17 @@ export async function GET(request: NextRequest) {
       compareLabel: compareIndexToLabel(idx),
     }))
 
+    // 전월이 당월보다 긴 달일 때(예: 9월 30일 조회 ↔ 8월 31일) 당월에 없는 일자의 전월 매출.
+    // 누적 매출 차트가 두 달 중 일수가 많은 쪽에 가로축을 맞추기 위해 사용한다
+    const compareTail = Array.from(compareRevenueMap.entries())
+      .filter(([idx]) => idx > indexCount)
+      .map(([idx, revenue]) => ({
+        // 당월에 없는 날이라 "MM/DD" 대신 일자 번호만 라벨로 쓴다
+        label: String(idx),
+        compareRevenue: revenue,
+        compareLabel: compareIndexToLabel(idx),
+      }))
+
     // === expenseChart 조립 (월별 빈 월 채우기) ===
     const expenseChartMap = new Map<string, number>()
     const yearMonths = eachMonthOfInterval({
@@ -320,6 +331,7 @@ export async function GET(request: NextRequest) {
     return apiSuccess({
       summary,
       chart,
+      compareTail,
       expenseChart,
       deletedStores,
       newlyAddedStores,
