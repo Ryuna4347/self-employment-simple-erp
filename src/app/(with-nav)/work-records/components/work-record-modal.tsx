@@ -229,6 +229,11 @@ export function WorkRecordModal({
     storeDropdown.setSearchTerm(store.name)
     storeDropdown.setShowDropdown(false)
 
+    // 매장 특이사항을 메모 기본값으로 채움 (추가 모드에서만, 등록 전 수정 가능)
+    if (!isEditMode) {
+      setValue("note", store.note ?? "")
+    }
+
     // 매장 기본 품목 로드 (추가 모드에서만, 휴업&폐업이 아닐 때)
     if (!isEditMode && !isClosed && store.storeItems.length > 0) {
       const newItems = store.storeItems.map((item) => ({
