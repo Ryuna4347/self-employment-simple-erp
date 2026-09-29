@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "@/components/ui/sonner";
 import { createQueryClient } from "@/lib/query-client";
 import type { Role } from "@/generated/prisma/client";
+import { AddressActionProvider } from "./address-action-provider";
 
 // 현재 로그인한 사용자 정보 Context
 interface UserContextValue {
@@ -33,6 +34,7 @@ interface AppProvidersProps {
  *
  * **Provider 구성**:
  * - QueryClientProvider - react-query (401 전역 처리 포함)
+ * - AddressActionProvider - 카드 주소 탭 동작 (복사 / 지도 앱 선택 시트)
  *
  * **세션 처리**:
  * - 서버 컴포넌트(layout.tsx)에서 auth() 호출하여 처리
@@ -46,11 +48,13 @@ export function AppProviders({ children, user }: AppProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {user ? (
-        <UserContext.Provider value={user}>{children}</UserContext.Provider>
-      ) : (
-        children
-      )}
+      <AddressActionProvider>
+        {user ? (
+          <UserContext.Provider value={user}>{children}</UserContext.Provider>
+        ) : (
+          children
+        )}
+      </AddressActionProvider>
       <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

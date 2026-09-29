@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useCallback, useState } from "react"
-import { MapPin, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
-import { toast } from "sonner"
+import { ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
+import { AddressButton } from "@/components/common/address-button"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Store } from "../hooks/use-stores"
@@ -97,20 +97,8 @@ export const StoreCard = React.memo(function StoreCard({
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              aria-label={`주소 복사: ${store.address}`}
-              className="flex items-start gap-1.5 text-sm text-gray-600 active:bg-gray-100 rounded"
-              onClick={(e) => {
-                e.stopPropagation()
-                navigator.clipboard.writeText(store.address)
-                toast.success("주소가 복사되었습니다")
-              }}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              <MapPin className="size-4 flex-shrink-0 mt-0.5" />
-              <span className="line-clamp-1">{store.address}</span>
-            </button>
+            {/* 주소: 데스크톱 복사 / 모바일 지도 앱 연동 */}
+            <AddressButton address={store.address} />
           </div>
 
           <ChevronDown

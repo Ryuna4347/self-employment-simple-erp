@@ -70,12 +70,17 @@ src/
 │   │   ├── error-view.tsx
 │   │   ├── loading-view.tsx
 │   │   ├── searchable-dropdown.tsx
-│   │   └── user-filter.tsx
+│   │   ├── user-filter.tsx
+│   │   ├── address-button.tsx        # 카드 주소 버튼 (데스크톱 복사 / 모바일 지도 앱 연동)
+│   │   └── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
 │   └── providers/
-│       └── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
+│       ├── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
+│       └── address-action-provider.tsx  # 주소 탭 동작 전역 Provider (선택 시트 1개 관리)
 ├── hooks/               # 전역 커스텀 훅
 │   ├── use-dropdown-state.ts
 │   ├── use-is-mobile.ts
+│   ├── use-is-touch-device.ts            # (pointer: coarse) 터치 기기 판별
+│   ├── use-address-action-preference.ts  # 주소 탭 동작 기억값 (localStorage, 기기별)
 │   ├── use-session-sync.ts
 │   └── use-users.ts
 ├── lib/                 # 유틸리티 & 라이브러리
@@ -95,6 +100,7 @@ src/
 │   ├── get-token.ts         # JWT 토큰 조회
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
+│   ├── map-links.ts         # 주소 → 지도 앱(카카오맵/네이버지도) 연동 URL, 주소 복사
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
 │   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 5초, 401 전역 처리)
 │   ├── role-utils.ts        # 역할 권한 체크 유틸 (VIEWER 등)
@@ -180,7 +186,7 @@ src/app/api/
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역, 수금 요청, 일일 비용 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹/코스 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 (미구현) |
-| 프로필 | `/profile` | 비밀번호 변경 |
+| 프로필 | `/profile` | 비밀번호 변경, 이 기기 설정(주소 탭 동작) |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 공지, 엑셀 내보내기 |
 
 ## 데이터 모델 (Prisma)
@@ -298,3 +304,4 @@ src/app/api/
 | 2026-09-03 | 근무기록 수정(PUT) 시 기존 품목의 salesAmount 보존 (`toRecordItemDataPreservingSales`: 품목 단위 매칭 + 기록 단위 합계 보존) | lib/sales-utils, work-records/[id] API, work-records AGENTS.md | 수정은 품목 삭제 후 재생성 구조라, 수금 처리로 amount가 0이 된 기록을 어드민이 고치면 매출 원금이 0으로 덮어써지는 회귀 방지. 최상위 품목 1개에 기록 합계를 적는 현장 관행(품목명 변경/삭제 시 개별 매칭 실패)을 기록 합계 보존으로 반영. 기준일 09-03, 배포 전 생성 기록은 배포 직후 백필(salesAmount = amount)로 보정 |
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
+| 2026-09-29 | 매장/근무기록 카드 주소 탭 시 모바일(터치 기기)은 선택 시트(카카오맵/네이버지도/주소 복사) 표시, "선택 기억하기" 시 다음부터 바로 실행. 기억값은 localStorage(기기별, DB 저장 안 함)이며 내 정보 > 이 기기 설정에서 변경/해제. 데스크톱은 기존대로 즉시 복사 | common/address-*, providers/address-action-provider, hooks/use-is-touch-device·use-address-action-preference, lib/map-links, profile AGENTS.md | 현장 순회 중 주소를 복사해 지도 앱에 붙여넣는 번거로움 해소. 직원마다 쓰는 지도 앱이 달라 선택형으로 제공하고 기기별로 기억 |
