@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
-import { Header, BottomNav } from "@/components/common";
+// 배럴(@/components/common) 대신 개별 파일에서 import: 배럴을 거치면 UserFilter(Radix Select) 등
+// 레이아웃에서 쓰지 않는 클라이언트 컴포넌트까지 모든 페이지의 초기 번들에 포함된다
+import { Header } from "@/components/common/header";
+import { BottomNav } from "@/components/common/bottom-nav";
 import { AppProviders } from "@/components/providers/app-providers";
 import { auth } from "@/auth";
 

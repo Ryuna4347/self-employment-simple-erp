@@ -9,6 +9,8 @@ interface FabMenuProps {
   onApplyTemplate: () => void;
   onBulkDelete: () => void;
   onRefresh: () => void;
+  /** 메뉴가 열릴 때 호출 (모달에서 쓸 데이터 미리 받기 등) */
+  onMenuOpen?: () => void;
   isRefreshing: boolean;
   hasRecords: boolean;
 }
@@ -18,10 +20,11 @@ interface FabMenuProps {
  * - 근무 기록 추가
  * - 코스 적용
  */
-export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh, isRefreshing, hasRecords }: FabMenuProps) {
+export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh, onMenuOpen, isRefreshing, hasRecords }: FabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleToggle = () => {
+    if (!isOpen) onMenuOpen?.();
     setIsOpen(!isOpen);
   };
 

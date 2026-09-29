@@ -1,13 +1,16 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
 import { Plus, Search, Store as StoreIcon } from "lucide-react"
 import { useUser } from "@/components/providers/app-providers"
 import { canWrite } from "@/lib/role-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
 import { RefreshFab } from "@/components/common/refresh-fab"
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { StoreCard, StoreModal } from "./index"
+import { StoreCard } from "./store-card"
 import {
   useStoresInfinite,
   useCreateStore,
@@ -16,6 +19,14 @@ import {
   type Store,
   type StoreInput,
 } from "../hooks/use-stores"
+
+// 매장 추가/수정 모달은 열 때만 필요하므로 초기 번들에서 분리한다
+// (로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다)
+const loadStoreModal = () => import("./store-modal")
+const StoreModal = dynamic(
+  () => loadStoreModal().then((m) => m.StoreModal),
+  { ssr: false }
+)
 
 /**
  * 매장 관리 클라이언트 컴포넌트
@@ -47,6 +58,13 @@ export function StoresClient() {
     () => data?.pages.flatMap((page) => page.stores) ?? [],
     [data]
   )
+
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModal = writable && !isLoading
+  useEffect(() => {
+    if (!shouldPreloadModal) return
+    return preloadOnIdle([loadStoreModal])
+  }, [shouldPreloadModal])
 
   // 무한 스크롤 트리거
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -198,18 +216,20 @@ export function StoresClient() {
         </button>
       )}
 
-      {/* 매장 추가/수정 모달 */}
+      {/* 매장 추가/수정 모달 (처음 열 때 마운트) */}
       {writable && (
-        <StoreModal
-          open={isModalOpen}
-          onOpenChange={(open) => {
-            setIsModalOpen(open)
-            if (!open) setEditingStore(null)
-          }}
-          onSubmit={handleModalSubmit}
-          editStore={editingStore}
-          isLoading={isSubmitting}
-        />
+        <MountOnFirstOpen open={isModalOpen}>
+          <StoreModal
+            open={isModalOpen}
+            onOpenChange={(open) => {
+              setIsModalOpen(open)
+              if (!open) setEditingStore(null)
+            }}
+            onSubmit={handleModalSubmit}
+            editStore={editingStore}
+            isLoading={isSubmitting}
+          />
+        </MountOnFirstOpen>
       )}
     </div>
   )

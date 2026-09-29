@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
+// 고정폭 글꼴(Geist Mono)은 화면에서 쓰지 않아 제거 (모든 페이지에서 폰트 파일을 미리 받던 비용 절감)
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -26,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-w-[360px]`}
+        className={`${geistSans.variable} antialiased min-w-[360px]`}
       >
         {children}
         <SpeedInsights />

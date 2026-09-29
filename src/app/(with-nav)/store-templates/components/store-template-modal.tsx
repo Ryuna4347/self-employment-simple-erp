@@ -151,8 +151,8 @@ export function StoreTemplateModal({
   // 선택된 매장 목록
   const [selectedStores, setSelectedStores] = useState<SelectedStore[]>([])
 
-  // 매장 목록 조회
-  const { data: stores = [] } = useStores(undefined)
+  // 매장 목록 조회 (모달이 열려 있을 때만)
+  const { data: stores = [], isLoading: isLoadingStores } = useStores(undefined, { enabled: open })
 
   // DnD 센서 설정
   const sensors = useSensors(
@@ -344,7 +344,7 @@ export function StoreTemplateModal({
                 )}
                 onItemSelect={handleStoreSelect}
                 placeholder="매장 검색..."
-                emptyMessage="검색 결과가 없습니다"
+                emptyMessage={isLoadingStores ? "매장 목록을 불러오는 중..." : "검색 결과가 없습니다"}
               />
             </div>
 

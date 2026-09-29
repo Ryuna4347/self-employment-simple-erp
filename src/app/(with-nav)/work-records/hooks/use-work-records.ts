@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import { STORE_VISITS_KEY } from "./use-store-visits"
 import type { PaymentType } from "@/generated/prisma/client"
@@ -106,13 +106,16 @@ interface PaginationInfo {
   hasPrev: boolean
 }
 
+// 목록 한 페이지 데이터
+interface WorkRecordsPage {
+  records: WorkRecordResponse[]
+  summary: WorkRecordsSummary
+  pagination: PaginationInfo
+}
+
 // API 응답 타입
 interface WorkRecordsApiResponse {
-  data: {
-    records: WorkRecordResponse[]
-    summary: WorkRecordsSummary
-    pagination: PaginationInfo
-  }
+  data: WorkRecordsPage
 }
 
 export const WORK_RECORDS_KEY = ["work-records"] as const
@@ -120,9 +123,25 @@ const DASHBOARD_KEY = ["admin", "dashboard"] as const
 
 export const WORK_RECORDS_LIMIT = 100
 
+// 목록 쿼리 키의 조회 범위 (날짜 + 담당자 + 검색어)
+interface WorkRecordsScope {
+  date: string
+  userId?: string
+  search?: string
+}
+
+/** 근무기록 목록 쿼리 키 (useWorkRecords와 캐시 직접 갱신에서 공용) */
+function workRecordsListKey(scope: WorkRecordsScope) {
+  return [...WORK_RECORDS_KEY, scope] as const
+}
+
+function isWorkRecordsScope(value: unknown): value is WorkRecordsScope {
+  return typeof value === "object" && value !== null && "date" in value
+}
+
 export function useWorkRecords(date: string, userId?: string, search?: string) {
   return useInfiniteQuery({
-    queryKey: [...WORK_RECORDS_KEY, { date, userId, search }],
+    queryKey: workRecordsListKey({ date, userId, search }),
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({ date })
       if (userId) params.set("userId", userId)
@@ -136,6 +155,16 @@ export function useWorkRecords(date: string, userId?: string, search?: string) {
     getNextPageParam: (lastPage) =>
       lastPage.pagination.hasNext ? lastPage.pagination.page + 1 : undefined,
     enabled: !!date,
+    // 같은 날짜·담당자에서 검색어만 바뀐 경우 새 결과가 올 때까지 이전 목록을 유지한다
+    // (목록이 "로딩 중..."으로 깜빡이지 않도록. 날짜/담당자가 바뀌면 다른 데이터라 유지하지 않음)
+    placeholderData: (previousData, previousQuery) => {
+      const previousScope = previousQuery?.queryKey[1]
+      const isSameScope =
+        isWorkRecordsScope(previousScope) &&
+        previousScope.date === date &&
+        previousScope.userId === userId
+      return isSameScope ? previousData : undefined
+    },
   })
 }
 
@@ -251,16 +280,59 @@ export function useBulkDeleteWorkRecordsByIds() {
   })
 }
 
+// 근무기록 순서 변경 입력
+export interface ReorderWorkRecordsInput {
+  date: string
+  /** 목록 조회 시 사용한 담당자 필터 (캐시 갱신용, 서버로 보내지 않음) */
+  userId?: string
+  records: { id: string; sortOrder: number }[]
+}
+
+/**
+ * 캐시된 목록(무한 스크롤 페이지들)을 새 순서로 재배치한다.
+ * 페이지별 건수는 그대로 두고, 순서 정보가 없는 기록은 기존 상대 순서를 유지한 채 뒤로 보낸다.
+ */
+function reorderPages(
+  data: InfiniteData<WorkRecordsPage, number>,
+  sortOrderById: Map<string, number>
+): InfiniteData<WorkRecordsPage, number> {
+  const sorted = data.pages
+    .flatMap((page) => page.records)
+    .map((record, index) => ({
+      record,
+      order: sortOrderById.get(record.id) ?? sortOrderById.size + index,
+    }))
+    .sort((a, b) => a.order - b.order)
+    .map(({ record }) => record)
+
+  let offset = 0
+  const pages = data.pages.map((page) => {
+    const records = sorted.slice(offset, offset + page.records.length)
+    offset += page.records.length
+    return { ...page, records }
+  })
+  return { ...data, pages }
+}
+
 // 근무기록 순서 변경 훅
 export function useReorderWorkRecords() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: { date: string; records: { id: string; sortOrder: number }[] }) => {
+    mutationFn: async ({ date, records }: ReorderWorkRecordsInput) => {
       await apiClient("/api/work-records/reorder", {
         method: "PATCH",
-        json: data,
+        json: { date, records },
       })
+    },
+    onMutate: ({ date, userId, records }) => {
+      // 목록 화면은 로컬 상태로 순서를 즉시 반영하므로 캐시도 같은 순서로 맞춰 둔다.
+      // (성공 시 재조회 없이도, 다른 날짜에 갔다 오거나 재마운트될 때 이전 순서가 잠깐 보였다가 바뀌지 않도록)
+      const sortOrderById = new Map(records.map((r) => [r.id, r.sortOrder]))
+      queryClient.setQueryData<InfiniteData<WorkRecordsPage, number>>(
+        workRecordsListKey({ date, userId, search: undefined }),
+        (old) => (old ? reorderPages(old, sortOrderById) : old)
+      )
     },
     onError: () => {
       // 실패 시 서버 상태로 복원

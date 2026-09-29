@@ -1,15 +1,30 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RefreshFab } from "@/components/common/refresh-fab"
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open"
 import { useUser } from "@/components/providers/app-providers"
 import { canWrite } from "@/lib/role-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
 import { useNotices, type NoticeRecord } from "../hooks/use-notices"
 import { NoticeCard } from "./notice-card"
-import { NoticeModal } from "./notice-modal"
-import { DeleteNoticeModal } from "./delete-notice-modal"
+
+// 모달은 열 때만 필요하므로 초기 번들에서 분리한다
+// (로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다)
+const loadNoticeModal = () => import("./notice-modal")
+const loadDeleteNoticeModal = () => import("./delete-notice-modal")
+
+const NoticeModal = dynamic(
+  () => loadNoticeModal().then((m) => m.NoticeModal),
+  { ssr: false }
+)
+const DeleteNoticeModal = dynamic(
+  () => loadDeleteNoticeModal().then((m) => m.DeleteNoticeModal),
+  { ssr: false }
+)
 
 export function NoticesContent() {
   const { role } = useUser()
@@ -21,6 +36,13 @@ export function NoticesContent() {
   const [deletingNotice, setDeletingNotice] = useState<NoticeRecord | null>(null)
 
   const { data: notices, isLoading, isError, isFetching, refetch } = useNotices()
+
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModals = writable && !isLoading
+  useEffect(() => {
+    if (!shouldPreloadModals) return
+    return preloadOnIdle([loadNoticeModal, loadDeleteNoticeModal])
+  }, [shouldPreloadModals])
 
   const handleEdit = (notice: NoticeRecord) => {
     setEditingNotice(notice)
@@ -98,13 +120,15 @@ export function NoticesContent() {
         </div>
       )}
 
-      {/* 생성/수정 모달 */}
+      {/* 생성/수정 모달 (처음 열 때 마운트) */}
       {writable && (
-        <NoticeModal
-          open={noticeModalOpen}
-          onOpenChange={handleModalClose}
-          editingNotice={editingNotice}
-        />
+        <MountOnFirstOpen open={noticeModalOpen}>
+          <NoticeModal
+            open={noticeModalOpen}
+            onOpenChange={handleModalClose}
+            editingNotice={editingNotice}
+          />
+        </MountOnFirstOpen>
       )}
 
       {/* 삭제 확인 모달 */}

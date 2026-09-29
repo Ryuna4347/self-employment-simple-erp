@@ -69,6 +69,7 @@ src/
 │   │   ├── bottom-nav.tsx
 │   │   ├── error-view.tsx
 │   │   ├── loading-view.tsx
+│   │   ├── mount-on-first-open.tsx  # 모달을 처음 열 때 마운트 (지연 로드 모달용)
 │   │   ├── searchable-dropdown.tsx
 │   │   └── user-filter.tsx
 │   └── providers/
@@ -93,10 +94,12 @@ src/
 │   │   └── daily-cash-collection.ts  # 일별 직원 현금 수금 집계
 │   ├── get-session.ts       # 서버사이드 세션 조회
 │   ├── get-token.ts         # JWT 토큰 조회
+│   ├── image-compression.ts # 업로드 전 이미지 리사이즈·JPEG 압축
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
-│   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 5초, 401 전역 처리)
+│   ├── preload-on-idle.ts   # 유휴 시간에 지연 로드 청크 미리 받기
+│   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 기본 5초, 4xx 재시도 안 함, 401 전역 처리)
 │   ├── role-utils.ts        # 역할 권한 체크 유틸 (VIEWER 등)
 │   ├── supabase.ts          # Supabase 클라이언트 설정
 │   ├── utils.ts             # 범용 유틸리티
@@ -246,6 +249,12 @@ src/app/api/
 - 스키마 변경 시 `prisma db push` 대신 `prisma migrate dev` 사용 (마이그레이션 히스토리 유지)
 - React 19 환경: `useEffect` 내 직접 `setState` 호출 금지 — URL/props 파생값은 `useMemo`로, 외부 시스템(matchMedia 등) 구독은 `useSyncExternalStore`로 처리. 외부 prop 트리거 동기화처럼 회피가 어려운 경우만 블록 단위 `eslint-disable`로 정당화 주석과 함께 허용
 - TypeScript `any` 캐스팅 회피 — 불가피하면 `as unknown as T` 경유로 명시적 우회
+- 프론트 성능 (초기 번들·요청 최소화)
+  - 모달은 `next/dynamic`(`ssr: false`)으로 분리하고 `MountOnFirstOpen`으로 감싸 처음 열 때 마운트한다. 로더 함수(`const loadX = () => import("./x")`)를 하나 만들어 `dynamic()`과 `preloadOnIdle()`에 같이 넘긴다 (`import()` 호출 위치가 다르면 같은 파일이라도 청크가 따로 생성됨)
+  - 모달 안의 조회는 `enabled: open`으로 열려 있을 때만 실행한다
+  - 지연 마운트되는 모달은 `open=true` 상태로 처음 마운트되어도 올바르게 초기화되어야 한다 (마운트 시점에 상태를 지우는 effect 금지 — 예: `work-record-modal`의 휴업&폐업 해제 시 이미지 초기화는 상태 전환 시에만 실행)
+  - recharts 등 무거운 라이브러리는 화면 일부를 컴포넌트로 분리해 지연 로드한다 (예: `admin/dashboard/components/dashboard-charts.tsx`)
+  - 레이아웃/공용 컴포넌트는 `@/components/common` 배럴 대신 개별 파일에서 import한다 (배럴을 거치면 쓰지 않는 컴포넌트까지 초기 번들에 포함될 수 있음)
 
 ## 하네스: Claude × Codex 협업 (MCP 기반)
 
@@ -298,3 +307,4 @@ src/app/api/
 | 2026-09-03 | 근무기록 수정(PUT) 시 기존 품목의 salesAmount 보존 (`toRecordItemDataPreservingSales`: 품목 단위 매칭 + 기록 단위 합계 보존) | lib/sales-utils, work-records/[id] API, work-records AGENTS.md | 수정은 품목 삭제 후 재생성 구조라, 수금 처리로 amount가 0이 된 기록을 어드민이 고치면 매출 원금이 0으로 덮어써지는 회귀 방지. 최상위 품목 1개에 기록 합계를 적는 현장 관행(품목명 변경/삭제 시 개별 매칭 실패)을 기록 합계 보존으로 반영. 기준일 09-03, 배포 전 생성 기록은 배포 직후 백필(salesAmount = amount)로 보정 |
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
+| 2026-09-29 | 프론트 성능 개선: 모달·대시보드 차트·달력 지연 로드(`next/dynamic` + `MountOnFirstOpen` + `preloadOnIdle`), 모달 조회를 열 때만 실행(`enabled: open`, FAB 열 때 미리 조회), with-nav 레이아웃 배럴 import 제거, Geist Mono 제거, 4xx 재시도 중단, 직원/매장/코스 목록 staleTime(5분/1분), 근무기록 카드 상세 영역을 처음 펼칠 때 렌더링(첨부 이미지 지연 다운로드), 업로드 전 이미지 압축(긴 변 1600px JPEG, 원본 20MB까지 허용), 검색 디바운스 1초→0.5초 + 결과 도착 전 이전 목록 유지, 순서 변경 시 캐시 동기화 | common/mount-on-first-open, lib/preload-on-idle·image-compression·query-client, work-records·stores·store-templates·admin(대시보드/비용/공지/직원/미수금) 컴포넌트·훅, work-records·dashboard AGENTS.md | 주요 페이지의 첫 로드 JS(gzip)를 약 19~125KB 줄이고, 쓰지 않는 모달용 전체 매장/코스/직원 목록 조회와 접힌 카드의 원본 사진 다운로드를 없애 모바일 첫 로드와 업로드 시간을 단축 |

@@ -37,7 +37,7 @@
 - 추가/제거 매장 카운트 및 목록은 근무기록 1건 이상 보유 매장만 포함 (등록만 된 빈 매장 제외)
 
 ### 누적 매출 차트 (클라이언트 파생)
-- 매출 추이 차트 바로 아래. 제목은 일별 "월 누적 매출", 월별 "연 누적 매출". `chart[].revenue`·`compareRevenue`와 `compareTail[]`을 컴포넌트에서 누적합(`useMemo`)으로 파생한다 (`dashboard-content.tsx`의 `buildCumulativeChart`)
+- 매출 추이 차트 바로 아래. 제목은 일별 "월 누적 매출", 월별 "연 누적 매출". `chart[].revenue`·`compareRevenue`와 `compareTail[]`을 컴포넌트에서 누적합(`useMemo`)으로 파생한다 (`dashboard-charts.tsx`의 `buildCumulativeChart`. 표시 구간 `visibleCount`/`compareVisibleCount`는 `dashboard-content.tsx`에서 계산해 넘김)
 - 현재 기간(이번 달/올해)은 오늘(KST, `toKSTDateString`)/이번 달까지만 그리고 이후 구간은 `null`(라인 끊김). 과거 기간은 전체, 미래 기간은 그리지 않음
 - **가로축은 당월/전월 중 일수가 많은 달 기준**. 전월이 더 길면(예: 9월 조회 ↔ 8월 31일) `compareTail[]`만큼 축을 늘리고, 늘어난 구간은 당월 누적을 `null`로 둬 전월 점선만 이어 그린다. 그 구간의 축 라벨은 `"MM/DD"`가 아닌 일자 번호(`"31"`)
 - 전월 누적(점선, 일별 모드 전용)은 전월 같은 일자까지의 누적이며 완결된 달이므로 전체를 그린다. 단 미래 월 조회로 전월이 이번 달이면 오늘까지만. 전월에 없는 날짜(예: 3/31 ↔ 2월)부터는 `null`
@@ -56,7 +56,9 @@
 dashboard/
 ├── page.tsx
 ├── components/
-│   ├── dashboard-content.tsx   # 메인 뷰 (필터 + 차트 + 카드)
+│   ├── dashboard-content.tsx   # 메인 뷰 (필터 + 요약 카드 + 매장 목록). 차트·모달은 next/dynamic으로 지연 로드
+│   ├── dashboard-charts.tsx    # 차트 섹션 (recharts: 매출 추이/누적 매출/비용 추이/수금 현황, 누적 데이터 파생)
+│   ├── store-list-modal.tsx    # 제거/추가 매장 "더보기" 전체 목록 모달
 │   └── index.ts
 └── hooks/
     └── use-dashboard.ts        # TanStack Query (period/year/month 파라미터)
