@@ -62,12 +62,18 @@ function runAddressAction(action: AddressAction, address: string, isTouchDevice:
 
   const label = ADDRESS_ACTION_LABELS[action]
   openMapApp(action, address, {
-    // iOS에서 앱이 열리지 않은 경우 (미설치 등) → 웹 지도 안내
-    onAppNotOpened: (webUrl) => {
+    // iOS에서 앱이 열리지 않은 경우 (미설치 등) → 웹 지도 또는 설치 페이지 안내
+    onAppNotOpened: (fallback) => {
       toast(`${label} 앱이 열리지 않았나요?`, {
-        description: "앱이 설치되어 있지 않다면 웹 지도로 볼 수 있습니다",
+        description:
+          fallback.type === "web"
+            ? "앱이 설치되어 있지 않다면 웹 지도로 볼 수 있습니다"
+            : "앱이 설치되어 있지 않다면 App Store에서 설치할 수 있습니다",
         duration: 6000,
-        action: { label: "웹에서 열기", onClick: () => openMapWeb(webUrl) },
+        action: {
+          label: fallback.type === "web" ? "웹에서 열기" : "앱 설치하기",
+          onClick: () => openMapWeb(fallback.url),
+        },
       })
     },
   })
