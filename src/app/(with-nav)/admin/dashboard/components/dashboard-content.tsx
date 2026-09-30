@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   DollarSign,
@@ -22,7 +22,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toKSTDateString } from "@/lib/date-utils";
+import { preloadOnIdle } from "@/lib/preload-on-idle";
 import { useDashboard, type DashboardPeriod } from "../hooks/use-dashboard";
+import { DashboardChartsSkeleton } from "./dashboard-charts-skeleton";
+
+// 차트 로딩 중 자리 표시가 현재 조회 모드(월별 4개 / 일별 3개 차트)와 같은 높이가 되도록 모드를 넘긴다.
+// next/dynamic의 loading에는 컴포넌트 props가 전달되지 않아 context로 전달한다
+const ChartsPeriodContext = createContext<DashboardPeriod>("monthly");
+
+function DashboardChartsLoading() {
+  return <DashboardChartsSkeleton period={useContext(ChartsPeriodContext)} />;
+}
 
 // 차트(recharts)는 무거우므로 초기 번들에서 분리한다.
 // 마운트 직후 청크를 미리 받기 시작해 대시보드 데이터 조회와 병렬로 내려받는다 (아래 useEffect)
@@ -32,17 +42,14 @@ const DashboardCharts = dynamic(
   () => loadDashboardCharts().then((m) => m.DashboardCharts),
   {
     ssr: false,
-    loading: () => (
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6 h-[330px] flex items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    ),
+    loading: () => <DashboardChartsLoading />,
   },
 );
 
-// 제거/추가 매장 "더보기" 모달은 열 때만 필요하므로 분리한다
+// 제거/추가 매장 "더보기" 모달은 열 때만 필요하므로 분리한다 (데이터를 그린 뒤 유휴 시간에 미리 받음)
+const loadStoreListModal = () => import("./store-list-modal");
 const StoreListModal = dynamic(
-  () => import("./store-list-modal").then((m) => m.StoreListModal),
+  () => loadStoreListModal().then((m) => m.StoreListModal),
   { ssr: false },
 );
 
@@ -154,6 +161,14 @@ export function DashboardContent() {
   useEffect(() => {
     loadDashboardCharts().catch(() => {});
   }, []);
+
+  // "더보기" 모달 청크는 데이터를 그린 뒤 유휴 시간에 미리 받아 둔다.
+  // 처음 열 때 받으면, 열어 둔 화면에서 새 배포 이후 처음 누를 때 이전 배포의 청크를 찾지 못해 오류가 날 수 있다
+  const hasData = !!data;
+  useEffect(() => {
+    if (!hasData) return;
+    return preloadOnIdle([loadStoreListModal]);
+  }, [hasData]);
 
   // 매출 추이 막대 클릭: 같은 막대를 다시 누르면 상세 패널을 닫는다
   const handleBarSelect = (label: string) => {
@@ -443,16 +458,18 @@ export function DashboardContent() {
               );
             })()}
 
-          {/* 차트 섹션 (지연 로드) */}
-          <DashboardCharts
-            data={data}
-            period={period}
-            year={year}
-            month={month}
-            visibleCount={visibleCount}
-            compareVisibleCount={compareVisibleCount}
-            onBarSelect={handleBarSelect}
-          />
+          {/* 차트 섹션 (지연 로드. 로딩 중에는 같은 높이의 자리 표시) */}
+          <ChartsPeriodContext.Provider value={period}>
+            <DashboardCharts
+              data={data}
+              period={period}
+              year={year}
+              month={month}
+              visibleCount={visibleCount}
+              compareVisibleCount={compareVisibleCount}
+              onBarSelect={handleBarSelect}
+            />
+          </ChartsPeriodContext.Provider>
 
           {/* 제거된 매장 + 추가된 매장 */}
           <div className="space-y-6">

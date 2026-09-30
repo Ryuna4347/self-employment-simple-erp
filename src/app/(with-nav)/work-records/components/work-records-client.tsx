@@ -171,7 +171,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   }, [queryClient, userId])
 
   // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중, 삭제 모드에는 비활성화)
-  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode
+  // 새 목록을 불러오는 동안 이전 목록(placeholder)을 보여 줄 때도 비활성화한다.
+  // 검색어를 지운 직후 이전 검색 결과만 보이는 상태에서 정렬하면 일부 기록의 순서만 저장되기 때문
+  const canReorder =
+    (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode && !isPlaceholderData
 
   // 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID
   // 일반 사용자는 미수금(UNCOLLECTED) 기록만 삭제할 수 있다 (서버 권한 모델과 동일)
@@ -199,13 +202,18 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     })
   }, [])
 
-  const allSelected = selectableIds.size > 0 && selectedIds.size === selectableIds.size
+  // 선택은 지금 목록에서 선택 가능한 기록으로만 한정한다.
+  // 목록이 바뀌어(새로 불러온 결과 등) 화면에서 사라진 기록이 선택에 남아 함께 삭제되지 않도록
+  const visibleSelectedIds = useMemo(
+    () => new Set([...selectedIds].filter((id) => selectableIds.has(id))),
+    [selectedIds, selectableIds]
+  )
+
+  const allSelected = selectableIds.size > 0 && visibleSelectedIds.size === selectableIds.size
 
   const toggleAll = useCallback(() => {
-    setSelectedIds((prev) =>
-      prev.size === selectableIds.size ? new Set() : new Set(selectableIds)
-    )
-  }, [selectableIds])
+    setSelectedIds(allSelected ? new Set() : new Set(selectableIds))
+  }, [allSelected, selectableIds])
 
   const exitDeleteMode = useCallback(() => {
     setDeleteMode(false)
@@ -355,7 +363,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : (
           // 검색어 변경으로 새 결과를 불러오는 동안에는 이전 목록을 흐리게 유지한다
           <div className={cn("transition-opacity", isPlaceholderData && "opacity-60")} aria-busy={isPlaceholderData}>
-            <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} deleteMode={deleteMode} selectedIds={selectedIds} selectableIds={selectableIds} onToggleSelect={toggleSelect} />
+            <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} deleteMode={deleteMode} selectedIds={visibleSelectedIds} selectableIds={selectableIds} onToggleSelect={toggleSelect} />
           </div>
         )}
 
@@ -373,14 +381,17 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             onRefresh={() => refetch()}
             onMenuOpen={handleFabMenuOpen}
             isRefreshing={isFetching}
-            hasRecords={records.length > 0}
+            // 새 목록을 불러오는 동안(이전 목록 표시 중)에는 삭제 모드 진입 버튼을 숨긴다.
+            // 전체 삭제는 새 필터 기준으로 실행되는데 건수는 이전 목록 기준으로 보이는 문제 방지
+            // (변경 전에도 불러오는 동안에는 목록이 비어 있어 이 버튼이 보이지 않았다)
+            hasRecords={records.length > 0 && !isPlaceholderData}
           />
         )}
 
         {/* 삭제 모드 하단 액션 바 */}
         {writable && deleteMode && (
           <DeleteModeActionBar
-            selectedCount={selectedIds.size}
+            selectedCount={visibleSelectedIds.size}
             selectableCount={selectableIds.size}
             allSelected={allSelected}
             onToggleAll={toggleAll}
@@ -433,7 +444,7 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             <DeleteSelectedModal
               open={deleteSelectedModalOpen}
               onOpenChange={setDeleteSelectedModalOpen}
-              selectedIds={[...selectedIds]}
+              selectedIds={[...visibleSelectedIds]}
               onDeleted={exitDeleteMode}
             />
           </MountOnFirstOpen>
