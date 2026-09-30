@@ -325,12 +325,16 @@ export function useReorderWorkRecords() {
         json: { date, records },
       })
     },
-    onMutate: ({ date, userId, records }) => {
+    onMutate: async ({ date, userId, records }) => {
       // 목록 화면은 로컬 상태로 순서를 즉시 반영하므로 캐시도 같은 순서로 맞춰 둔다.
       // (성공 시 재조회 없이도, 다른 날짜에 갔다 오거나 재마운트될 때 이전 순서가 잠깐 보였다가 바뀌지 않도록)
+      const listKey = workRecordsListKey({ date, userId, search: undefined })
+      // 진행 중인 목록 재조회가 있으면 취소한다. 취소하지 않으면 정렬 전 순서의 응답이 뒤늦게 도착해
+      // 방금 바꾼 캐시 순서를 덮어쓴다 (취소된 조회는 이후 마운트/무효화 시 다시 실행됨)
+      await queryClient.cancelQueries({ queryKey: listKey, exact: true })
       const sortOrderById = new Map(records.map((r) => [r.id, r.sortOrder]))
       queryClient.setQueryData<InfiniteData<WorkRecordsPage, number>>(
-        workRecordsListKey({ date, userId, search: undefined }),
+        listKey,
         (old) => (old ? reorderPages(old, sortOrderById) : old)
       )
     },

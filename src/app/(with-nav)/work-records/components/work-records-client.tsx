@@ -171,7 +171,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   }, [queryClient, userId])
 
   // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중, 삭제 모드에는 비활성화)
-  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode
+  // 검색어를 지운 직후에는 새 전체 목록이 오기 전까지 이전 검색 결과(placeholder)가 보이므로,
+  // 이때 정렬하면 일부 기록만으로 순서(0..n)가 저장되어 나머지 기록과 순서가 겹친다 → 비활성화
+  const canReorder =
+    (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode && !isPlaceholderData
 
   // 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID
   // 일반 사용자는 미수금(UNCOLLECTED) 기록만 삭제할 수 있다 (서버 권한 모델과 동일)
@@ -374,6 +377,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             onMenuOpen={handleFabMenuOpen}
             isRefreshing={isFetching}
             hasRecords={records.length > 0}
+            // 이전 검색 결과(placeholder)를 보여 주는 동안에는 선택 대상·전체 건수가 새 검색어와 맞지 않으므로 삭제 모드 진입 차단
+            bulkDeleteDisabled={isPlaceholderData}
           />
         )}
 
