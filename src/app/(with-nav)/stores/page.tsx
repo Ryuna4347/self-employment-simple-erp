@@ -1,6 +1,7 @@
 import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { isViewer } from "@/lib/role-utils"
+import { isPlaceSearchEnabled } from "@/lib/kakao-local"
 import { StoresClient } from "./components/stores-client"
 
 /**
@@ -19,5 +20,6 @@ export default async function StoresPage() {
     redirect("/admin/dashboard")
   }
 
-  return <StoresClient />
+  // 매장 검색(상호 검색)은 서버에 KAKAO_REST_API_KEY가 있을 때만 노출 (키 자체는 전달하지 않음)
+  return <StoresClient placeSearchEnabled={isPlaceSearchEnabled()} />
 }

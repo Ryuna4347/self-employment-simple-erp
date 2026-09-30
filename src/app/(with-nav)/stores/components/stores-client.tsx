@@ -20,7 +20,12 @@ import {
 /**
  * 매장 관리 클라이언트 컴포넌트
  */
-export function StoresClient() {
+interface StoresClientProps {
+  /** 매장 검색(상호 검색) 사용 가능 여부 (서버 환경변수 기준) */
+  placeSearchEnabled?: boolean
+}
+
+export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) {
   const { role } = useUser()
   const writable = canWrite(role)
   const [storeName, setStoreName] = useState("")
@@ -209,6 +214,7 @@ export function StoresClient() {
           onSubmit={handleModalSubmit}
           editStore={editingStore}
           isLoading={isSubmitting}
+          placeSearchEnabled={placeSearchEnabled}
         />
       )}
     </div>

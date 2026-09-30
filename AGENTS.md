@@ -97,6 +97,8 @@ src/
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
 │   ├── postcode.ts          # Kakao 우편번호 서비스 스크립트 로더, 선택 주소 추출
+│   ├── kakao-local.ts       # Kakao 로컬 API 키워드 장소 검색 (서버 전용, KAKAO_REST_API_KEY)
+│   ├── store-place.ts       # 매장 kakaoPlaceId 중복 확인 (서버 전용)
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
 │   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 5초, 401 전역 처리)
 │   ├── role-utils.ts        # 역할 권한 체크 유틸 (VIEWER 등)
@@ -150,6 +152,7 @@ src/app/api/
 │   └── latest/route.ts                # GET 최신 공지 조회
 ├── cron/
 │   └── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
+├── places/search/route.ts              # GET 매장 검색 (Kakao 키워드 장소 검색 프록시, 쓰기 권한, 키 없으면 503)
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
     ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month, 일별 모드는 전월 비교 포함)
@@ -301,3 +304,4 @@ src/app/api/
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
 | 2026-09-29 | 매장 모달 주소 칸에 "주소 검색" 버튼 추가 (Kakao 우편번호 서비스 임베드, 모바일 풀스크린). 선택 시 도로명/지번 기본 주소만 채우고 층·호수는 직접 입력, 직접 입력도 계속 허용 | common/address-search-dialog, lib/postcode, stores/store-modal, stores AGENTS.md | 자유 입력 주소의 오타·시군구 누락·설명식 주소로 지도 검색이 실패하는 문제 방지. 키 발급·비용 없이 표준 주소를 저장 |
+| 2026-09-29 | 매장 모달 매장명 옆 "매장 검색"(상호 검색) 추가 — Kakao 로컬 키워드 장소 검색을 서버 프록시(`GET /api/places/search`)로 호출, 선택 시 주소·좌표·`kakaoPlaceId` 저장. `KAKAO_REST_API_KEY` 미설정 시 버튼 숨김 + API 503(기존 동작 그대로). 매장 POST/PUT에 `kakaoPlaceId` 중복 확인(활성 매장 중복 409, 삭제 매장 연결은 해제) | lib/kakao-local, lib/store-place, api/places/search, api/stores, stores/place-search-dialog, stores/store-modal, .env.example, stores AGENTS.md | 우편번호 서비스는 상호로 검색되지 않아 상호만 아는 매장을 등록하기 어려움. 키 없이 배포돼도 영향 없도록 기능 플래그를 서버 환경변수로 둠 |

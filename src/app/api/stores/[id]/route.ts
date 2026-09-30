@@ -3,6 +3,11 @@ import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import {
+  ensureKakaoPlaceAvailable,
+  isKakaoPlaceUniqueViolation,
+  StorePlaceConflictError,
+} from "@/lib/store-place"
 
 const storeInclude = {
   storeItems: true,
@@ -95,6 +100,11 @@ export async function PUT(
     const { items, ...storeData } = parseResult.data
 
     const store = await prisma.$transaction(async (tx) => {
+      // 카카오 장소 연결을 새로 바꾸는 경우에만 중복 확인 (kakaoPlaceId @unique)
+      if (storeData.kakaoPlaceId && storeData.kakaoPlaceId !== existing.kakaoPlaceId) {
+        await ensureKakaoPlaceAvailable(tx, storeData.kakaoPlaceId, id)
+      }
+
       const updatedStore = await tx.store.update({
         where: { id },
         data: storeData,
@@ -133,6 +143,12 @@ export async function PUT(
 
     return apiSuccess(store)
   } catch (error) {
+    if (error instanceof StorePlaceConflictError) {
+      return ApiErrors.alreadyExists(`이미 등록된 매장입니다 (${error.storeName})`)
+    }
+    if (isKakaoPlaceUniqueViolation(error)) {
+      return ApiErrors.alreadyExists("같은 장소로 등록된 매장이 있습니다")
+    }
     console.error("[/api/stores/[id]] PUT error:", error)
     return ApiErrors.internalError("매장 수정 중 오류가 발생했습니다")
   }

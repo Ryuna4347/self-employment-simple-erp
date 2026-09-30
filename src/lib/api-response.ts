@@ -27,6 +27,10 @@ export const ErrorCode = {
 
   // 서버 오류 (500)
   INTERNAL_ERROR: "INTERNAL_ERROR",
+
+  // 외부 서비스 / 기능 설정 (502, 503)
+  EXTERNAL_SERVICE_ERROR: "EXTERNAL_SERVICE_ERROR",
+  FEATURE_DISABLED: "FEATURE_DISABLED",
 } as const
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode]
