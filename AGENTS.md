@@ -244,6 +244,12 @@ src/app/api/
 - zod 유효성 검사
 - 작업할 때는 반드시 브랜치를 만들고 작업할 것
 - 스키마 변경 시 `prisma db push` 대신 `prisma migrate dev` 사용 (마이그레이션 히스토리 유지)
+- 백엔드 쿼리 성능 (API 응답 시간)
+  - 건수·합계는 레코드를 가져와 JS로 더하지 말고 DB에서 집계한다 (`count`, `aggregate`, `groupBy`, 필요 시 `$queryRaw`). 목록과 같은 조건이어야 하는 집계는 같은 Prisma `where`를 재사용한다 (예: `recordItem.aggregate({ where: { workRecord: where } })`)
+  - Prisma `distinct`는 조건에 맞는 행을 모두 가져와 메모리에서 중복을 제거한다. 고유 개수·고유 목록은 `groupBy`/`COUNT(DISTINCT ...)`를 쓴다
+  - 서로 독립적인 조회는 `Promise.all`로 병렬 실행한다. 검증 조회를 병렬로 바꿀 때는 결과를 기존 순서대로 판정해 에러 응답 우선순위를 유지한다
+  - 반복문 안에서 쿼리·쓰기를 하지 않는다. `updateMany`/`createMany`/단일 `UPDATE ... FROM (VALUES ...)`로 묶는다. raw 쿼리로 `@updatedAt` 컬럼을 갱신할 때는 `updatedAt`을 직접 설정한다
+  - 쓰기 경로를 바꿀 때는 기존 코드와 결과 DB 상태가 같은지 로컬 임시 DB에서 비교 검증한 뒤 배포한다 (운영 DB에서 검증 금지)
 - React 19 환경: `useEffect` 내 직접 `setState` 호출 금지 — URL/props 파생값은 `useMemo`로, 외부 시스템(matchMedia 등) 구독은 `useSyncExternalStore`로 처리. 외부 prop 트리거 동기화처럼 회피가 어려운 경우만 블록 단위 `eslint-disable`로 정당화 주석과 함께 허용
 - TypeScript `any` 캐스팅 회피 — 불가피하면 `as unknown as T` 경유로 명시적 우회
 
@@ -298,3 +304,4 @@ src/app/api/
 | 2026-09-03 | 근무기록 수정(PUT) 시 기존 품목의 salesAmount 보존 (`toRecordItemDataPreservingSales`: 품목 단위 매칭 + 기록 단위 합계 보존) | lib/sales-utils, work-records/[id] API, work-records AGENTS.md | 수정은 품목 삭제 후 재생성 구조라, 수금 처리로 amount가 0이 된 기록을 어드민이 고치면 매출 원금이 0으로 덮어써지는 회귀 방지. 최상위 품목 1개에 기록 합계를 적는 현장 관행(품목명 변경/삭제 시 개별 매칭 실패)을 기록 합계 보존으로 반영. 기준일 09-03, 배포 전 생성 기록은 배포 직후 백필(salesAmount = amount)로 보정 |
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
+| 2026-09-30 | 백엔드 쿼리 성능 개선 (코드만, 스키마·마이그레이션·데이터 변경 없음): 이월 수금 통합의 레코드별 쓰기를 `updateMany`/`createMany` 1회씩으로, 순서 변경을 단일 UPDATE로, 근무기록 목록의 매장별 미수 집계를 DB 집계 1쿼리로 + 독립 조회 병렬화, 미수금 요약·매장 목록을 DB 집계(`count`/`aggregate`/`groupBy`)로, 대시보드 거래 매장 수를 `COUNT(DISTINCT)`로, 수금 이력·현금 수금·코스 적용·근무기록 생성/수정/삭제의 순차 조회 병렬화, 매장 수정 시 이미 최신인 스냅샷은 재기록하지 않음 | lib/collection-utils·reports/daily-cash-collection, work-records·admin(outstanding/dashboard/collection-history)·stores/[id]·store-templates/[id]/apply API, stores·work-records AGENTS.md | 레코드를 모두 가져와 JS로 합산하거나 반복문에서 쓰기를 하던 경로를 줄여 응답 시간 단축 (일괄 수금 SQL 41→11문, 순서 변경 12→5문). 기존 코드와 응답·결과 DB 상태가 같음을 로컬 임시 DB에서 비교 검증 |

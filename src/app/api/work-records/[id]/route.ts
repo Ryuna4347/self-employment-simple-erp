@@ -87,52 +87,64 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { collectionStatus, imageUrl, note, items } = parseResult.data
 
+  const isAdmin = user.role === "ADMIN"
+
   // 수금 확인 요청중인 기록은 USER가 수금 상태 전환 불가 (UI 차단의 서버 가드)
-  if (
+  const needsPendingCheck =
     collectionStatus !== undefined &&
     collectionStatus !== workRecord.collectionStatus &&
-    user.role !== "ADMIN"
-  ) {
-    const pendingRequestItem = await prisma.collectionRequestItem.findFirst({
-      where: {
-        workRecordId: workRecord.id,
-        collectionRequest: { status: "PENDING" },
-      },
-      select: { id: true },
-    })
-    if (pendingRequestItem) {
-      return ApiErrors.forbidden("수금 확인 요청 중인 기록은 수금 상태를 변경할 수 없습니다.")
-    }
-  }
+    !isAdmin
 
   // 일반 사용자의 직접 수금처리 제한
-  if (collectionStatus === "COLLECTED" && workRecord.collectionStatus === "UNCOLLECTED" && user.role !== "ADMIN") {
-    // 1. 시간 제한: max(createdAt, date) 기준 48시간(2일) 이내인지 확인
+  const isDirectCollectByUser =
+    collectionStatus === "COLLECTED" && workRecord.collectionStatus === "UNCOLLECTED" && !isAdmin
+
+  // 1. 시간 제한: max(createdAt, date) 기준 48시간(2일) 이내인지 확인
+  let isPastDeadline = false
+  if (isDirectCollectByUser) {
     const referenceDate = new Date(Math.max(
       workRecord.createdAt.getTime(),
       workRecord.date.getTime()
     ))
     const deadline = new Date(referenceDate.getTime() + DIRECT_COLLECT_WINDOW_MS)
-    const now = new Date()
+    isPastDeadline = new Date() > deadline
+  }
 
-    if (now > deadline) {
+  // DB 확인이 필요한 두 검사(수금 확인 요청 중 / 같은 매장의 이전 날짜 미수)는 병렬 조회한다.
+  // 응답 우선순위는 기존과 같다: 요청 중 → 기한 초과 → 이전 미수
+  const [pendingRequestItem, previousUncollected] = await Promise.all([
+    needsPendingCheck
+      ? prisma.collectionRequestItem.findFirst({
+          where: {
+            workRecordId: workRecord.id,
+            collectionRequest: { status: "PENDING" },
+          },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+    // 2. 같은 매장에 이전 날짜의 미수금이 있는지 확인 (기한 내일 때만 필요)
+    isDirectCollectByUser && !isPastDeadline && workRecord.storeId
+      ? prisma.workRecord.count({
+          where: {
+            storeId: workRecord.storeId,
+            collectionStatus: "UNCOLLECTED",
+            date: { lt: workRecord.date },
+            id: { not: workRecord.id },
+          },
+        })
+      : Promise.resolve(0),
+  ])
+
+  if (pendingRequestItem) {
+    return ApiErrors.forbidden("수금 확인 요청 중인 기록은 수금 상태를 변경할 수 없습니다.")
+  }
+
+  if (isDirectCollectByUser) {
+    if (isPastDeadline) {
       return ApiErrors.forbidden("수금 처리 기한이 지났습니다. 수금 확인 요청을 이용해주세요.")
     }
-
-    // 2. 같은 매장에 이전 날짜의 미수금이 있는지 확인
-    if (workRecord.storeId) {
-      const previousUncollected = await prisma.workRecord.count({
-        where: {
-          storeId: workRecord.storeId,
-          collectionStatus: "UNCOLLECTED",
-          date: { lt: workRecord.date },
-          id: { not: workRecord.id },
-        },
-      })
-
-      if (previousUncollected > 0) {
-        return ApiErrors.forbidden("이전 미수금이 존재합니다. 수금 확인 요청을 이용해주세요.")
-      }
+    if (previousUncollected > 0) {
+      return ApiErrors.forbidden("이전 미수금이 존재합니다. 수금 확인 요청을 이용해주세요.")
     }
   }
 
@@ -212,39 +224,43 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   const { user } = authResult
   const { id } = await context.params
+  const isAdmin = user.role === "ADMIN"
 
-  // 근무기록 존재 여부 확인
-  const workRecord = await prisma.workRecord.findUnique({
-    where: { id },
-    select: { id: true, userId: true, collectionStatus: true },
-  })
+  // 근무기록 존재 여부 확인 + (일반 사용자) 수금 확인 요청 여부 확인을 병렬 조회
+  // 응답 우선순위는 기존과 같다: 없음 → 소유권 → 수금 상태 → 요청 중
+  const [workRecord, pendingRequestItem] = await Promise.all([
+    prisma.workRecord.findUnique({
+      where: { id },
+      select: { id: true, userId: true, collectionStatus: true },
+    }),
+    isAdmin
+      ? Promise.resolve(null)
+      : prisma.collectionRequestItem.findFirst({
+          where: {
+            workRecordId: id,
+            collectionRequest: { status: "PENDING" },
+          },
+          select: { id: true },
+        }),
+  ])
 
   if (!workRecord) {
     return ApiErrors.notFound("근무기록을 찾을 수 없습니다")
   }
 
   // 소유권 확인 (본인 또는 관리자만 삭제 가능)
-  if (workRecord.userId !== user.id && user.role !== "ADMIN") {
+  if (workRecord.userId !== user.id && !isAdmin) {
     return ApiErrors.forbidden("이 근무기록을 삭제할 권한이 없습니다")
   }
 
   // 미수 상태가 아닌 기록은 관리자만 삭제 가능
-  if (workRecord.collectionStatus !== "UNCOLLECTED" && user.role !== "ADMIN") {
+  if (workRecord.collectionStatus !== "UNCOLLECTED" && !isAdmin) {
     return ApiErrors.forbidden("미수 상태가 아닌 근무기록은 관리자만 삭제할 수 있습니다")
   }
 
   // 수금 확인 요청중인 기록은 USER가 삭제 불가 (UI 차단의 서버 가드)
-  if (user.role !== "ADMIN") {
-    const pendingRequestItem = await prisma.collectionRequestItem.findFirst({
-      where: {
-        workRecordId: workRecord.id,
-        collectionRequest: { status: "PENDING" },
-      },
-      select: { id: true },
-    })
-    if (pendingRequestItem) {
-      return ApiErrors.forbidden("수금 확인 요청 중인 기록은 삭제할 수 없습니다.")
-    }
+  if (pendingRequestItem) {
+    return ApiErrors.forbidden("수금 확인 요청 중인 기록은 삭제할 수 없습니다.")
   }
 
   // Cascade로 RecordItem도 자동 삭제

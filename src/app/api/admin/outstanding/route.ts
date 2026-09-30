@@ -41,6 +41,18 @@ function calcTotalAmount(items: { amount: number }[]) {
   return items.reduce((sum, item) => sum + item.amount, 0)
 }
 
+/**
+ * 조건에 맞는 근무기록들의 품목 금액(amount) 합계 — DB 집계
+ * 필터는 목록과 같은 Prisma where를 그대로 써서 조건이 어긋나지 않게 한다.
+ */
+async function sumOutstandingAmount(where: Prisma.WorkRecordWhereInput): Promise<number> {
+  const result = await prisma.recordItem.aggregate({
+    where: { workRecord: where },
+    _sum: { amount: true },
+  })
+  return Number(result._sum.amount ?? 0)
+}
+
 export async function GET(request: NextRequest) {
   const authResult = await requireAdminRead()
   if (isErrorResponse(authResult)) return authResult
@@ -96,12 +108,11 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
     ] } : {}),
   }
 
-  // 요약 쿼리 + 페이지 쿼리 병렬 실행
-  const [summaryRecords, pageRecords] = await Promise.all([
-    prisma.workRecord.findMany({
-      where,
-      select: { items: { select: { amount: true } } },
-    }),
+  // 요약(건수·합계)은 DB에서 집계하고 페이지 쿼리와 병렬 실행
+  // (기존: 조건에 맞는 모든 레코드와 품목을 가져와 JS에서 합산)
+  const [totalCount, totalOutstanding, pageRecords] = await Promise.all([
+    prisma.workRecord.count({ where }),
+    sumOutstandingAmount(where),
     prisma.workRecord.findMany({
       where,
       include: {
@@ -114,12 +125,6 @@ async function handleDateFilter(params: z.infer<typeof dateFilterSchema>) {
       take: limit,
     }),
   ])
-
-  const totalCount = summaryRecords.length
-  const totalOutstanding = summaryRecords.reduce(
-    (sum, r) => sum + calcTotalAmount(r.items),
-    0,
-  )
 
   const records = pageRecords.map((record) => ({
     id: record.id,
@@ -175,33 +180,27 @@ async function handleStoreFilter(params: z.infer<typeof storeFilterSchema>) {
     ...(agedCutoff ? { date: { lt: agedCutoff } } : {}),
   }
 
-  // 1. 매장명 목록 + 요약 + 상세 레코드를 병렬로 조회
-  // 매장명 목록은 items 없이 경량 조회
-  const [allStores, summaryRecords] = await Promise.all([
-    prisma.workRecord.findMany({
+  // 1. 매장 목록(매장 단위 집계) + 요약(건수·합계)을 DB에서 집계해 병렬 조회
+  // 기존에는 조건에 맞는 모든 미수 레코드(요약은 품목까지)를 가져와 매장 중복 제거·합산을 JS에서 했다.
+  // 매장 정렬은 기존과 같다: 매장의 레코드 중 가장 앞선 매장명 스냅샷 → storeId 순
+  const [storeGroups, totalRecordCount, totalOutstanding] = await Promise.all([
+    prisma.workRecord.groupBy({
+      by: ["storeId"],
       where,
-      select: { storeId: true },
-      distinct: ["storeId"],
-      orderBy: [{ storeNameSnapshot: "asc" }, { storeId: "asc" }],
+      _min: { storeNameSnapshot: true },
+      orderBy: [{ _min: { storeNameSnapshot: "asc" } }, { storeId: "asc" }],
     }),
-    prisma.workRecord.findMany({
-      where,
-      select: { items: { select: { amount: true } } },
-    }),
+    prisma.workRecord.count({ where }),
+    sumOutstandingAmount(where),
   ])
 
-  const totalStoreCount = allStores.length
+  const totalStoreCount = storeGroups.length
   const totalPages = Math.ceil(totalStoreCount / limit)
-  const totalOutstanding = summaryRecords.reduce(
-    (sum, r) => sum + calcTotalAmount(r.items),
-    0,
-  )
-  const totalRecordCount = summaryRecords.length
 
   // 2. 현재 페이지 매장 결정
-  const pageStoreIds = allStores
+  const pageStoreIds = storeGroups
     .slice((page - 1) * limit, page * limit)
-    .map((r) => r.storeId)
+    .map((group) => group.storeId)
     .filter((id): id is string => id !== null)
 
   // 3. 현재 페이지 매장의 상세 레코드 조회

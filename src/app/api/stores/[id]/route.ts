@@ -100,8 +100,19 @@ export async function PUT(
         data: storeData,
       })
 
+      // 매장의 근무기록 스냅샷(매장명/주소) 동기화
+      // 이미 최신 값인 기록은 다시 쓰지 않는다. 메모·품목만 고쳐도 매장의 모든 근무기록을
+      // 재기록하던 부하를 없애며, 결과로 남는 스냅샷 값은 기존(전체 갱신)과 같다
       await tx.workRecord.updateMany({
-        where: { storeId: id },
+        where: {
+          storeId: id,
+          OR: [
+            { storeNameSnapshot: { not: updatedStore.name } },
+            { storeNameSnapshot: null },
+            { storeAddressSnapshot: { not: updatedStore.address } },
+            { storeAddressSnapshot: null },
+          ],
+        },
         data: {
           storeNameSnapshot: updatedStore.name,
           storeAddressSnapshot: updatedStore.address,
