@@ -10,7 +10,9 @@ import {
 } from "@/hooks/use-address-action-preference"
 import {
   ADDRESS_ACTION_LABELS,
+  DESKTOP_ADDRESS_SHEET_ENABLED,
   copyAddressToClipboard,
+  getMapWebUrl,
   openMapApp,
   openMapWeb,
   type AddressAction,
@@ -19,8 +21,9 @@ import {
 interface AddressActionContextValue {
   /**
    * 주소 탭 처리
-   * - 데스크톱(터치 아님): 즉시 복사 (기존 동작)
-   * - 터치 기기: 기억된 선택이 있으면 바로 실행, 없으면 선택 시트 표시
+   * - 기억된 선택이 있으면 바로 실행, 없으면 선택 시트 표시
+   * - 데스크톱(터치 아님): [임시] 지도는 네이버지도 웹(새 탭)으로 연결.
+   *   DESKTOP_ADDRESS_SHEET_ENABLED가 false면 즉시 복사 (기존 동작)
    */
   handleAddress: (address: string) => void
   /** 터치 기기 여부 (지도 앱 연동 대상) */
@@ -44,9 +47,16 @@ async function copyWithToast(address: string, description?: string) {
   }
 }
 
-function runAddressAction(action: AddressAction, address: string) {
+function runAddressAction(action: AddressAction, address: string, isTouchDevice: boolean) {
   if (action === "copy") {
     void copyWithToast(address)
+    return
+  }
+
+  // [임시] 데스크톱은 지도 앱이 없으므로, 어떤 지도를 골랐든(설정에 카카오맵이 저장된 경우 포함)
+  // 네이버지도 웹을 새 탭으로 연다. 클릭 핸들러 안에서 동기 호출되므로 팝업 차단에 걸리지 않는다
+  if (!isTouchDevice) {
+    openMapWeb(getMapWebUrl("naver", address))
     return
   }
 
@@ -85,7 +95,7 @@ export function AddressActionProvider({ children }: { children: React.ReactNode 
       const trimmed = address.trim()
       if (!trimmed) return
 
-      if (!isTouchDevice) {
+      if (!isTouchDevice && !DESKTOP_ADDRESS_SHEET_ENABLED) {
         void copyWithToast(trimmed)
         return
       }
@@ -93,7 +103,7 @@ export function AddressActionProvider({ children }: { children: React.ReactNode 
       // 탭 시점에 최신 값을 직접 읽는다 (다른 탭/설정 화면 변경 반영)
       const preference = getAddressActionPreference()
       if (preference) {
-        runAddressAction(preference, trimmed)
+        runAddressAction(preference, trimmed, isTouchDevice)
         return
       }
 
@@ -122,7 +132,7 @@ export function AddressActionProvider({ children }: { children: React.ReactNode 
       }
     }
 
-    runAddressAction(action, address)
+    runAddressAction(action, address, isTouchDevice)
   }
 
   const contextValue = useMemo(
@@ -138,6 +148,7 @@ export function AddressActionProvider({ children }: { children: React.ReactNode 
         onOpenChange={setSheetOpen}
         address={request.address}
         sessionKey={request.sessionKey}
+        isDesktop={!isTouchDevice}
         onSelect={handleSelect}
       />
     </AddressActionContext.Provider>

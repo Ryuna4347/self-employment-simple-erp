@@ -13,7 +13,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { ADDRESS_ACTIONS, ADDRESS_ACTION_LABELS, type AddressAction } from "@/lib/map-links"
+import {
+  ADDRESS_ACTIONS,
+  ADDRESS_ACTION_LABELS,
+  DESKTOP_ADDRESS_ACTIONS,
+  type AddressAction,
+} from "@/lib/map-links"
 
 // 선택지별 표시 정보
 const ACTION_DISPLAY: Record<AddressAction, { description: string; icon: LucideIcon; iconClassName: string }> = {
@@ -34,18 +39,26 @@ const ACTION_DISPLAY: Record<AddressAction, { description: string; icon: LucideI
   },
 }
 
+// [임시] 데스크톱은 지도 앱 대신 웹 지도(새 탭)로 열리므로 설명만 바꾼다
+const DESKTOP_DESCRIPTION: Partial<Record<AddressAction, string>> = {
+  naver: "네이버지도 웹에서 주소 검색 (새 탭)",
+}
+
 interface AddressActionSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   address: string
   /** 시트를 열 때마다 바뀌는 값 — "선택 기억하기" 체크 상태 초기화용 */
   sessionKey: number
+  /** 데스크톱(터치 아님) 여부 — 선택지를 네이버지도(웹)/주소 복사로 제한 */
+  isDesktop: boolean
   onSelect: (action: AddressAction, remember: boolean) => void
 }
 
 /**
  * 주소 탭 동작 선택 시트 (모바일: 바텀시트, 태블릿 이상: 다이얼로그)
- * - 카카오맵 / 네이버지도 / 주소 복사
+ * - 터치 기기: 카카오맵 / 네이버지도 / 주소 복사
+ * - 데스크톱: 네이버지도(웹) / 주소 복사
  * - "선택 기억하기" 체크 시 이 기기에 저장되어 다음부터 바로 실행
  */
 export function AddressActionSheet({
@@ -53,6 +66,7 @@ export function AddressActionSheet({
   onOpenChange,
   address,
   sessionKey,
+  isDesktop,
   onSelect,
 }: AddressActionSheetProps) {
   return (
@@ -65,6 +79,7 @@ export function AddressActionSheet({
 
         <AddressActionOptions
           key={sessionKey}
+          isDesktop={isDesktop}
           onSelect={onSelect}
         />
 
@@ -79,18 +94,23 @@ export function AddressActionSheet({
 }
 
 function AddressActionOptions({
+  isDesktop,
   onSelect,
 }: {
+  isDesktop: boolean
   onSelect: (action: AddressAction, remember: boolean) => void
 }) {
   const [remember, setRemember] = useState(false)
   const rememberId = useId()
+  const actions = isDesktop ? DESKTOP_ADDRESS_ACTIONS : ADDRESS_ACTIONS
 
   return (
     <div className="px-4 sm:px-0 space-y-3">
       <div className="space-y-2">
-        {ADDRESS_ACTIONS.map((action) => {
-          const { description, icon: Icon, iconClassName } = ACTION_DISPLAY[action]
+        {actions.map((action) => {
+          const { icon: Icon, iconClassName } = ACTION_DISPLAY[action]
+          const description =
+            (isDesktop ? DESKTOP_DESCRIPTION[action] : undefined) ?? ACTION_DISPLAY[action].description
           return (
             <button
               key={action}

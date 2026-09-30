@@ -44,7 +44,7 @@ export function AddressActionSetting() {
           주소 탭 동작
         </label>
         <p className="text-xs text-gray-400 mt-0.5">
-          모바일에서 매장·근무기록 주소를 눌렀을 때
+          매장·근무기록 주소를 눌렀을 때 (PC는 지도를 네이버지도 웹으로 열기)
         </p>
       </div>
       <Select value={preference ?? ASK_EVERY_TIME} onValueChange={handleChange}>

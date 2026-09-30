@@ -71,7 +71,7 @@ src/
 │   │   ├── loading-view.tsx
 │   │   ├── searchable-dropdown.tsx
 │   │   ├── user-filter.tsx
-│   │   ├── address-button.tsx        # 카드 주소 버튼 (데스크톱 복사 / 모바일 지도 앱 연동)
+│   │   ├── address-button.tsx        # 카드 주소 버튼 (모바일 지도 앱 연동 / 데스크톱은 임시로 네이버지도 웹·복사 선택)
 │   │   └── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
 │   └── providers/
 │       ├── app-providers.tsx  # QueryClient, 테마, 401 전역 처리

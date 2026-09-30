@@ -21,6 +21,16 @@ export type AddressAction = MapApp | "copy"
 // 선택 시트 / 설정 화면 표시 순서
 export const ADDRESS_ACTIONS: readonly AddressAction[] = ["kakao", "naver", "copy"]
 
+/**
+ * [임시] 데스크톱(터치 아님)에서도 주소 클릭 시 선택 시트를 띄운다.
+ * 데스크톱에는 지도 앱이 없으므로 지도는 네이버지도 웹(새 탭)으로만 연결하고, 시트에서 카카오맵은 숨긴다.
+ * false로 바꾸면 기존 동작(데스크톱은 즉시 주소 복사)으로 돌아간다.
+ */
+export const DESKTOP_ADDRESS_SHEET_ENABLED = true
+
+// 데스크톱 선택 시트 표시 순서 (지도는 네이버지도 웹만)
+export const DESKTOP_ADDRESS_ACTIONS: readonly AddressAction[] = ["naver", "copy"]
+
 export const ADDRESS_ACTION_LABELS: Record<AddressAction, string> = {
   kakao: "카카오맵",
   naver: "네이버지도",
