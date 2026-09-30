@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, X } from "lucide-react"
+import { MapPin, Plus, Search, Store as StoreIcon, X } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AmountInput } from "@/components/common"
+import { AddressSearchDialog } from "@/components/common/address-search-dialog"
 import {
   Select,
   SelectContent,
@@ -24,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Store, StoreInput } from "../hooks/use-stores"
+import type { PlaceSearchResult } from "../hooks/use-place-search"
+import { PlaceSearchDialog } from "./place-search-dialog"
 import { useStoreTemplates } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
 import { useUsers } from "@/hooks/use-users"
 
@@ -42,6 +45,12 @@ const storeSchema = z.object({
   assignedUserId: z.string().optional(),
   note: z.string().optional(),
   items: z.array(storeItemSchema).optional(),
+  // 카카오 장소 연결 (매장 검색으로 선택 시 채워짐, 입력 UI 없음)
+  kakaoPlaceId: z.string().nullable(),
+  latitude: z.number().nullable(),
+  longitude: z.number().nullable(),
+  // 연결된 장소명 (표시용, 저장하지 않음)
+  placeName: z.string(),
 }).refine(
   (data) => data.PaymentType !== "ACCOUNT" || !!data.managerName?.trim(),
   { message: "계좌이체 결제 시 입금자를 입력해주세요", path: ["managerName"] }
@@ -57,12 +66,22 @@ function isReceiptType(value: string): value is StoreFormData["receiptType"] {
   return value === "NONE" || value === "SIMPLE_RECEIPT" || value === "TRANSACTION_STATEMENT"
 }
 
+// 장소 연결 필드 초기값
+const EMPTY_PLACE_LINK = {
+  kakaoPlaceId: null,
+  latitude: null,
+  longitude: null,
+  placeName: "",
+} satisfies Pick<StoreFormData, "kakaoPlaceId" | "latitude" | "longitude" | "placeName">
+
 interface StoreModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSubmit: (data: StoreInput) => void
   editStore?: Store | null
   isLoading?: boolean
+  /** 매장 검색(상호 검색) 사용 가능 여부 — 서버에 KAKAO_REST_API_KEY가 있을 때만 true */
+  placeSearchEnabled?: boolean
 }
 
 export function StoreModal({
@@ -71,9 +90,14 @@ export function StoreModal({
   onSubmit,
   editStore,
   isLoading,
+  placeSearchEnabled = false,
 }: StoreModalProps) {
   const isEditMode = !!editStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  // 주소 검색 다이얼로그 (query: 열 때 입력돼 있던 주소 — 열린 동안 고정)
+  const [addressSearch, setAddressSearch] = useState({ open: false, query: "" })
+  // 매장 검색 다이얼로그 (query: 열 때 입력돼 있던 매장명)
+  const [placeSearch, setPlaceSearch] = useState({ open: false, query: "" })
   // 코스/담당자 선택 목록은 모달이 열려 있을 때만 조회
   const { data: templates = [] } = useStoreTemplates(undefined, { enabled: open })
   const { data: users = [] } = useUsers(open)
@@ -85,6 +109,7 @@ export function StoreModal({
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors, isValid },
   } = useForm<StoreFormData>({
     resolver: zodResolver(storeSchema),
@@ -98,6 +123,7 @@ export function StoreModal({
       assignedUserId: "",
       note: "",
       items: [],
+      ...EMPTY_PLACE_LINK,
     },
   })
 
@@ -125,6 +151,11 @@ export function StoreModal({
           amount: item.amount,
           quantity: item.quantity,
         })),
+        // 기존 장소 연결은 그대로 유지 (수정하지 않으면 같은 값으로 저장)
+        kakaoPlaceId: editStore.kakaoPlaceId,
+        latitude: editStore.latitude,
+        longitude: editStore.longitude,
+        placeName: "",
       })
       return
     }
@@ -138,8 +169,42 @@ export function StoreModal({
       assignedUserId: "",
       note: "",
       items: [],
+      ...EMPTY_PLACE_LINK,
     })
   }, [open, editStore, reset])
+
+  const linkedPlaceId = watch("kakaoPlaceId")
+  const linkedPlaceName = watch("placeName")
+
+  // 장소 연결 필드 일괄 변경
+  const setPlaceLink = (link: Pick<StoreFormData, "kakaoPlaceId" | "latitude" | "longitude" | "placeName">) => {
+    setValue("kakaoPlaceId", link.kakaoPlaceId, { shouldDirty: true })
+    setValue("latitude", link.latitude, { shouldDirty: true })
+    setValue("longitude", link.longitude, { shouldDirty: true })
+    setValue("placeName", link.placeName)
+  }
+
+  // 매장 검색 결과 선택: 매장명은 비어 있을 때만 채움 (직접 적은 이름 유지), 주소는 도로명 우선
+  const handlePlaceSelect = (place: PlaceSearchResult) => {
+    if (!getValues("name").trim()) {
+      setValue("name", place.name, { shouldValidate: true, shouldDirty: true })
+    }
+    setValue("address", place.roadAddress || place.jibunAddress, { shouldValidate: true, shouldDirty: true })
+    setPlaceLink({
+      kakaoPlaceId: place.id,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      placeName: place.name,
+    })
+  }
+
+  // 주소 검색(우편번호) 결과 선택: 다른 주소로 바뀌므로 기존 장소 연결(좌표)은 해제
+  const handleAddressSelect = (address: string) => {
+    setValue("address", address, { shouldValidate: true, shouldDirty: true })
+    if (getValues("kakaoPlaceId") || getValues("latitude") !== null) {
+      setPlaceLink(EMPTY_PLACE_LINK)
+    }
+  }
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -159,6 +224,9 @@ export function StoreModal({
       note: data.note || null,
       items: data.items?.filter((item) => item.name.trim() !== "") ?? [],
       templateId: selectedTemplateId || null,
+      kakaoPlaceId: data.kakaoPlaceId,
+      latitude: data.latitude,
+      longitude: data.longitude,
     }
     onSubmit(submitData)
   }
@@ -181,26 +249,89 @@ export function StoreModal({
               <Label htmlFor="name">
                 매장명 <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="name"
-                placeholder="예: 서울 명의점"
-                {...register("name")}
-                aria-invalid={!!errors.name}
-              />
-              {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+              <div className="flex gap-2">
+                <Input
+                  id="name"
+                  placeholder="예: 서울 명의점"
+                  className="flex-1"
+                  {...register("name")}
+                  aria-invalid={!!errors.name}
+                />
+                {placeSearchEnabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => setPlaceSearch({ open: true, query: getValues("name") })}
+                  >
+                    <StoreIcon className="size-4" />
+                    매장 검색
+                  </Button>
+                )}
+              </div>
+              {errors.name ? (
+                <p className="text-sm text-red-500">{errors.name.message}</p>
+              ) : (
+                placeSearchEnabled && (
+                  <p className="text-xs text-gray-500">
+                    매장 검색으로 상호를 찾으면 주소와 지도 위치가 함께 입력돼요.
+                  </p>
+                )
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="address">
                 주소 <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="address"
-                placeholder="예: 서울시 강남구 테헤란로 123"
-                {...register("address")}
-                aria-invalid={!!errors.address}
-              />
-              {errors.address && <p className="text-sm text-red-500">{errors.address.message}</p>}
+              <div className="flex gap-2">
+                <Input
+                  id="address"
+                  placeholder="예: 서울시 강남구 테헤란로 123"
+                  className="flex-1"
+                  {...register("address")}
+                  aria-invalid={!!errors.address}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => setAddressSearch({ open: true, query: getValues("address") })}
+                >
+                  <Search className="size-4" />
+                  주소 검색
+                </Button>
+              </div>
+              {errors.address ? (
+                <p className="text-sm text-red-500">{errors.address.message}</p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  주소 검색으로 선택하면 지도 앱에서 정확하게 찾을 수 있어요. 층·호수는 뒤에 이어서 적어주세요.
+                </p>
+              )}
+              {/* 카카오 장소 연결 상태 (매장 검색으로 선택했거나 기존 연결이 있을 때) */}
+              {linkedPlaceId && (
+                <div
+                  data-testid="place-link"
+                  className="flex items-center justify-between gap-2 rounded-md bg-blue-50 px-3 py-2"
+                >
+                  <span className="flex items-center gap-1.5 text-xs text-blue-800 min-w-0">
+                    <MapPin className="size-3.5 shrink-0" />
+                    <span className="truncate">
+                      카카오맵 장소 연결됨{linkedPlaceName ? ` · ${linkedPlaceName}` : ""}
+                    </span>
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto px-2 py-0.5 text-xs text-blue-800 hover:bg-blue-100 shrink-0"
+                    onClick={() => setPlaceLink(EMPTY_PLACE_LINK)}
+                  >
+                    연결 해제
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -445,6 +576,23 @@ export function StoreModal({
             </Button>
           </ResponsiveModalFooter>
         </form>
+
+        <AddressSearchDialog
+          open={addressSearch.open}
+          onOpenChange={(nextOpen) => setAddressSearch((prev) => ({ ...prev, open: nextOpen }))}
+          initialQuery={addressSearch.query}
+          onSelect={handleAddressSelect}
+        />
+
+        {placeSearchEnabled && (
+          <PlaceSearchDialog
+            open={placeSearch.open}
+            onOpenChange={(nextOpen) => setPlaceSearch((prev) => ({ ...prev, open: nextOpen }))}
+            initialQuery={placeSearch.query}
+            excludeStoreId={editStore?.id}
+            onSelect={handlePlaceSelect}
+          />
+        )}
       </ResponsiveModalContent>
     </ResponsiveModal>
   )

@@ -73,7 +73,8 @@ src/
 │   │   ├── searchable-dropdown.tsx
 │   │   ├── user-filter.tsx
 │   │   ├── address-button.tsx        # 카드 주소 버튼 (모바일 지도 앱 연동 / 데스크톱은 임시로 네이버지도 웹·복사 선택)
-│   │   └── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
+│   │   ├── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
+│   │   └── address-search-dialog.tsx  # 주소 검색 (Kakao 우편번호 서비스 임베드)
 │   └── providers/
 │       ├── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
 │       └── address-action-provider.tsx  # 주소 탭 동작 전역 Provider (선택 시트 1개 관리)
@@ -103,6 +104,9 @@ src/
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
 │   ├── map-links.ts         # 주소 → 지도 앱(카카오맵/네이버지도) 연동 URL, 주소 복사
+│   ├── postcode.ts          # Kakao 우편번호 서비스 스크립트 로더, 선택 주소 추출
+│   ├── kakao-local.ts       # Kakao 로컬 API 키워드 장소 검색 (서버 전용, KAKAO_REST_API_KEY)
+│   ├── store-place.ts       # 매장 kakaoPlaceId 중복 확인 (서버 전용)
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
 │   ├── preload-on-idle.ts   # 유휴 시간에 지연 로드 청크 미리 받기
 │   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 기본 5초, 4xx 재시도 안 함, 401 전역 처리)
@@ -157,6 +161,7 @@ src/app/api/
 │   └── latest/route.ts                # GET 최신 공지 조회
 ├── cron/
 │   └── generate-recurring-costs/route.ts  # POST 고정비용 자동 생성
+├── places/search/route.ts              # GET 매장 검색 (Kakao 키워드 장소 검색 프록시, 쓰기 권한, 키 없으면 503)
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
     ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month, 일별 모드는 전월 비교 포함)
@@ -316,3 +321,5 @@ src/app/api/
 | 2026-09-29 | 프론트 성능 개선: 모달·대시보드 차트·달력 지연 로드(`next/dynamic` + `MountOnFirstOpen` + `preloadOnIdle`), 모달 조회를 열 때만 실행(`enabled: open`, FAB 열 때 미리 조회), with-nav 레이아웃 배럴 import 제거, Geist Mono 제거, 4xx 재시도 중단, 직원/매장/코스 목록 staleTime(5분/1분), 근무기록 카드 상세 영역을 처음 펼칠 때 렌더링(첨부 이미지 지연 다운로드), 업로드 전 이미지 압축(긴 변 1600px JPEG, 원본 20MB까지 허용), 검색 디바운스 1초→0.5초 + 결과 도착 전 이전 목록 유지, 순서 변경 시 캐시 동기화 | common/mount-on-first-open, lib/preload-on-idle·image-compression·query-client, work-records·stores·store-templates·admin(대시보드/비용/공지/직원/미수금) 컴포넌트·훅, work-records·dashboard AGENTS.md | 주요 페이지의 첫 로드 JS(gzip)를 약 19~125KB 줄이고, 쓰지 않는 모달용 전체 매장/코스/직원 목록 조회와 접힌 카드의 원본 사진 다운로드를 없애 모바일 첫 로드와 업로드 시간을 단축 |
 | 2026-09-29 | 매장/근무기록 카드 주소 탭 시 모바일(터치 기기)은 선택 시트(카카오맵/네이버지도/주소 복사) 표시, "선택 기억하기" 시 다음부터 바로 실행. 기억값은 localStorage(기기별, DB 저장 안 함)이며 내 정보 > 이 기기 설정에서 변경/해제. 데스크톱은 기존대로 즉시 복사 | common/address-*, providers/address-action-provider, hooks/use-is-touch-device·use-address-action-preference, lib/map-links, profile AGENTS.md | 현장 순회 중 주소를 복사해 지도 앱에 붙여넣는 번거로움 해소. 직원마다 쓰는 지도 앱이 달라 선택형으로 제공하고 기기별로 기억 |
 | 2026-09-30 | [임시] 데스크톱에서도 주소 클릭 시 선택 시트 표시 (네이버지도 웹 새 탭 / 주소 복사, 카카오맵 숨김). 저장값이 kakao여도 데스크톱은 네이버지도 웹. `DESKTOP_ADDRESS_SHEET_ENABLED`(lib/map-links)로 토글 | common/address-*, providers/address-action-provider, lib/map-links, profile AGENTS.md | PC에서도 주소를 바로 지도로 확인하기 위함. 데스크톱엔 지도 앱이 없어 웹 지도로 연결 |
+| 2026-09-29 | 매장 모달 주소 칸에 "주소 검색" 버튼 추가 (Kakao 우편번호 서비스 임베드, 모바일 풀스크린). 선택 시 도로명/지번 기본 주소만 채우고 층·호수는 직접 입력, 직접 입력도 계속 허용 | common/address-search-dialog, lib/postcode, stores/store-modal, stores AGENTS.md | 자유 입력 주소의 오타·시군구 누락·설명식 주소로 지도 검색이 실패하는 문제 방지. 키 발급·비용 없이 표준 주소를 저장 |
+| 2026-09-29 | 매장 모달 매장명 옆 "매장 검색"(상호 검색) 추가 — Kakao 로컬 키워드 장소 검색을 서버 프록시(`GET /api/places/search`)로 호출, 선택 시 주소·좌표·`kakaoPlaceId` 저장. `KAKAO_REST_API_KEY` 미설정 시 버튼 숨김 + API 503(기존 동작 그대로). 매장 POST/PUT에 `kakaoPlaceId` 중복 확인(활성 매장 중복 409, 삭제 매장 연결은 해제) | lib/kakao-local, lib/store-place, api/places/search, api/stores, stores/place-search-dialog, stores/store-modal, .env.example, stores AGENTS.md | 우편번호 서비스는 상호로 검색되지 않아 상호만 아는 매장을 등록하기 어려움. 키 없이 배포돼도 영향 없도록 기능 플래그를 서버 환경변수로 둠 |

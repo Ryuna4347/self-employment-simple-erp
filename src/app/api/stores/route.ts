@@ -4,6 +4,11 @@ import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requireWriteAccess, isErrorResponse } from "@/lib/auth-guard"
 import { apiSuccess, ApiErrors } from "@/lib/api-response"
+import {
+  ensureKakaoPlaceAvailable,
+  isKakaoPlaceUniqueViolation,
+  StorePlaceConflictError,
+} from "@/lib/store-place"
 
 const storeInclude = {
   storeItems: true,
@@ -145,6 +150,9 @@ export async function POST(request: NextRequest) {
     }
 
     const store = await prisma.$transaction(async (tx) => {
+      // 카카오 장소 연결 중복 확인 (kakaoPlaceId @unique)
+      await ensureKakaoPlaceAvailable(tx, storeData.kakaoPlaceId)
+
       const newStore = await tx.store.create({
         data: {
           ...storeData,
@@ -188,6 +196,12 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(store, 201)
   } catch (error) {
+    if (error instanceof StorePlaceConflictError) {
+      return ApiErrors.alreadyExists(`이미 등록된 매장입니다 (${error.storeName})`)
+    }
+    if (isKakaoPlaceUniqueViolation(error)) {
+      return ApiErrors.alreadyExists("같은 장소로 등록된 매장이 있습니다")
+    }
     console.error("[/api/stores] POST error:", error)
     return ApiErrors.internalError("매장 생성 중 오류가 발생했습니다")
   }
