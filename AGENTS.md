@@ -73,7 +73,7 @@ src/
 │   │   ├── searchable-dropdown.tsx
 │   │   ├── user-filter.tsx
 │   │   ├── address-button.tsx        # 카드 주소 버튼 (모바일 지도 앱 연동 / 데스크톱은 임시로 네이버지도 웹·복사 선택)
-│   │   ├── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
+│   │   ├── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/티맵/복사 + 선택 기억하기)
 │   │   └── address-search-dialog.tsx  # 주소 검색 (Kakao 우편번호 서비스 임베드)
 │   └── providers/
 │       ├── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
@@ -103,7 +103,7 @@ src/
 │   ├── image-compression.ts # 업로드 전 이미지 리사이즈·JPEG 압축
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
-│   ├── map-links.ts         # 주소 → 지도 앱(카카오맵/네이버지도) 연동 URL, 주소 복사
+│   ├── map-links.ts         # 주소 → 지도 앱(카카오맵/네이버지도/티맵) 연동 URL, 주소 복사
 │   ├── postcode.ts          # Kakao 우편번호 서비스 스크립트 로더, 선택 주소 추출
 │   ├── kakao-local.ts       # Kakao 로컬 API 키워드 장소 검색 (서버 전용, KAKAO_REST_API_KEY)
 │   ├── store-place.ts       # 매장 kakaoPlaceId 중복 확인 (서버 전용)
@@ -323,3 +323,4 @@ src/app/api/
 | 2026-09-30 | [임시] 데스크톱에서도 주소 클릭 시 선택 시트 표시 (네이버지도 웹 새 탭 / 주소 복사, 카카오맵 숨김). 저장값이 kakao여도 데스크톱은 네이버지도 웹. `DESKTOP_ADDRESS_SHEET_ENABLED`(lib/map-links)로 토글 | common/address-*, providers/address-action-provider, lib/map-links, profile AGENTS.md | PC에서도 주소를 바로 지도로 확인하기 위함. 데스크톱엔 지도 앱이 없어 웹 지도로 연결 |
 | 2026-09-29 | 매장 모달 주소 칸에 "주소 검색" 버튼 추가 (Kakao 우편번호 서비스 임베드, 모바일 풀스크린). 선택 시 도로명/지번 기본 주소만 채우고 층·호수는 직접 입력, 직접 입력도 계속 허용 | common/address-search-dialog, lib/postcode, stores/store-modal, stores AGENTS.md | 자유 입력 주소의 오타·시군구 누락·설명식 주소로 지도 검색이 실패하는 문제 방지. 키 발급·비용 없이 표준 주소를 저장 |
 | 2026-09-29 | 매장 모달 매장명 옆 "매장 검색"(상호 검색) 추가 — Kakao 로컬 키워드 장소 검색을 서버 프록시(`GET /api/places/search`)로 호출, 선택 시 주소·좌표·`kakaoPlaceId` 저장. `KAKAO_REST_API_KEY` 미설정 시 버튼 숨김 + API 503(기존 동작 그대로). 매장 POST/PUT에 `kakaoPlaceId` 중복 확인(활성 매장 중복 409, 삭제 매장 연결은 해제) | lib/kakao-local, lib/store-place, api/places/search, api/stores, stores/place-search-dialog, stores/store-modal, .env.example, stores AGENTS.md | 우편번호 서비스는 상호로 검색되지 않아 상호만 아는 매장을 등록하기 어려움. 키 없이 배포돼도 영향 없도록 기능 플래그를 서버 환경변수로 둠 |
+| 2026-09-30 | 주소 탭 선택지에 티맵 추가 (`tmap://search?name=` 통합 검색, Android 패키지 `com.skt.tmap.ku`). 웹 지도가 없어 미설치 시 Android는 Play 스토어, iOS는 App Store 설치 안내 토스트. 데스크톱 시트에서는 숨기고 저장값이 tmap이어도 네이버지도 웹 | lib/map-links, common/address-action-sheet, providers/address-action-provider, profile AGENTS.md | 차량 순회 직원 중 티맵을 쓰는 경우가 있어 선택지로 제공 |

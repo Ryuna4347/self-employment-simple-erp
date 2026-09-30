@@ -32,6 +32,11 @@ const ACTION_DISPLAY: Record<AddressAction, { description: string; icon: LucideI
     icon: MapIcon,
     iconClassName: "bg-[#03C75A] text-white",
   },
+  tmap: {
+    description: "티맵 앱에서 주소 검색",
+    icon: MapIcon,
+    iconClassName: "bg-[#0064FF] text-white",
+  },
   copy: {
     description: "다른 앱에 붙여넣을 수 있도록 복사",
     icon: Copy,
@@ -57,7 +62,7 @@ interface AddressActionSheetProps {
 
 /**
  * 주소 탭 동작 선택 시트 (모바일: 바텀시트, 태블릿 이상: 다이얼로그)
- * - 터치 기기: 카카오맵 / 네이버지도 / 주소 복사
+ * - 터치 기기: 카카오맵 / 네이버지도 / 티맵 / 주소 복사
  * - 데스크톱: 네이버지도(웹) / 주소 복사
  * - "선택 기억하기" 체크 시 이 기기에 저장되어 다음부터 바로 실행
  */
