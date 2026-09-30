@@ -255,6 +255,8 @@ src/app/api/
   - 지연 마운트되는 모달은 `open=true` 상태로 처음 마운트되어도 올바르게 초기화되어야 한다 (마운트 시점에 상태를 지우는 effect 금지 — 예: `work-record-modal`의 휴업&폐업 해제 시 이미지 초기화는 상태 전환 시에만 실행)
   - recharts 등 무거운 라이브러리는 화면 일부를 컴포넌트로 분리해 지연 로드한다 (예: `admin/dashboard/components/dashboard-charts.tsx`)
   - 레이아웃/공용 컴포넌트는 `@/components/common` 배럴 대신 개별 파일에서 import한다 (배럴을 거치면 쓰지 않는 컴포넌트까지 초기 번들에 포함될 수 있음)
+  - `placeholderData`로 이전 목록을 보여 주는 동안에는 그 목록을 기준으로 한 쓰기 동작(정렬 저장, 삭제 모드 진입 등)을 막고, 선택 상태는 현재 목록 기준으로 걸러 쓴다 (예: `work-records-client`의 `canReorder`·`visibleSelectedIds`)
+  - 지연 로드 영역의 로딩 자리 표시는 실제 컴포넌트와 같은 높이로 그리고 높이 상수를 공유한다 (예: `admin/dashboard/components/dashboard-charts-skeleton.tsx`). `next/dynamic`의 `loading`에는 props가 전달되지 않으므로 필요한 값은 Context로 넘긴다
 
 ## 하네스: Claude × Codex 협업 (MCP 기반)
 
@@ -308,3 +310,4 @@ src/app/api/
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
 | 2026-09-29 | 프론트 성능 개선: 모달·대시보드 차트·달력 지연 로드(`next/dynamic` + `MountOnFirstOpen` + `preloadOnIdle`), 모달 조회를 열 때만 실행(`enabled: open`, FAB 열 때 미리 조회), with-nav 레이아웃 배럴 import 제거, Geist Mono 제거, 4xx 재시도 중단, 직원/매장/코스 목록 staleTime(5분/1분), 근무기록 카드 상세 영역을 처음 펼칠 때 렌더링(첨부 이미지 지연 다운로드), 업로드 전 이미지 압축(긴 변 1600px JPEG, 원본 20MB까지 허용), 검색 디바운스 1초→0.5초 + 결과 도착 전 이전 목록 유지, 순서 변경 시 캐시 동기화 | common/mount-on-first-open, lib/preload-on-idle·image-compression·query-client, work-records·stores·store-templates·admin(대시보드/비용/공지/직원/미수금) 컴포넌트·훅, work-records·dashboard AGENTS.md | 주요 페이지의 첫 로드 JS(gzip)를 약 19~125KB 줄이고, 쓰지 않는 모달용 전체 매장/코스/직원 목록 조회와 접힌 카드의 원본 사진 다운로드를 없애 모바일 첫 로드와 업로드 시간을 단축 |
+| 2026-09-30 | 지연 로드 후속 보완: 이전 목록(placeholder)을 보여 주는 동안 드래그 정렬·삭제 모드 진입 차단 + 삭제 선택을 현재 목록 기준으로 한정, 대시보드 "더보기" 모달 청크를 데이터 표시 후 미리 받기(로더 공유), 차트 로딩 자리 표시를 조회 모드별 실제 차트와 같은 카드·높이로(높이 상수 공유) | work-records-client, admin/dashboard 컴포넌트(dashboard-charts-skeleton 추가), 루트·work-records·dashboard AGENTS.md | 검색어를 지운 직후 이전 검색 결과만 보이는 상태에서 정렬하면 일부 기록의 순서만 저장되어 순서가 겹치는 문제, 배포 직후 이전 화면에서 "더보기"를 처음 누르면 이전 청크가 없어 모달이 열리지 않는 문제, 차트를 받는 동안 아래 매장 목록이 밀리는 문제(월별 1044px·일별 702px) 해소 |
