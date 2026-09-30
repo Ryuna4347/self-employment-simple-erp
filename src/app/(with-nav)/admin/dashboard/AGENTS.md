@@ -58,11 +58,20 @@ dashboard/
 ├── components/
 │   ├── dashboard-content.tsx   # 메인 뷰 (필터 + 요약 카드 + 매장 목록). 차트·모달은 next/dynamic으로 지연 로드
 │   ├── dashboard-charts.tsx    # 차트 섹션 (recharts: 매출 추이/누적 매출/비용 추이/수금 현황, 누적 데이터 파생)
+│   ├── dashboard-charts-skeleton.tsx # 차트 코드를 받는 동안의 자리 표시 + 차트 높이 상수 (실제 차트와 공유)
 │   ├── store-list-modal.tsx    # 제거/추가 매장 "더보기" 전체 목록 모달
 │   └── index.ts
 └── hooks/
     └── use-dashboard.ts        # TanStack Query (period/year/month 파라미터)
 ```
+
+---
+
+## 성능 관련 구현
+
+- **차트 지연 로드**: recharts가 들어 있는 `dashboard-charts.tsx`는 `next/dynamic`으로 분리한다. 받는 동안 `DashboardChartsSkeleton`을 보여 준다
+- **자리 표시 높이 = 실제 차트 높이**: 자리 표시는 조회 모드별(월별 4개 / 일별 3개, 비용 추이는 월별만) 실제 차트와 같은 카드·제목·높이로 그려, 차트를 받기 전후로 아래 매장 목록이 밀리지 않게 한다. 높이는 `REVENUE_CHART_HEIGHT`/`CHART_HEIGHT`(`dashboard-charts-skeleton.tsx`)를 두 컴포넌트가 함께 쓰므로 차트 높이를 바꿀 때는 이 상수만 고친다. `next/dynamic`의 `loading`에는 props가 전달되지 않아 조회 모드는 `ChartsPeriodContext`로 넘긴다
+- **"더보기" 모달 미리 받기**: `store-list-modal.tsx`도 지연 로드하고, 대시보드 데이터를 그린 뒤 유휴 시간에 미리 받는다. 로더(`loadStoreListModal`)를 `dynamic()`과 `preloadOnIdle()`이 함께 써야 같은 청크를 재사용한다 (배포 직후 이전 화면에서 처음 열 때 이전 청크가 사라져 모달이 열리지 않는 문제 방지)
 
 ---
 

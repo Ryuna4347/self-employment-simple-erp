@@ -22,6 +22,7 @@ import type {
   ChartDataPoint,
   CompareTailPoint,
 } from "../hooks/use-dashboard";
+import { CHART_HEIGHT, REVENUE_CHART_HEIGHT } from "./dashboard-charts-skeleton";
 
 /**
  * 대시보드 차트 섹션 (매출 추이 / 누적 매출 / 비용 추이 / 수금 현황)
@@ -167,7 +168,7 @@ export function DashboardCharts({
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h3 className="text-sm font-medium text-gray-900 mb-4">매출 추이</h3>
         {data.chart.length > 0 ? (
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={REVENUE_CHART_HEIGHT}>
             <ComposedChart
               data={data.chart}
               onClick={(state) => {
@@ -225,7 +226,10 @@ export function DashboardCharts({
             </ComposedChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+          <div
+            className="flex items-center justify-center text-sm text-gray-400"
+            style={{ height: REVENUE_CHART_HEIGHT }}
+          >
             데이터가 없습니다
           </div>
         )}
@@ -237,7 +241,7 @@ export function DashboardCharts({
           {period === "daily" ? "월 누적 매출" : "연 누적 매출"}
         </h3>
         {cumulativeChart.length > 0 ? (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
             <LineChart data={cumulativeChart}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -292,7 +296,10 @@ export function DashboardCharts({
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+          <div
+            className="flex items-center justify-center text-sm text-gray-400"
+            style={{ height: CHART_HEIGHT }}
+          >
             데이터가 없습니다
           </div>
         )}
@@ -303,7 +310,7 @@ export function DashboardCharts({
         <div className="bg-white rounded-lg shadow-sm p-4">
           <h3 className="text-sm font-medium text-gray-900 mb-4">비용 추이</h3>
           {data.expenseChart.some((d) => d.amount > 0) ? (
-            <ResponsiveContainer width="100%" height={250}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
               <LineChart data={data.expenseChart}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
@@ -325,7 +332,10 @@ export function DashboardCharts({
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+            <div
+              className="flex items-center justify-center text-sm text-gray-400"
+              style={{ height: CHART_HEIGHT }}
+            >
               데이터가 없습니다
             </div>
           )}
@@ -336,7 +346,7 @@ export function DashboardCharts({
       <div className="bg-white rounded-lg shadow-sm p-4">
         <h3 className="text-sm font-medium text-gray-900 mb-4">수금 현황</h3>
         {collectionData.some((d) => d.value > 0) ? (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
             <PieChart>
               <Pie
                 data={collectionData}
@@ -356,7 +366,10 @@ export function DashboardCharts({
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
+          <div
+            className="flex items-center justify-center text-sm text-gray-400"
+            style={{ height: CHART_HEIGHT }}
+          >
             데이터가 없습니다
           </div>
         )}
