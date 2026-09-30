@@ -2,7 +2,6 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  MapPin,
   ChevronDown,
   Pencil,
   Trash2,
@@ -13,8 +12,8 @@ import {
   Clock,
   Send,
 } from "lucide-react";
-import { toast } from "sonner";
 import { StoreVisitHistory } from "./store-visit-history";
+import { AddressButton } from "@/components/common/address-button";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type {
@@ -140,7 +139,6 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
     canModify && (userRole === "ADMIN" || !record.pendingRequestId);
   const isActionPending = isDeleting || isCollecting;
   const storeAddress = record.storeAddressSnapshot ?? record.store?.address ?? "";
-  const storeAddressLabel = storeAddress || "주소 없음";
 
   const toggleExpand = useCallback(() => {
     // 삭제 모드에서는 아코디언 확장 대신 선택 토글로 동작
@@ -249,27 +247,8 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
                     "알 수 없음"}
                 </h3>
               </div>
-              {/* 2줄: 주소 */}
-              <button
-                type="button"
-                aria-label={`주소 복사: ${storeAddressLabel}`}
-                className="flex items-start gap-1.5 text-sm text-gray-600 active:bg-gray-100 rounded"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (storeAddress) {
-                    navigator.clipboard.writeText(storeAddress);
-                    toast.success("주소가 복사되었습니다");
-                  }
-                }}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <MapPin className="size-4 flex-shrink-0 mt-0.5" />
-                <span className="line-clamp-1">
-                  {record.storeAddressSnapshot ??
-                    record.store?.address ??
-                    "주소 없음"}
-                </span>
-              </button>
+              {/* 2줄: 주소 (탭 시 지도 연동/복사 선택, 동작은 AddressButton 참고) */}
+              <AddressButton address={storeAddress} />
             </div>
 
             {/* 우측: 미수액 + 금액 + 확장 아이콘 */}

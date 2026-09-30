@@ -71,12 +71,17 @@ src/
 │   │   ├── loading-view.tsx
 │   │   ├── mount-on-first-open.tsx  # 모달을 처음 열 때 마운트 (지연 로드 모달용)
 │   │   ├── searchable-dropdown.tsx
-│   │   └── user-filter.tsx
+│   │   ├── user-filter.tsx
+│   │   ├── address-button.tsx        # 카드 주소 버튼 (모바일 지도 앱 연동 / 데스크톱은 임시로 네이버지도 웹·복사 선택)
+│   │   └── address-action-sheet.tsx  # 주소 동작 선택 시트 (카카오맵/네이버지도/복사 + 선택 기억하기)
 │   └── providers/
-│       └── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
+│       ├── app-providers.tsx  # QueryClient, 테마, 401 전역 처리
+│       └── address-action-provider.tsx  # 주소 탭 동작 전역 Provider (선택 시트 1개 관리)
 ├── hooks/               # 전역 커스텀 훅
 │   ├── use-dropdown-state.ts
 │   ├── use-is-mobile.ts
+│   ├── use-is-touch-device.ts            # (pointer: coarse) 터치 기기 판별
+│   ├── use-address-action-preference.ts  # 주소 탭 동작 기억값 (localStorage, 기기별)
 │   ├── use-session-sync.ts
 │   └── use-users.ts
 ├── lib/                 # 유틸리티 & 라이브러리
@@ -97,6 +102,7 @@ src/
 │   ├── image-compression.ts # 업로드 전 이미지 리사이즈·JPEG 압축
 │   ├── invite.ts            # 초대 코드 유틸
 │   ├── korean-to-english.ts # 한글 입력 처리
+│   ├── map-links.ts         # 주소 → 지도 앱(카카오맵/네이버지도) 연동 URL, 주소 복사
 │   ├── prisma.ts            # Prisma 클라이언트 싱글톤
 │   ├── preload-on-idle.ts   # 유휴 시간에 지연 로드 청크 미리 받기
 │   ├── query-client.ts      # React Query 클라이언트 설정 (staleTime 기본 5초, 4xx 재시도 안 함, 401 전역 처리)
@@ -183,7 +189,7 @@ src/app/api/
 | 근무기록 | `/work-records` | 방문 기록, 거래 내역, 수금 요청, 일일 비용 |
 | 순회 템플릿 | `/store-templates` | 매장 그룹/코스 관리 |
 | 경비 | `/expenses` | 경비 기록 관리 (미구현) |
-| 프로필 | `/profile` | 비밀번호 변경 |
+| 프로필 | `/profile` | 비밀번호 변경, 이 기기 설정(주소 탭 동작) |
 | 관리자 | `/admin/*` | 대시보드, 직원관리, 미수금, 수금, 비용, 공지, 엑셀 내보내기 |
 
 ## 데이터 모델 (Prisma)
@@ -308,3 +314,5 @@ src/app/api/
 | 2026-09-03 | 대시보드 전년 비교 제거, 전월 비교를 일별 모드 매출 차트에만 항상 표시, 툴팁 비교 라벨을 `MM/DD`로 (`chart[].compareLabel`), `compare` 쿼리 파라미터·응답 객체 및 총매출 카드 증감률 제거 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 비교 선택 UI 없이 매출 차트에서만 전월 대비를 제공. 호버 시 월 단위 라벨보다 해당 일자가 직관적 |
 | 2026-09-05 | 대시보드 매출 추이 아래 누적 매출 차트 추가 (일별: 당월 누적 + 전월 같은 일자까지 누적 점선, 월별: 당해 연 누적). 현재 기간은 오늘(KST)/이번 달까지만 표시. 가로축은 당월/전월 중 일수가 많은 달 기준(응답 `compareTail[]` 추가) | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 월/연 진행 매출과 전월 대비 누적 추이를 매출 추이와 같은 화면에서 한눈에 보기 위함. 9월(30일) 조회 시 8월 31일 매출이 잘려 전월 월 합계와 어긋나는 문제 해소 |
 | 2026-09-29 | 프론트 성능 개선: 모달·대시보드 차트·달력 지연 로드(`next/dynamic` + `MountOnFirstOpen` + `preloadOnIdle`), 모달 조회를 열 때만 실행(`enabled: open`, FAB 열 때 미리 조회), with-nav 레이아웃 배럴 import 제거, Geist Mono 제거, 4xx 재시도 중단, 직원/매장/코스 목록 staleTime(5분/1분), 근무기록 카드 상세 영역을 처음 펼칠 때 렌더링(첨부 이미지 지연 다운로드), 업로드 전 이미지 압축(긴 변 1600px JPEG, 원본 20MB까지 허용), 검색 디바운스 1초→0.5초 + 결과 도착 전 이전 목록 유지, 순서 변경 시 캐시 동기화 | common/mount-on-first-open, lib/preload-on-idle·image-compression·query-client, work-records·stores·store-templates·admin(대시보드/비용/공지/직원/미수금) 컴포넌트·훅, work-records·dashboard AGENTS.md | 주요 페이지의 첫 로드 JS(gzip)를 약 19~125KB 줄이고, 쓰지 않는 모달용 전체 매장/코스/직원 목록 조회와 접힌 카드의 원본 사진 다운로드를 없애 모바일 첫 로드와 업로드 시간을 단축 |
+| 2026-09-29 | 매장/근무기록 카드 주소 탭 시 모바일(터치 기기)은 선택 시트(카카오맵/네이버지도/주소 복사) 표시, "선택 기억하기" 시 다음부터 바로 실행. 기억값은 localStorage(기기별, DB 저장 안 함)이며 내 정보 > 이 기기 설정에서 변경/해제. 데스크톱은 기존대로 즉시 복사 | common/address-*, providers/address-action-provider, hooks/use-is-touch-device·use-address-action-preference, lib/map-links, profile AGENTS.md | 현장 순회 중 주소를 복사해 지도 앱에 붙여넣는 번거로움 해소. 직원마다 쓰는 지도 앱이 달라 선택형으로 제공하고 기기별로 기억 |
+| 2026-09-30 | [임시] 데스크톱에서도 주소 클릭 시 선택 시트 표시 (네이버지도 웹 새 탭 / 주소 복사, 카카오맵 숨김). 저장값이 kakao여도 데스크톱은 네이버지도 웹. `DESKTOP_ADDRESS_SHEET_ENABLED`(lib/map-links)로 토글 | common/address-*, providers/address-action-provider, lib/map-links, profile AGENTS.md | PC에서도 주소를 바로 지도로 확인하기 위함. 데스크톱엔 지도 앱이 없어 웹 지도로 연결 |

@@ -6,6 +6,7 @@ import { LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { broadcastSignOut } from "@/hooks/use-session-sync";
 import { ChangePasswordModal } from "./change-password-modal";
+import { AddressActionSetting } from "./address-action-setting";
 import type { Role } from "@/generated/prisma/client";
 import { getRoleLabel } from "@/lib/role-utils";
 
@@ -74,6 +75,17 @@ export function ProfileContent({ user }: ProfileContentProps) {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* 기기 설정 (localStorage 저장 — 다른 기기에는 적용되지 않음) */}
+      <div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div className="px-4 py-3 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-gray-900">이 기기 설정</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            현재 사용 중인 기기(브라우저)에만 저장됩니다
+          </p>
+        </div>
+        <AddressActionSetting />
       </div>
 
       {/* 로그아웃 버튼 */}
