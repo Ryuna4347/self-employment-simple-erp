@@ -70,7 +70,11 @@
 ### 정렬
 - 코스 적용 시 `sortOrder`에 `StoreTemplateMember.order` 값 반영
 - 드래그앤드롭으로 본인의 해당 날짜 근무기록 순서 변경 가능
-- 트랜잭션으로 일괄 업데이트
+- 트랜잭션 안에서 단일 `UPDATE ... FROM (VALUES ...)`로 일괄 변경 (`updatedAt`도 함께 갱신). 검증 후 삭제된 기록이 있어 갱신 건수가 모자라면 전체 롤백
+
+### 이월 수금 통합 (`consolidateAndCollect`, `src/lib/collection-utils.ts`)
+- 일괄 수금(`POST /api/work-records/batch-collect`)과 수금 확인 요청 승인이 사용
+- 대상 UNCOLLECTED 기록을 날짜 ASC로 정렬해 마지막 건을 제외한 기록의 품목 `amount`를 한 번의 `updateMany`로 0 처리하고, 이월 수금 항목은 `createMany` 한 번으로 마지막 건에 추가한다 (기록 수와 무관하게 쓰기 쿼리 수 일정). 이월 항목은 날짜 ASC 순서로 생성되어 품목 순서(id ASC)도 날짜 순
 
 ---
 

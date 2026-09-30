@@ -7,7 +7,7 @@ import { apiSuccess, ApiErrors } from "@/lib/api-response"
 import { dateToKSTMidnight, dateToKSTEndOfDay, toKSTDateString } from "@/lib/date-utils"
 import { DIRECT_COLLECT_WINDOW_MS } from "@/lib/collection-utils"
 import { toRecordItemData } from "@/lib/sales-utils"
-import type { Prisma } from "@/generated/prisma/client"
+import { Prisma } from "@/generated/prisma/client"
 
 const querySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD 형식이어야 합니다"),
@@ -151,39 +151,72 @@ export async function GET(request: NextRequest) {
       .flatMap(r => r.collectionRequestItems.map(item => item.collectionRequestId))
   )
 
-  // 최근 기록 ID → 요청 전체 금액/결제방식별 금액 매핑
-  const latestRecordPendingMap = new Map<string, { total: number; byPaymentType: Record<string, number> }>()
-  if (pendingRequestIds.size > 0) {
-    const pendingRequests = await prisma.collectionRequest.findMany({
-      where: { id: { in: [...pendingRequestIds] } },
-      select: {
-        items: {
+  // 매장별 미수 집계 대상 (현재 페이지의 매장)
+  const pageStoreIds = [...new Set(
+    pageRecords.map(r => r.storeId).filter((id): id is string => id !== null)
+  )]
+
+  // 2. 수금 확인 요청 합계 / 매장별 미수 집계 / 매장별 PENDING 요청 — 서로 독립적이라 병렬 조회
+  const [pendingRequests, storeOutstandingRows, storePendingRequests] = await Promise.all([
+    pendingRequestIds.size > 0
+      ? prisma.collectionRequest.findMany({
+          where: { id: { in: [...pendingRequestIds] } },
           select: {
-            workRecordId: true,
-            workRecord: {
+            items: {
               select: {
-                date: true,
-                paymentTypeSnapshot: true,
-                items: { select: { amount: true } },
+                workRecordId: true,
+                workRecord: {
+                  select: {
+                    date: true,
+                    paymentTypeSnapshot: true,
+                    items: { select: { amount: true } },
+                  },
+                },
               },
+              orderBy: { workRecord: { date: "desc" } },
             },
           },
-          orderBy: { workRecord: { date: "desc" } },
-        },
-      },
-    })
-    for (const req of pendingRequests) {
-      if (!req.items[0]) continue
-      const latestId = req.items[0].workRecordId
-      let total = 0
-      const byPaymentType: Record<string, number> = { CASH: 0, ACCOUNT: 0, CARD: 0 }
-      for (const item of req.items) {
-        const amount = item.workRecord.items.reduce((sum, i) => sum + i.amount, 0)
-        total += amount
-        byPaymentType[item.workRecord.paymentTypeSnapshot] += amount
-      }
-      latestRecordPendingMap.set(latestId, { total, byPaymentType })
+        })
+      : Promise.resolve([]),
+    // 매장별 다른 날짜 미수 건수·금액 (현재 날짜 제외). 레코드를 가져와 합산하던 것을 DB 집계로 대체
+    pageStoreIds.length > 0
+      ? prisma.$queryRaw<{ storeId: string; recordCount: bigint; totalAmount: bigint }[]>`
+          SELECT wr."storeId",
+                 COUNT(DISTINCT wr.id) AS "recordCount",
+                 COALESCE(SUM(ri.amount), 0) AS "totalAmount"
+          FROM "WorkRecord" wr
+          LEFT JOIN "RecordItem" ri ON ri."workRecordId" = wr.id
+          WHERE wr."storeId" IN (${Prisma.join(pageStoreIds)})
+            AND wr."collectionStatus" = 'UNCOLLECTED'
+            AND NOT (wr.date >= ${dateStart} AND wr.date <= ${dateEnd})
+          GROUP BY wr."storeId"
+        `
+      : Promise.resolve([]),
+    // 매장별 PENDING 요청 존재 여부
+    pageStoreIds.length > 0
+      ? prisma.collectionRequest.findMany({
+          where: {
+            storeId: { in: pageStoreIds },
+            status: "PENDING",
+          },
+          select: { storeId: true },
+        })
+      : Promise.resolve([]),
+  ])
+
+  // 최근 기록 ID → 요청 전체 금액/결제방식별 금액 매핑
+  const latestRecordPendingMap = new Map<string, { total: number; byPaymentType: Record<string, number> }>()
+  for (const req of pendingRequests) {
+    if (!req.items[0]) continue
+    const latestId = req.items[0].workRecordId
+    let total = 0
+    const byPaymentType: Record<string, number> = { CASH: 0, ACCOUNT: 0, CARD: 0 }
+    for (const item of req.items) {
+      const amount = item.workRecord.items.reduce((sum, i) => sum + i.amount, 0)
+      total += amount
+      byPaymentType[item.workRecord.paymentTypeSnapshot] += amount
     }
+    latestRecordPendingMap.set(latestId, { total, byPaymentType })
   }
 
   // summary 계산 (전체 날짜 기준)
@@ -212,66 +245,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 매장별 미수 집계 (현재 날짜 제외)
-  const pageStoreIds = [...new Set(
-    pageRecords.map(r => r.storeId).filter((id): id is string => id !== null)
-  )]
-
+  // 매장별 미수 집계 (현재 날짜 제외). 집계 행이 있는 매장 = 다른 날짜 미수가 1건 이상 있는 매장
   const storeOutstandingMap = new Map<string, { count: number; totalAmount: number }>()
-  // 매장별 가장 빠른 미수 날짜 (직접 수금 가능 여부 판단용)
-  const earliestUncollectedMap = new Map<string, Date>()
+  for (const row of storeOutstandingRows) {
+    storeOutstandingMap.set(row.storeId, {
+      count: Number(row.recordCount),
+      totalAmount: Number(row.totalAmount),
+    })
+  }
+
   // 매장별 PENDING 요청 존재 여부
   const pendingRequestStoreIds = new Set<string>()
-
-  if (pageStoreIds.length > 0) {
-    const [outstandingRecords, earliestByStore, pendingRequests] = await Promise.all([
-      prisma.workRecord.findMany({
-        where: {
-          storeId: { in: pageStoreIds },
-          collectionStatus: "UNCOLLECTED",
-          NOT: { date: { gte: dateStart, lte: dateEnd } },
-        },
-        select: {
-          storeId: true,
-          items: { select: { amount: true } },
-        },
-      }),
-      // 매장별 가장 빠른 미수 날짜 조회
-      prisma.workRecord.groupBy({
-        by: ["storeId"],
-        where: {
-          storeId: { in: pageStoreIds },
-          collectionStatus: "UNCOLLECTED",
-          NOT: { date: { gte: dateStart, lte: dateEnd } },
-        },
-        _min: { date: true },
-      }),
-      // 매장별 PENDING 요청 존재 여부
-      prisma.collectionRequest.findMany({
-        where: {
-          storeId: { in: pageStoreIds },
-          status: "PENDING",
-        },
-        select: { storeId: true },
-      }),
-    ])
-
-    for (const record of outstandingRecords) {
-      const existing = storeOutstandingMap.get(record.storeId!) || { count: 0, totalAmount: 0 }
-      existing.count++
-      existing.totalAmount += record.items.reduce((sum, item) => sum + item.amount, 0)
-      storeOutstandingMap.set(record.storeId!, existing)
-    }
-
-    for (const group of earliestByStore) {
-      if (group.storeId && group._min.date) {
-        earliestUncollectedMap.set(group.storeId, group._min.date)
-      }
-    }
-
-    for (const req of pendingRequests) {
-      if (req.storeId) pendingRequestStoreIds.add(req.storeId)
-    }
+  for (const req of storePendingRequests) {
+    if (req.storeId) pendingRequestStoreIds.add(req.storeId)
   }
 
   const now = new Date()
@@ -289,13 +275,8 @@ export async function GET(request: NextRequest) {
       const deadline = new Date(referenceDate.getTime() + DIRECT_COLLECT_WINDOW_MS)
       const withinWindow = now <= deadline
 
-      hasPreviousUncollected = false
-      if (r.storeId) {
-        const earliest = earliestUncollectedMap.get(r.storeId)
-        if (earliest) {
-          hasPreviousUncollected = true
-        }
-      }
+      // 같은 매장의 다른 날짜 미수가 있으면 직접 수금 불가
+      hasPreviousUncollected = r.storeId ? storeOutstandingMap.has(r.storeId) : false
 
       canDirectCollect = withinWindow && !hasPreviousUncollected
     }
@@ -366,31 +347,32 @@ export async function POST(request: NextRequest) {
     return ApiErrors.validationError("미래 날짜에는 근무기록을 등록할 수 없습니다")
   }
 
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
-    select: {
-      id: true,
-      isDeleted: true,
-      name: true,
-      address: true,
-      managerName: true,
-      PaymentType: true,
-    },
-  })
+  // 매장 조회와 동일 날짜 + 동일 매장 중복 체크는 서로 독립적이라 병렬 조회 (응답 우선순위는 기존과 동일)
+  const [store, existing] = await Promise.all([
+    prisma.store.findUnique({
+      where: { id: storeId },
+      select: {
+        id: true,
+        isDeleted: true,
+        name: true,
+        address: true,
+        managerName: true,
+        PaymentType: true,
+      },
+    }),
+    prisma.workRecord.findFirst({
+      where: {
+        userId: user.id,
+        storeId,
+        date: { gte: dateToKSTMidnight(date), lte: dateToKSTEndOfDay(date) },
+      },
+      select: { id: true },
+    }),
+  ])
 
   if (!store || store.isDeleted) {
     return ApiErrors.notFound("선택한 매장을 찾을 수 없습니다")
   }
-
-  // 동일 날짜 + 동일 매장 중복 체크
-  const existing = await prisma.workRecord.findFirst({
-    where: {
-      userId: user.id,
-      storeId,
-      date: { gte: dateToKSTMidnight(date), lte: dateToKSTEndOfDay(date) },
-    },
-    select: { id: true },
-  })
 
   if (existing) {
     return ApiErrors.alreadyExists("해당 날짜에 이미 등록된 매장입니다")

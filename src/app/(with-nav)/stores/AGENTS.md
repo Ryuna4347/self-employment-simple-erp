@@ -30,7 +30,7 @@
 ## 비즈니스 규칙
 
 - 매장 삭제 시 soft delete(`isDeleted: true`) 처리합니다. StoreItem과 WorkRecord는 보존합니다.
-- 매장 수정 시 연결된 WorkRecord의 스냅샷(`storeNameSnapshot`, `storeAddressSnapshot`)을 동기화합니다.
+- 매장 수정 시 연결된 WorkRecord의 스냅샷(`storeNameSnapshot`, `storeAddressSnapshot`)을 동기화합니다. 스냅샷이 이미 현재 매장명/주소와 같은 기록은 다시 쓰지 않습니다 (메모·품목만 수정할 때 매장의 전체 근무기록을 재기록하지 않도록. 결과 스냅샷 값은 전체 갱신과 동일, 해당 기록의 `updatedAt`만 그대로 유지).
 - `kakaoPlaceId`는 unique입니다.
 - 근무기록 생성 시 StoreItem을 자동 로드합니다.
 - 계좌 결제(`ACCOUNT`)인 경우 입금자 입력이 필수입니다.

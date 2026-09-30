@@ -22,51 +22,53 @@ export async function GET(request: NextRequest) {
   const periodEnd = endOfMonthKST(year, month)
 
   // 1. 직접 수금 레코드 (CollectionRequestItem에 속하지 않는 COLLECTED 레코드)
-  const directRecords = await prisma.workRecord.findMany({
-    where: {
-      collectionStatus: "COLLECTED",
-      collectedAt: { gte: periodStart, lte: periodEnd },
-      collectionRequestItems: { none: {} },
-      ...(userId ? { collectedByUserId: userId } : {}),
-      ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" as const } } : {}),
-    },
-    select: {
-      id: true,
-      date: true,
-      storeNameSnapshot: true,
-      collectedAt: true,
-      collectedByUserId: true,
-      collectedBy: { select: { id: true, name: true } },
-      items: { select: { name: true, amount: true, quantity: true } },
-    },
-    orderBy: { collectedAt: "desc" },
-  })
-
   // 2. 승인된 CollectionRequest
-  const approvedRequests = await prisma.collectionRequest.findMany({
-    where: {
-      status: "APPROVED",
-      createdAt: { gte: periodStart, lte: periodEnd },
-      ...(userId ? { requesterId: userId } : {}),
-      ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" as const } } : {}),
-    },
-    include: {
-      requester: { select: { id: true, name: true } },
-      items: {
-        include: {
-          workRecord: {
-            select: {
-              id: true,
-              date: true,
-              collectedAt: true,
-              items: { select: { name: true, amount: true, quantity: true } },
+  // 두 조회는 서로 독립적이라 병렬 실행 (기존: 순차 실행)
+  const [directRecords, approvedRequests] = await Promise.all([
+    prisma.workRecord.findMany({
+      where: {
+        collectionStatus: "COLLECTED",
+        collectedAt: { gte: periodStart, lte: periodEnd },
+        collectionRequestItems: { none: {} },
+        ...(userId ? { collectedByUserId: userId } : {}),
+        ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" as const } } : {}),
+      },
+      select: {
+        id: true,
+        date: true,
+        storeNameSnapshot: true,
+        collectedAt: true,
+        collectedByUserId: true,
+        collectedBy: { select: { id: true, name: true } },
+        items: { select: { name: true, amount: true, quantity: true } },
+      },
+      orderBy: { collectedAt: "desc" },
+    }),
+    prisma.collectionRequest.findMany({
+      where: {
+        status: "APPROVED",
+        createdAt: { gte: periodStart, lte: periodEnd },
+        ...(userId ? { requesterId: userId } : {}),
+        ...(search ? { storeNameSnapshot: { contains: search, mode: "insensitive" as const } } : {}),
+      },
+      include: {
+        requester: { select: { id: true, name: true } },
+        items: {
+          include: {
+            workRecord: {
+              select: {
+                id: true,
+                date: true,
+                collectedAt: true,
+                items: { select: { name: true, amount: true, quantity: true } },
+              },
             },
           },
         },
       },
-    },
-    orderBy: { reviewedAt: "desc" },
-  })
+      orderBy: { reviewedAt: "desc" },
+    }),
+  ])
 
   // 통합 목록 생성
   type HistoryEntry = {

@@ -26,65 +26,82 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { id } = await params
 
   try {
-    // 코스 조회
-    const template = await prisma.storeTemplate.findUnique({
-      where: { id },
-      include: {
-        members: {
-          orderBy: { order: "asc" },
-          include: {
-            store: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                managerName: true,
-                PaymentType: true,
-                note: true,
-                isDeleted: true,
-                storeItems: {
-                  select: {
-                    name: true,
-                    amount: true,
-                    quantity: true,
+    // 본문 파싱은 DB와 무관하므로 먼저 해 두고, 코스 조회와 기존 기록 조회를 병렬로 실행한다.
+    // 응답 우선순위는 기존과 같다: 코스 없음(404) → 잘못된 JSON(500) → 입력 검증 실패(400)
+    let body: unknown = undefined
+    let bodyError: unknown = null
+    try {
+      body = await request.json()
+    } catch (error) {
+      bodyError = error
+    }
+    const parseResult = bodyError === null ? applySchema.safeParse(body) : null
+    const targetDate = parseResult?.success ? dateToKSTMidnight(parseResult.data.date) : null
+
+    const [template, userRecordsOnDate] = await Promise.all([
+      // 코스 조회
+      prisma.storeTemplate.findUnique({
+        where: { id },
+        include: {
+          members: {
+            orderBy: { order: "asc" },
+            include: {
+              store: {
+                select: {
+                  id: true,
+                  name: true,
+                  address: true,
+                  managerName: true,
+                  PaymentType: true,
+                  note: true,
+                  isDeleted: true,
+                  storeItems: {
+                    select: {
+                      name: true,
+                      amount: true,
+                      quantity: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    })
+      }),
+      // 해당 날짜에 이미 있는 본인 근무기록의 매장 (코스 멤버 여부는 아래에서 거른다)
+      targetDate
+        ? prisma.workRecord.findMany({
+            where: { userId: user.id, date: targetDate },
+            select: { storeId: true },
+          })
+        : Promise.resolve([]),
+    ])
 
     if (!template) {
       return ApiErrors.notFound("코스을 찾을 수 없습니다")
     }
 
-    const body = await request.json()
+    // 잘못된 JSON은 기존과 같이 500 처리 (아래 catch)
+    if (bodyError !== null) {
+      throw bodyError
+    }
 
     // 입력 검증
-    const parseResult = applySchema.safeParse(body)
-    if (!parseResult.success) {
-      const firstError = parseResult.error.issues[0]
-      return ApiErrors.validationError(firstError.message, [
-        { field: firstError.path.join("."), message: firstError.message },
+    if (!parseResult?.success || !targetDate) {
+      const firstError = parseResult?.error?.issues[0]
+      const message = firstError?.message ?? "잘못된 요청입니다"
+      return ApiErrors.validationError(message, [
+        { field: firstError?.path.join(".") ?? "", message },
       ])
     }
 
-    const { date } = parseResult.data
-    const targetDate = dateToKSTMidnight(date)
-
-    // 이미 해당 날짜에 같은 매장의 WorkRecord가 있는지 확인
-    const existingRecords = await prisma.workRecord.findMany({
-      where: {
-        userId: user.id,
-        date: targetDate,
-        storeId: { in: template.members.map((m) => m.storeId) },
-      },
-      select: { storeId: true },
-    })
-
-    const existingStoreIds = new Set(existingRecords.map((r) => r.storeId))
+    // 이미 해당 날짜에 같은 매장의 WorkRecord가 있는 코스 멤버 매장
+    const memberStoreIds = new Set(template.members.map((m) => m.storeId))
+    const existingStoreIds = new Set(
+      userRecordsOnDate
+        .map((r) => r.storeId)
+        .filter((storeId): storeId is string => storeId !== null && memberStoreIds.has(storeId))
+    )
 
     // 1. 중복되지 않는 매장 필터
     const afterDuplicateFilter = template.members.filter(
@@ -114,7 +131,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // WorkRecord + RecordItem 벌크 생성 (2회 INSERT로 최적화)
-    const workRecords = await prisma.$transaction(async (tx) => {
+    const createdRecords = await prisma.$transaction(async (tx) => {
       // 1. WorkRecord 벌크 생성
       const createdRecords = await tx.workRecord.createManyAndReturn({
         data: membersToCreate.map((member) => ({
@@ -149,14 +166,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         await tx.recordItem.createMany({ data: allItems })
       }
 
-      // 3. 응답용 관계 데이터 조회
-      return tx.workRecord.findMany({
-        where: { id: { in: createdRecords.map((r) => r.id) } },
-        include: {
-          store: { select: { id: true, name: true, address: true } },
-        },
-      })
+      return createdRecords
     })
+
+    // 응답용 매장 정보는 이미 조회한 코스 멤버의 매장으로 채운다 (기존: 생성 후 다시 조회)
+    const storeById = new Map(
+      membersToCreate.map((member) => [
+        member.storeId,
+        { id: member.store.id, name: member.store.name, address: member.store.address },
+      ])
+    )
+    const workRecords = createdRecords.map((record) => ({
+      ...record,
+      store: record.storeId ? storeById.get(record.storeId) ?? null : null,
+    }))
 
     return apiSuccess({
       created: workRecords.length,

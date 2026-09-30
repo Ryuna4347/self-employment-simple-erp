@@ -138,12 +138,12 @@ export async function GET(request: NextRequest) {
         GROUP BY wr."collectionStatus"
       `,
 
-      // 3) 고유 매장 수
-      prisma.workRecord.findMany({
-        where: { date: { gte: dateStart, lte: dateEnd }, storeId: { not: null } },
-        distinct: ["storeId"],
-        select: { storeId: true },
-      }),
+      // 3) 고유 매장 수 (DB에서 COUNT DISTINCT. 기존: 기간 내 레코드를 모두 가져와 중복 제거 후 개수 계산)
+      prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(DISTINCT wr."storeId") AS count
+        FROM "WorkRecord" wr
+        WHERE wr.date >= ${dateStart} AND wr.date <= ${dateEnd} AND wr."storeId" IS NOT NULL
+      `,
 
       // 4) 기간별 + 결제유형별 매출 (차트)
       fetchRevenueByPeriod(truncUnit, dateStart, dateEnd),
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       totalExpenses,
       outstandingAmount,
       totalVisits,
-      uniqueStores: uniqueStoresResult.length,
+      uniqueStores: Number(uniqueStoresResult[0]?.count ?? 0),
       deletedStoresCount: deletedStoresList.length,
       newlyAddedStoresCount: newlyAddedStoresList.length,
     }

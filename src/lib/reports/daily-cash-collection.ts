@@ -32,7 +32,8 @@ export async function getCashCollectionByEmployee(
   const startDate = dateToKSTMidnight(targetKstDateStr)
   const endDate = dateToKSTEndOfDay(targetKstDateStr)
 
-  const [collectedRecords, pendingRequests] = await Promise.all([
+  // 직원 이름은 집계 후 순차 조회하던 것을 함께 병렬 조회한다 (직원 수가 적어 전체 조회해도 가볍다)
+  const [collectedRecords, pendingRequests, users] = await Promise.all([
     prisma.workRecord.findMany({
       where: {
         collectionStatus: "COLLECTED",
@@ -63,6 +64,9 @@ export async function getCashCollectionByEmployee(
           },
         },
       },
+    }),
+    prisma.user.findMany({
+      select: { id: true, name: true },
     }),
   ])
 
@@ -101,13 +105,6 @@ export async function getCashCollectionByEmployee(
   }
 
   const userIds = [...map.keys()]
-  const users =
-    userIds.length === 0
-      ? []
-      : await prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, name: true },
-        })
   const nameById = new Map(users.map((user) => [user.id, user.name]))
 
   const rows = userIds
