@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useForm, useFieldArray, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, X } from "lucide-react"
+import { Plus, Search, X } from "lucide-react"
 import {
   ResponsiveModal,
   ResponsiveModalContent,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AmountInput } from "@/components/common"
+import { AddressSearchDialog } from "@/components/common/address-search-dialog"
 import {
   Select,
   SelectContent,
@@ -74,6 +75,8 @@ export function StoreModal({
 }: StoreModalProps) {
   const isEditMode = !!editStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  // 주소 검색 다이얼로그 (query: 열 때 입력돼 있던 주소 — 열린 동안 고정)
+  const [addressSearch, setAddressSearch] = useState({ open: false, query: "" })
   const { data: templates = [] } = useStoreTemplates()
   const { data: users = [] } = useUsers()
 
@@ -84,6 +87,7 @@ export function StoreModal({
     reset,
     watch,
     setValue,
+    getValues,
     formState: { errors, isValid },
   } = useForm<StoreFormData>({
     resolver: zodResolver(storeSchema),
@@ -193,13 +197,31 @@ export function StoreModal({
               <Label htmlFor="address">
                 주소 <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="address"
-                placeholder="예: 서울시 강남구 테헤란로 123"
-                {...register("address")}
-                aria-invalid={!!errors.address}
-              />
-              {errors.address && <p className="text-sm text-red-500">{errors.address.message}</p>}
+              <div className="flex gap-2">
+                <Input
+                  id="address"
+                  placeholder="예: 서울시 강남구 테헤란로 123"
+                  className="flex-1"
+                  {...register("address")}
+                  aria-invalid={!!errors.address}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => setAddressSearch({ open: true, query: getValues("address") })}
+                >
+                  <Search className="size-4" />
+                  주소 검색
+                </Button>
+              </div>
+              {errors.address ? (
+                <p className="text-sm text-red-500">{errors.address.message}</p>
+              ) : (
+                <p className="text-xs text-gray-500">
+                  주소 검색으로 선택하면 지도 앱에서 정확하게 찾을 수 있어요. 층·호수는 뒤에 이어서 적어주세요.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -444,6 +466,15 @@ export function StoreModal({
             </Button>
           </ResponsiveModalFooter>
         </form>
+
+        <AddressSearchDialog
+          open={addressSearch.open}
+          onOpenChange={(nextOpen) => setAddressSearch((prev) => ({ ...prev, open: nextOpen }))}
+          initialQuery={addressSearch.query}
+          onSelect={(address) =>
+            setValue("address", address, { shouldValidate: true, shouldDirty: true })
+          }
+        />
       </ResponsiveModalContent>
     </ResponsiveModal>
   )
