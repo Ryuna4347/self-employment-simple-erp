@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 import type { PaymentType, ReceiptType } from "@/generated/prisma/client"
 
@@ -78,17 +78,33 @@ interface StoresPaginatedResponse {
 const STORES_KEY = ["stores"] as const
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
 
+// 매장 선택 드롭다운용 목록(페이지네이션 없음)은 자주 바뀌지 않으므로 1분간 신선하게 유지한다
+// (모달을 열 때마다 전체 목록을 다시 받지 않도록. 매장 추가/수정/삭제 시에는 STORES_KEY 무효화로 갱신)
+const STORES_LIST_STALE_TIME = 60 * 1000
+
 /**
- * 매장 목록 조회 훅
+ * 매장 목록 쿼리 옵션 (useStores와 prefetchQuery에서 공용)
  */
-export function useStores(search?: string) {
-  return useQuery({
+export function storesQueryOptions(search?: string) {
+  return queryOptions({
     queryKey: [...STORES_KEY, { search }],
     queryFn: async () => {
       const params = search ? `?search=${encodeURIComponent(search)}` : ""
       const response = await apiClient<StoresResponse>(`/api/stores${params}`)
       return response.data
     },
+    staleTime: STORES_LIST_STALE_TIME,
+  })
+}
+
+/**
+ * 매장 목록 조회 훅
+ * @param options.enabled - false면 조회하지 않음 (예: 모달이 닫혀 있을 때)
+ */
+export function useStores(search?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    ...storesQueryOptions(search),
+    enabled: options?.enabled ?? true,
   })
 }
 

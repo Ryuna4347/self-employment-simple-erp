@@ -74,8 +74,9 @@ export function StoreModal({
 }: StoreModalProps) {
   const isEditMode = !!editStore
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
-  const { data: templates = [] } = useStoreTemplates()
-  const { data: users = [] } = useUsers()
+  // 코스/담당자 선택 목록은 모달이 열려 있을 때만 조회
+  const { data: templates = [] } = useStoreTemplates(undefined, { enabled: open })
+  const { data: users = [] } = useUsers(open)
 
   const {
     register,

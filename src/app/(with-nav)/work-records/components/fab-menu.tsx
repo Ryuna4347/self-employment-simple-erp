@@ -9,8 +9,12 @@ interface FabMenuProps {
   onApplyTemplate: () => void;
   onBulkDelete: () => void;
   onRefresh: () => void;
+  /** 메뉴가 열릴 때 호출 (모달에서 쓸 데이터 미리 받기 등) */
+  onMenuOpen?: () => void;
   isRefreshing: boolean;
   hasRecords: boolean;
+  /** 전체 삭제(삭제 모드 진입) 버튼 비활성화 (예: 검색 결과를 불러오는 중) */
+  bulkDeleteDisabled?: boolean;
 }
 
 /**
@@ -18,10 +22,11 @@ interface FabMenuProps {
  * - 근무 기록 추가
  * - 코스 적용
  */
-export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh, isRefreshing, hasRecords }: FabMenuProps) {
+export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh, onMenuOpen, isRefreshing, hasRecords, bulkDeleteDisabled = false }: FabMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleToggle = () => {
+    if (!isOpen) onMenuOpen?.();
     setIsOpen(!isOpen);
   };
 
@@ -78,7 +83,8 @@ export function FabMenu({ onAddRecord, onApplyTemplate, onBulkDelete, onRefresh,
       {!isOpen && hasRecords && (
         <button
           onClick={handleBulkDelete}
-          className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          disabled={bulkDeleteDisabled}
+          className="fixed bottom-[9.5rem] right-7 size-12 rounded-full shadow-md transition-all z-40 flex items-center justify-center bg-white text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:pointer-events-none"
           aria-label="전체 삭제"
         >
           <Trash2 className="size-5" />

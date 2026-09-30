@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,6 +13,16 @@ import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { toKSTDateString } from "@/lib/date-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
+
+// 날짜 선택 달력(react-day-picker)은 헤더를 펼칠 때만 필요하므로 초기 번들에서 분리한다.
+// 로딩 중에는 달력 높이만큼 자리를 잡아 펼친 영역이 튀지 않게 한다
+// (로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다)
+const loadCalendar = () => import("@/components/ui/calendar")
+const Calendar = dynamic(
+  () => loadCalendar().then((m) => m.Calendar),
+  { ssr: false, loading: () => <div className="h-[300px]" aria-hidden="true" /> }
+)
 
 interface CalendarHeaderProps {
   selectedDate: Date
@@ -21,6 +31,9 @@ interface CalendarHeaderProps {
 
 export function CalendarHeader({ selectedDate, onDateChange }: CalendarHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
+
+  // 첫 화면을 그린 뒤 유휴 시간에 달력 청크를 미리 받아, 처음 펼칠 때 지연이 없도록 한다
+  useEffect(() => preloadOnIdle([loadCalendar]), [])
 
   const isToday = format(selectedDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
 

@@ -1,4 +1,4 @@
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { queryOptions, useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
 
 // 멤버 내 매장 정보
@@ -84,12 +84,16 @@ interface ApplyTemplateResponse {
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
 const WORK_RECORDS_KEY = ["work-records"] as const
 
+// 모달의 코스 선택 목록(페이지네이션 없음)은 자주 바뀌지 않으므로 1분간 신선하게 유지한다
+// (코스 추가/수정/삭제 시에는 STORE_TEMPLATES_KEY 무효화로 갱신)
+const STORE_TEMPLATES_LIST_STALE_TIME = 60 * 1000
+
 /**
- * 코스 목록 조회 훅
+ * 코스 목록 쿼리 옵션 (useStoreTemplates와 prefetchQuery에서 공용)
  * @param userId - 필터할 사용자 ID (생략 시 서버에서 본인 기본)
  */
-export function useStoreTemplates(userId?: string) {
-  return useQuery({
+export function storeTemplatesQueryOptions(userId?: string) {
+  return queryOptions({
     queryKey: [...STORE_TEMPLATES_KEY, { userId }],
     queryFn: async () => {
       const params = new URLSearchParams()
@@ -101,6 +105,19 @@ export function useStoreTemplates(userId?: string) {
       const response = await apiClient<StoreTemplatesResponse>(url)
       return response.data
     },
+    staleTime: STORE_TEMPLATES_LIST_STALE_TIME,
+  })
+}
+
+/**
+ * 코스 목록 조회 훅
+ * @param userId - 필터할 사용자 ID (생략 시 서버에서 본인 기본)
+ * @param options.enabled - false면 조회하지 않음 (예: 모달이 닫혀 있을 때)
+ */
+export function useStoreTemplates(userId?: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    ...storeTemplatesQueryOptions(userId),
+    enabled: options?.enabled ?? true,
   })
 }
 

@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { SearchableDropdown, AmountInput } from "@/components/common"
 import { apiClient } from "@/lib/api-client"
+import { compressImage } from "@/lib/image-compression"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
 import type { Role } from "@/generated/prisma/client"
@@ -68,6 +69,13 @@ interface WorkRecordModalProps {
   userRole: Role
 }
 
+// 첨부 이미지 제한
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
+// 선택 가능한 원본 크기 (업로드 전에 압축하므로 서버 제한보다 크게 허용)
+const MAX_ORIGINAL_IMAGE_SIZE = 20 * 1024 * 1024
+// 업로드 API 제한 (압축 후 크기 기준)
+const MAX_UPLOAD_IMAGE_SIZE = 5 * 1024 * 1024
+
 // 결제방식 한글 변환
 function formatPaymentType(type: string): string {
   const types: Record<string, string> = {
@@ -93,13 +101,18 @@ export function WorkRecordModal({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // 이미지 선택/삭제 순번: 압축이 끝나기 전에 다른 이미지를 고르거나 지우면 늦게 끝난 결과를 버린다
+  const imageSelectSeqRef = useRef(0)
 
   // 매장 검색 상태 (공용 Hook 사용)
   const storeDropdown = useDropdownState()
 
-  // 데이터 조회
-  const { data: stores = [] } = useStores(undefined)
+  // 데이터 조회: 매장 목록은 추가 모드에서만 쓰므로 모달이 열려 있고 수정 모드가 아닐 때만 조회
+  const { data: stores = [], isLoading: isLoadingStores } = useStores(undefined, {
+    enabled: open && !editRecord,
+  })
 
   // Mutations
   const createMutation = useCreateWorkRecord()
@@ -167,6 +180,9 @@ export function WorkRecordModal({
     if (open) {
       setInternalEditRecord(editRecord ?? null)
       storeDropdown.reset()
+      // 이전에 열었을 때 진행 중이던 이미지 압축 결과는 버린다
+      imageSelectSeqRef.current += 1
+      setIsCompressing(false)
       setImageFile(null)
 
       if (editRecord) {
@@ -205,11 +221,20 @@ export function WorkRecordModal({
   }, [open, editRecord, reset])
 
   // 휴업&폐업 선택 시 품목 초기화, 해제 시 이미지 초기화
+  // 이미지는 "휴업&폐업 → 다른 상태"로 바뀔 때만 지운다. 모달이 열린 채로 처음 마운트되면
+  // 첫 렌더는 폼 기본값(isClosed=false)이라, 열림 초기화 effect가 넣은 기존 첨부 이미지를 지우면 안 된다
+  // (지워진 채 저장하면 서버에서 이미지가 삭제됨)
+  const wasClosedRef = useRef(isClosed)
   useEffect(() => {
+    const wasClosed = wasClosedRef.current
+    wasClosedRef.current = isClosed
+
     if (isClosed && fields.length > 0) {
       setValue("items", [], { shouldValidate: true })
     }
-    if (!isClosed) {
+    if (!isClosed && wasClosed) {
+      imageSelectSeqRef.current += 1
+      setIsCompressing(false)
       setImageFile(null)
       setImagePreview(null)
       if (fileInputRef.current) {
@@ -262,29 +287,45 @@ export function WorkRecordModal({
     return sum + (item.amount ?? 0)
   }, 0)
 
-  // 이미지 선택 핸들러
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 이미지 선택 핸들러 (업로드 전에 리사이즈·압축해 업로드 시간을 줄인다)
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 5MB 제한
-    if (file.size > 5 * 1024 * 1024) {
-      alert("파일 크기는 5MB 이하여야 합니다")
+    // 원본 크기 제한 (압축하므로 업로드 제한보다 크게 허용)
+    if (file.size > MAX_ORIGINAL_IMAGE_SIZE) {
+      alert("파일 크기는 20MB 이하여야 합니다")
       return
     }
 
     // 타입 제한
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       alert("JPEG, PNG, WebP 이미지만 업로드할 수 있습니다")
       return
     }
 
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    const seq = ++imageSelectSeqRef.current
+    setIsCompressing(true)
+    // 압축에 실패하면 원본으로 진행한다 (아래 업로드 제한에서 다시 확인)
+    const compressed = await compressImage(file).catch(() => file)
+    // 압축 중에 다른 이미지를 골랐거나 지웠으면 이 결과는 버린다
+    if (seq !== imageSelectSeqRef.current) return
+    setIsCompressing(false)
+
+    // 업로드 API 제한 (압축 후 크기 기준)
+    if (compressed.size > MAX_UPLOAD_IMAGE_SIZE) {
+      alert("파일 크기는 5MB 이하여야 합니다")
+      return
+    }
+
+    setImageFile(compressed)
+    setImagePreview(URL.createObjectURL(compressed))
   }
 
   // 이미지 삭제 핸들러
   const handleImageRemove = () => {
+    imageSelectSeqRef.current += 1
+    setIsCompressing(false)
     setImageFile(null)
     setImagePreview(null)
     if (fileInputRef.current) {
@@ -405,7 +446,7 @@ export function WorkRecordModal({
                 )}
                 onItemSelect={handleStoreSelect}
                 placeholder="기존 매장을 검색하여 자동 입력..."
-                emptyMessage="검색 결과가 없습니다"
+                emptyMessage={isLoadingStores ? "매장 목록을 불러오는 중..." : "검색 결과가 없습니다"}
               />
               {errors.storeId && (
                 <p className="text-xs text-red-500">{errors.storeId.message}</p>
@@ -673,8 +714,10 @@ export function WorkRecordModal({
                   className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors"
                 >
                   <ImagePlus className="size-8 mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-500">클릭하여 이미지 첨부</p>
-                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP / 최대 5MB</p>
+                  <p className="text-sm text-gray-500">
+                    {isCompressing ? "이미지 처리 중..." : "클릭하여 이미지 첨부"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP / 최대 20MB (자동 압축)</p>
                 </button>
               )}
             </div>
@@ -701,8 +744,8 @@ export function WorkRecordModal({
             >
               취소
             </Button>
-            <Button type="submit" disabled={isLoading || isUploading || !isValid}>
-              {isLoading || isUploading ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
+            <Button type="submit" disabled={isLoading || isUploading || isCompressing || !isValid}>
+              {isLoading || isUploading || isCompressing ? "처리 중..." : isEditMode ? "수정 완료" : "등록"}
             </Button>
           </ResponsiveModalFooter>
         </form>

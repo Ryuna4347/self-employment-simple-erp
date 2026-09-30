@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
 import { Plus, Search, LayoutTemplate } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { UserFilter } from "@/components/common/user-filter"
 import { RefreshFab } from "@/components/common/refresh-fab"
-import { StoreTemplateCard, StoreTemplateModal } from "./index"
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open"
+import { StoreTemplateCard } from "./store-template-card"
 import {
   useStoreTemplatesInfinite,
   useCreateStoreTemplate,
@@ -17,6 +19,15 @@ import {
 } from "../hooks/use-store-templates"
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
+
+// 코스 추가/수정 모달(드래그 정렬·폼 포함)은 열 때만 필요하므로 초기 번들에서 분리한다
+// (로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다)
+const loadStoreTemplateModal = () => import("./store-template-modal")
+const StoreTemplateModal = dynamic(
+  () => loadStoreTemplateModal().then((m) => m.StoreTemplateModal),
+  { ssr: false }
+)
 
 interface StoreTemplatesClientProps {
   userId: string
@@ -55,6 +66,13 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
     () => data?.pages.flatMap((page) => page.templates) ?? [],
     [data]
   )
+
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModal = writable && !isLoading
+  useEffect(() => {
+    if (!shouldPreloadModal) return
+    return preloadOnIdle([loadStoreTemplateModal])
+  }, [shouldPreloadModal])
 
   // 무한 스크롤 트리거
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -217,18 +235,20 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
         </button>
       )}
 
-      {/* 코스 추가/수정 모달 */}
+      {/* 코스 추가/수정 모달 (처음 열 때 마운트) */}
       {writable && (
-        <StoreTemplateModal
-          open={isModalOpen}
-          onOpenChange={(open) => {
-            setIsModalOpen(open)
-            if (!open) setEditingTemplate(null)
-          }}
-          onSubmit={handleModalSubmit}
-          editTemplate={editingTemplate}
-          isLoading={isSubmitting}
-        />
+        <MountOnFirstOpen open={isModalOpen}>
+          <StoreTemplateModal
+            open={isModalOpen}
+            onOpenChange={(open) => {
+              setIsModalOpen(open)
+              if (!open) setEditingTemplate(null)
+            }}
+            onSubmit={handleModalSubmit}
+            editTemplate={editingTemplate}
+            isLoading={isSubmitting}
+          />
+        </MountOnFirstOpen>
       )}
     </div>
   )

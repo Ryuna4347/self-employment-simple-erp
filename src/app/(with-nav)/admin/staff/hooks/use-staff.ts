@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { apiClient } from "@/lib/api-client"
+import { USERS_KEY } from "@/hooks/use-users"
 
 // 직원 목록 타입
 export interface StaffMember {
@@ -90,6 +91,8 @@ export function useDeleteStaff() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: STAFF_KEY })
+      // 담당자 필터 등에서 쓰는 직원 목록(staleTime 5분)에서도 즉시 제외되도록 무효화
+      queryClient.invalidateQueries({ queryKey: USERS_KEY })
     },
   })
 }

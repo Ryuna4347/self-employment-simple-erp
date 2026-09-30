@@ -158,6 +158,14 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
     if (deleteMode) setIsExpanded(false);
   }
 
+  // 상세 영역은 처음 펼칠 때 렌더링한다 (렌더 중 상태 조정 패턴)
+  // - 최대 100건 목록의 초기 렌더/DOM 비용을 줄이고, 휴업&폐업 첨부 이미지를 펼치기 전에는 내려받지 않는다
+  // - 한 번 펼친 뒤에는 유지해 접힘 애니메이션이 그대로 동작한다
+  const [hasExpanded, setHasExpanded] = useState(false);
+  if (isExpanded && !hasExpanded) {
+    setHasExpanded(true);
+  }
+
   const handleToggleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -309,7 +317,7 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           </div>
         </div>
 
-        {/* 상세 모드 - 확장 영역 (애니메이션) */}
+        {/* 상세 모드 - 확장 영역 (애니메이션). 처음 펼칠 때 렌더링하고 이후에는 유지한다 */}
         <div
           className={cn(
             "grid transition-[grid-template-rows] duration-300 ease-out",
@@ -317,233 +325,237 @@ export const WorkRecordCard = React.memo(function WorkRecordCard({
           )}
         >
           <div className="overflow-hidden">
-            <div className="border-t border-gray-200 p-4 space-y-4">
-              {/* 기본 정보 */}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-600">결제방식</span>
-                  <p className="font-medium text-gray-900 mt-0.5">
-                    {formatPaymentType(record.paymentTypeSnapshot)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-gray-600">수금상태</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className={cn("font-medium", statusConfig.color)}>
-                      {statusConfig.label}
-                      {record.collectionStatus === "COLLECTED" &&
-                        record.collectedAt && (
-                          <span className="text-gray-500 font-normal text-xs ml-1">
-                            ({record.collectedBy?.name ?? "알 수 없음"}/{" "}
-                            {new Date(record.collectedAt).toLocaleDateString(
-                              "ko-KR",
-                            )}
-                            )
-                          </span>
-                        )}
-                    </p>
-                    {record.collectionStatus === "UNCOLLECTED" && (
-                      record.hasPendingRequest ? (
-                        <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
-                          <Clock className="size-3" />
-                          수금 확인 요청 중
-                        </span>
-                      ) : record.hasPreviousUncollected ? (
-                        // 다른 날짜 미수건이 있으면 모달로 일괄 처리
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRequestCollect}
-                          disabled={isActionPending}
-                          className={userRole === "ADMIN"
-                            ? "h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            : "h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                          }
-                        >
-                          {userRole === "ADMIN" ? (
-                            <><CircleCheck className="size-3" />일괄 수금</>
-                          ) : (
-                            <><Send className="size-3" />확인 요청</>
-                          )}
-                        </Button>
-                      ) : record.canDirectCollect || userRole === "ADMIN" ? (
-                        // 이전 미수 없음 → 바로 단건 수금
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCollect}
-                          disabled={isActionPending}
-                          className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          {isCollecting ? (
-                            <Loader2 className="size-3 animate-spin" />
-                          ) : (
-                            <CircleCheck className="size-3" />
-                          )}
-                          {isCollecting ? "처리 중..." : "수금처리"}
-                        </Button>
-                      ) : (
-                        // 기한 초과 → 수금 확인 요청
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRequestCollect}
-                          disabled={isActionPending}
-                          className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                        >
-                          <Send className="size-3" />
-                          확인 요청
-                        </Button>
-                      )
-                    )}
-                  </div>
-                </div>
-                {(record.managerNameSnapshot ?? record.store?.managerName) && (
-                  <div className="col-span-2">
-                    <span className="text-gray-600">담당자</span>
+            {hasExpanded && (
+              <div className="border-t border-gray-200 p-4 space-y-4">
+                {/* 기본 정보 */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600">결제방식</span>
                     <p className="font-medium text-gray-900 mt-0.5">
-                      {record.managerNameSnapshot ?? record.store?.managerName}
+                      {formatPaymentType(record.paymentTypeSnapshot)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">수금상태</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className={cn("font-medium", statusConfig.color)}>
+                        {statusConfig.label}
+                        {record.collectionStatus === "COLLECTED" &&
+                          record.collectedAt && (
+                            <span className="text-gray-500 font-normal text-xs ml-1">
+                              ({record.collectedBy?.name ?? "알 수 없음"}/{" "}
+                              {new Date(record.collectedAt).toLocaleDateString(
+                                "ko-KR",
+                              )}
+                              )
+                            </span>
+                          )}
+                      </p>
+                      {record.collectionStatus === "UNCOLLECTED" && (
+                        record.hasPendingRequest ? (
+                          <span className="inline-flex items-center gap-1 h-6 px-2 text-xs text-amber-600">
+                            <Clock className="size-3" />
+                            수금 확인 요청 중
+                          </span>
+                        ) : record.hasPreviousUncollected ? (
+                          // 다른 날짜 미수건이 있으면 모달로 일괄 처리
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRequestCollect}
+                            disabled={isActionPending}
+                            className={userRole === "ADMIN"
+                              ? "h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              : "h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            }
+                          >
+                            {userRole === "ADMIN" ? (
+                              <><CircleCheck className="size-3" />일괄 수금</>
+                            ) : (
+                              <><Send className="size-3" />확인 요청</>
+                            )}
+                          </Button>
+                        ) : record.canDirectCollect || userRole === "ADMIN" ? (
+                          // 이전 미수 없음 → 바로 단건 수금
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleCollect}
+                            disabled={isActionPending}
+                            className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            {isCollecting ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <CircleCheck className="size-3" />
+                            )}
+                            {isCollecting ? "처리 중..." : "수금처리"}
+                          </Button>
+                        ) : (
+                          // 기한 초과 → 수금 확인 요청
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRequestCollect}
+                            disabled={isActionPending}
+                            className="h-6 px-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          >
+                            <Send className="size-3" />
+                            확인 요청
+                          </Button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                  {(record.managerNameSnapshot ?? record.store?.managerName) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">담당자</span>
+                      <p className="font-medium text-gray-900 mt-0.5">
+                        {record.managerNameSnapshot ?? record.store?.managerName}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 품목 리스트 */}
+                {record.collectionStatus === "CLOSED" ? (
+                  <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    휴업&폐업 상태에서는 거래 품목이 없습니다
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      거래 품목
+                    </h4>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-gray-700 font-medium">
+                              품명
+                            </th>
+                            <th className="px-3 py-2 text-right text-gray-700 font-medium">
+                              수량
+                            </th>
+                            <th className="px-3 py-2 text-right text-gray-700 font-medium">
+                              금액
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {record.items.map((item) => (
+                            <tr key={item.id} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-gray-900">
+                                {item.name}
+                              </td>
+                              <td className="px-3 py-2 text-right text-gray-700">
+                                {item.quantity}
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium text-gray-900">
+                                {item.amount.toLocaleString()}원
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                          <tr>
+                            <td
+                              colSpan={2}
+                              className="px-3 py-2 text-right font-semibold text-gray-900"
+                            >
+                              합계
+                            </td>
+                            <td className="px-3 py-2 text-right font-bold text-gray-900">
+                              {totalAmount.toLocaleString()}원
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* 방문 이력 (최근 6개월) */}
+                {record.storeId && (
+                  <StoreVisitHistory
+                    storeId={record.storeId}
+                    currentDate={record.date}
+                    isExpanded={isExpanded}
+                  />
+                )}
+
+                {/* 첨부 이미지 (휴업&폐업일 때만) */}
+                {record.collectionStatus === "CLOSED" && record.imageUrl && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-1">
+                      <ImageIcon className="size-4" />
+                      첨부 이미지
+                    </h4>
+                    <a
+                      href={record.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <img
+                        src={record.imageUrl}
+                        alt="첨부 이미지"
+                        loading="lazy"
+                        decoding="async"
+                        className="rounded-lg border border-gray-200 max-h-48 object-contain"
+                      />
+                    </a>
+                  </div>
+                )}
+
+                {/* 메모 */}
+                {record.note && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-2">
+                      메모
+                    </h4>
+                    <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                      {record.note}
                     </p>
                   </div>
                 )}
-              </div>
 
-              {/* 품목 리스트 */}
-              {record.collectionStatus === "CLOSED" ? (
-                <div className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  휴업&폐업 상태에서는 거래 품목이 없습니다
-                </div>
-              ) : (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    거래 품목
-                  </h4>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-gray-700 font-medium">
-                            품명
-                          </th>
-                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                            수량
-                          </th>
-                          <th className="px-3 py-2 text-right text-gray-700 font-medium">
-                            금액
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {record.items.map((item) => (
-                          <tr key={item.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-gray-900">
-                              {item.name}
-                            </td>
-                            <td className="px-3 py-2 text-right text-gray-700">
-                              {item.quantity}
-                            </td>
-                            <td className="px-3 py-2 text-right font-medium text-gray-900">
-                              {item.amount.toLocaleString()}원
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="px-3 py-2 text-right font-semibold text-gray-900"
-                          >
-                            합계
-                          </td>
-                          <td className="px-3 py-2 text-right font-bold text-gray-900">
-                            {totalAmount.toLocaleString()}원
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* 방문 이력 (최근 6개월) */}
-              {record.storeId && (
-                <StoreVisitHistory
-                  storeId={record.storeId}
-                  currentDate={record.date}
-                  isExpanded={isExpanded}
-                />
-              )}
-
-              {/* 첨부 이미지 (휴업&폐업일 때만) */}
-              {record.collectionStatus === "CLOSED" && record.imageUrl && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-1">
-                    <ImageIcon className="size-4" />
-                    첨부 이미지
-                  </h4>
-                  <a
-                    href={record.imageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <img
-                      src={record.imageUrl}
-                      alt="첨부 이미지"
-                      className="rounded-lg border border-gray-200 max-h-48 object-contain"
-                    />
-                  </a>
-                </div>
-              )}
-
-              {/* 메모 */}
-              {record.note && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">
-                    메모
-                  </h4>
-                  <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    {record.note}
-                  </p>
-                </div>
-              )}
-
-              {/* 액션 버튼 */}
-              {canModify ? (
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleEdit}
-                    disabled={isActionPending}
-                    className="flex-1"
-                  >
-                    <Pencil className="size-4" />
-                    수정
-                  </Button>
-                  {canDelete && (
+                {/* 액션 버튼 */}
+                {canModify ? (
+                  <div className="flex gap-2 pt-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleDelete}
+                      onClick={handleEdit}
                       disabled={isActionPending}
-                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="flex-1"
                     >
-                      {isDeleting ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-4" />
-                      )}
-                      {isDeleting ? "삭제 중..." : "삭제"}
+                      <Pencil className="size-4" />
+                      수정
                     </Button>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center pt-2">
-                  미수 상태가 아닌 기록은 관리자만 수정할 수 있습니다
-                </p>
-              )}
-            </div>
+                    {canDelete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDelete}
+                        disabled={isActionPending}
+                        className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4" />
+                        )}
+                        {isDeleting ? "삭제 중..." : "삭제"}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 text-center pt-2">
+                    미수 상태가 아닌 기록은 관리자만 수정할 수 있습니다
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,23 +1,19 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import dynamic from "next/dynamic"
+import { useQueryClient } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { Search, Fuel, Wrench } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open"
 import { CalendarHeader } from "./calendar-header"
 import { DailyStats } from "./daily-stats"
 import { WorkRecordList } from "./work-record-list"
 import { FabMenu } from "./fab-menu"
 import { UserFilter } from "./user-filter"
-import { WorkRecordModal } from "./work-record-modal"
-import { TemplateApplyModal } from "./template-apply-modal"
-import { BulkDeleteModal } from "./bulk-delete-modal"
 import { DeleteModeActionBar } from "./delete-mode-action-bar"
-import { DeleteSelectedModal } from "./delete-selected-modal"
-import { CollectionRequestModal } from "./collection-request-modal"
-import { DailyCashCollectionModal } from "./daily-cash-collection-modal"
-import { DailyCostModal } from "./daily-cost-modal"
 import { NoticeBanner } from "./notice-banner"
 import { useDailyCost } from "../hooks/use-daily-cost"
 import {
@@ -27,10 +23,54 @@ import {
   useReorderWorkRecords,
   type WorkRecordResponse,
 } from "../hooks/use-work-records"
+import { storesQueryOptions } from "@/app/(with-nav)/stores/hooks/use-stores"
+import { storeTemplatesQueryOptions } from "@/app/(with-nav)/store-templates/hooks/use-store-templates"
+import { usersQueryOptions } from "@/hooks/use-users"
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cn } from "@/lib/utils"
+
+// 모달은 열 때만 필요하므로 초기 번들에서 분리한다 (react-hook-form·zod·Drawer 등 포함).
+// MountOnFirstOpen으로 처음 열 때 마운트하고, 목록을 그린 뒤 유휴 시간에 청크를 미리 받아 둔다.
+// 로더는 next/dynamic과 미리 받기(preloadOnIdle)에서 함께 써야 같은 청크를 재사용한다
+const loadWorkRecordModal = () => import("./work-record-modal")
+const loadTemplateApplyModal = () => import("./template-apply-modal")
+const loadBulkDeleteModal = () => import("./bulk-delete-modal")
+const loadDeleteSelectedModal = () => import("./delete-selected-modal")
+const loadDailyCostModal = () => import("./daily-cost-modal")
+const loadCollectionRequestModal = () => import("./collection-request-modal")
+const loadDailyCashCollectionModal = () => import("./daily-cash-collection-modal")
+
+const WorkRecordModal = dynamic(
+  () => loadWorkRecordModal().then((m) => m.WorkRecordModal),
+  { ssr: false }
+)
+const TemplateApplyModal = dynamic(
+  () => loadTemplateApplyModal().then((m) => m.TemplateApplyModal),
+  { ssr: false }
+)
+const BulkDeleteModal = dynamic(
+  () => loadBulkDeleteModal().then((m) => m.BulkDeleteModal),
+  { ssr: false }
+)
+const DeleteSelectedModal = dynamic(
+  () => loadDeleteSelectedModal().then((m) => m.DeleteSelectedModal),
+  { ssr: false }
+)
+const DailyCostModal = dynamic(
+  () => loadDailyCostModal().then((m) => m.DailyCostModal),
+  { ssr: false }
+)
+const CollectionRequestModal = dynamic(
+  () => loadCollectionRequestModal().then((m) => m.CollectionRequestModal),
+  { ssr: false }
+)
+const DailyCashCollectionModal = dynamic(
+  () => loadDailyCashCollectionModal().then((m) => m.DailyCashCollectionModal),
+  { ssr: false }
+)
 
 interface WorkRecordsClientProps {
   userId: string
@@ -41,8 +81,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
   const [storeName, setStoreName] = useState("")
-  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
-  const searchStoreName = useDebounce(storeName, 1000).trim()
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 0.5초 후 적용)
+  const searchStoreName = useDebounce(storeName, 500).trim()
 
   // 모달 상태
   const [workRecordModalOpen, setWorkRecordModalOpen] = useState(false)
@@ -71,9 +111,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   const { data: repairCost } = useDailyCost("차량수리비", dateString, isAllUsers ? undefined : costUserId)
   const canEditCost = writable && (!isAdmin || selectedUserId === userId)
 
-  const { data, isLoading, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useWorkRecords(
+  const listUserId = isAdmin ? selectedUserId : undefined
+  const { data, isLoading, isPlaceholderData, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } = useWorkRecords(
     dateString,
-    isAdmin ? selectedUserId : undefined,
+    listUserId,
     searchStoreName || undefined
   )
 
@@ -90,7 +131,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        // 검색 결과를 기다리며 이전 목록(placeholder)을 보여 주는 동안에는 다음 페이지를 요청하지 않는다
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && !isPlaceholderData) {
           fetchNextPage()
         }
       },
@@ -98,14 +140,41 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, isPlaceholderData, fetchNextPage])
 
   const deleteMutation = useDeleteWorkRecord()
   const updateMutation = useUpdateWorkRecord()
   const reorderMutation = useReorderWorkRecords()
 
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModals = writable && !isLoading
+  useEffect(() => {
+    if (!shouldPreloadModals) return
+    return preloadOnIdle([
+      loadWorkRecordModal,
+      loadTemplateApplyModal,
+      loadDailyCostModal,
+      loadCollectionRequestModal,
+      loadBulkDeleteModal,
+      loadDeleteSelectedModal,
+      ...(isAdmin ? [loadDailyCashCollectionModal] : []),
+    ])
+  }, [shouldPreloadModals, isAdmin])
+
+  // FAB 메뉴를 열면(근무기록 추가/코스 적용 의도) 모달에서 쓸 목록을 미리 받아 둔다.
+  // 모달의 조회는 열릴 때만 실행되므로, 여기서 먼저 받아 두면 모달을 열자마자 목록이 보인다.
+  const queryClient = useQueryClient()
+  const handleFabMenuOpen = useCallback(() => {
+    void queryClient.prefetchQuery(storesQueryOptions())
+    void queryClient.prefetchQuery(storeTemplatesQueryOptions(userId))
+    void queryClient.prefetchQuery(usersQueryOptions())
+  }, [queryClient, userId])
+
   // 본인 기록을 볼 때만 드래그앤드롭 순서 변경 가능 (검색 중, 삭제 모드에는 비활성화)
-  const canReorder = (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode
+  // 검색어를 지운 직후에는 새 전체 목록이 오기 전까지 이전 검색 결과(placeholder)가 보이므로,
+  // 이때 정렬하면 일부 기록만으로 순서(0..n)가 저장되어 나머지 기록과 순서가 겹친다 → 비활성화
+  const canReorder =
+    (!isAdmin || selectedUserId === userId) && !searchStoreName && !deleteMode && !isPlaceholderData
 
   // 삭제 모드에서 선택 가능한(삭제 권한 있는) 기록 ID
   // 일반 사용자는 미수금(UNCOLLECTED) 기록만 삭제할 수 있다 (서버 권한 모델과 동일)
@@ -159,8 +228,8 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
   }
 
   const handleReorder = useCallback((reorderedRecords: { id: string; sortOrder: number }[]) => {
-    reorderMutation.mutate({ date: dateString, records: reorderedRecords })
-  }, [dateString, reorderMutation])
+    reorderMutation.mutate({ date: dateString, userId: listUserId, records: reorderedRecords })
+  }, [dateString, listUserId, reorderMutation])
 
   // 삭제/수금처리 진행 중인 레코드 ID
   const deletingId = deleteMutation.isPending ? deleteMutation.variables : null
@@ -287,7 +356,10 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         ) : error ? (
           <div className="text-center py-8 text-red-500">데이터를 불러오는데 실패했습니다</div>
         ) : (
-          <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} deleteMode={deleteMode} selectedIds={selectedIds} selectableIds={selectableIds} onToggleSelect={toggleSelect} />
+          // 검색어 변경으로 새 결과를 불러오는 동안에는 이전 목록을 흐리게 유지한다
+          <div className={cn("transition-opacity", isPlaceholderData && "opacity-60")} aria-busy={isPlaceholderData}>
+            <WorkRecordList records={records} onEdit={writable ? handleEditRecord : undefined} onDelete={writable ? handleDeleteRecord : undefined} onCollect={writable ? handleCollectRecord : undefined} onRequestCollect={writable ? handleRequestCollect : undefined} userRole={userRole} deletingId={deletingId} collectingId={collectingId} canReorder={canReorder} onReorder={handleReorder} deleteMode={deleteMode} selectedIds={selectedIds} selectableIds={selectableIds} onToggleSelect={toggleSelect} />
+          </div>
         )}
 
         {/* 무한 스크롤 트리거 */}
@@ -302,8 +374,11 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
             onApplyTemplate={handleApplyTemplate}
             onBulkDelete={() => setDeleteMode(true)}
             onRefresh={() => refetch()}
+            onMenuOpen={handleFabMenuOpen}
             isRefreshing={isFetching}
             hasRecords={records.length > 0}
+            // 이전 검색 결과(placeholder)를 보여 주는 동안에는 선택 대상·전체 건수가 새 검색어와 맞지 않으므로 삭제 모드 진입 차단
+            bulkDeleteDisabled={isPlaceholderData}
           />
         )}
 
@@ -321,79 +396,96 @@ export function WorkRecordsClient({ userId, userRole }: WorkRecordsClientProps) 
         )}
       </div>
 
+      {/* 모달: 처음 열 때 마운트 (그 전에는 코드·조회 모두 지연) */}
       {writable && (
         <>
           {/* 근무기록 추가/수정 모달 */}
-          <WorkRecordModal
-            open={workRecordModalOpen}
-            onOpenChange={setWorkRecordModalOpen}
-            selectedDate={selectedDate}
-            editRecord={editingRecord}
-            userRole={userRole}
-          />
+          <MountOnFirstOpen open={workRecordModalOpen}>
+            <WorkRecordModal
+              open={workRecordModalOpen}
+              onOpenChange={setWorkRecordModalOpen}
+              selectedDate={selectedDate}
+              editRecord={editingRecord}
+              userRole={userRole}
+            />
+          </MountOnFirstOpen>
 
           {/* 코스 적용 모달 */}
-          <TemplateApplyModal
-            open={templateModalOpen}
-            onOpenChange={setTemplateModalOpen}
-            selectedDate={selectedDate}
-            userId={userId}
-          />
+          <MountOnFirstOpen open={templateModalOpen}>
+            <TemplateApplyModal
+              open={templateModalOpen}
+              onOpenChange={setTemplateModalOpen}
+              selectedDate={selectedDate}
+              userId={userId}
+            />
+          </MountOnFirstOpen>
 
           {/* 근무기록 전체 삭제 모달 */}
-          <BulkDeleteModal
-            open={bulkDeleteModalOpen}
-            onOpenChange={setBulkDeleteModalOpen}
-            selectedDate={selectedDate}
-            userId={isAdmin ? selectedUserId : undefined}
-            search={searchStoreName || undefined}
-            estimatedCount={totalCount}
-            onDeleted={exitDeleteMode}
-          />
+          <MountOnFirstOpen open={bulkDeleteModalOpen}>
+            <BulkDeleteModal
+              open={bulkDeleteModalOpen}
+              onOpenChange={setBulkDeleteModalOpen}
+              selectedDate={selectedDate}
+              userId={listUserId}
+              search={searchStoreName || undefined}
+              estimatedCount={totalCount}
+              onDeleted={exitDeleteMode}
+            />
+          </MountOnFirstOpen>
 
           {/* 근무기록 선택 삭제 확인 모달 */}
-          <DeleteSelectedModal
-            open={deleteSelectedModalOpen}
-            onOpenChange={setDeleteSelectedModalOpen}
-            selectedIds={[...selectedIds]}
-            onDeleted={exitDeleteMode}
-          />
+          <MountOnFirstOpen open={deleteSelectedModalOpen}>
+            <DeleteSelectedModal
+              open={deleteSelectedModalOpen}
+              onOpenChange={setDeleteSelectedModalOpen}
+              selectedIds={[...selectedIds]}
+              onDeleted={exitDeleteMode}
+            />
+          </MountOnFirstOpen>
 
           {/* 주유비 입력 모달 */}
-          <DailyCostModal
-            open={fuelCostModalOpen}
-            onOpenChange={setFuelCostModalOpen}
-            date={dateString}
-            title="주유비"
-            currentAmount={fuelCost?.amount ?? null}
-          />
+          <MountOnFirstOpen open={fuelCostModalOpen}>
+            <DailyCostModal
+              open={fuelCostModalOpen}
+              onOpenChange={setFuelCostModalOpen}
+              date={dateString}
+              title="주유비"
+              currentAmount={fuelCost?.amount ?? null}
+            />
+          </MountOnFirstOpen>
 
           {/* 차량수리비 입력 모달 */}
-          <DailyCostModal
-            open={repairCostModalOpen}
-            onOpenChange={setRepairCostModalOpen}
-            date={dateString}
-            title="차량수리비"
-            currentAmount={repairCost?.amount ?? null}
-          />
+          <MountOnFirstOpen open={repairCostModalOpen}>
+            <DailyCostModal
+              open={repairCostModalOpen}
+              onOpenChange={setRepairCostModalOpen}
+              date={dateString}
+              title="차량수리비"
+              currentAmount={repairCost?.amount ?? null}
+            />
+          </MountOnFirstOpen>
 
           {/* 수금 확인 요청 / 일괄 수금 처리 모달 */}
-          <CollectionRequestModal
-            open={collectionRequestModalOpen}
-            onOpenChange={setCollectionRequestModalOpen}
-            storeId={collectionRequestTarget?.storeId ?? null}
-            storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
-            userRole={userRole}
-          />
+          <MountOnFirstOpen open={collectionRequestModalOpen}>
+            <CollectionRequestModal
+              open={collectionRequestModalOpen}
+              onOpenChange={setCollectionRequestModalOpen}
+              storeId={collectionRequestTarget?.storeId ?? null}
+              storeName={collectionRequestTarget?.storeNameSnapshot ?? collectionRequestTarget?.store?.name ?? "알 수 없음"}
+              userRole={userRole}
+            />
+          </MountOnFirstOpen>
         </>
       )}
 
       {isAdmin && (
-        <DailyCashCollectionModal
-          open={dailyCashModalOpen}
-          onOpenChange={setDailyCashModalOpen}
-          baseDate={selectedDate}
-        />
+        <MountOnFirstOpen open={dailyCashModalOpen}>
+          <DailyCashCollectionModal
+            open={dailyCashModalOpen}
+            onOpenChange={setDailyCashModalOpen}
+            baseDate={selectedDate}
+          />
+        </MountOnFirstOpen>
       )}
     </div>
   )

@@ -4,6 +4,11 @@ import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ApiError } from "./api-client";
 
+/** 재시도하면 성공할 수 있는 HTTP 상태인지 (서버 오류, 요청 시간 초과, 요청 과다) */
+function isRetryableStatus(status: number): boolean {
+  return status >= 500 || status === 408 || status === 429;
+}
+
 /**
  * QueryClient 생성 함수
  *
@@ -51,9 +56,11 @@ export function createQueryClient(): QueryClient {
     }),
     defaultOptions: {
       queries: {
-        // 세션 체크 실패 시 불필요한 재시도 방지
+        // 재시도는 일시적인 실패(네트워크 오류, 5xx, 408/429)에만 한다.
+        // 401(세션 만료)·403·404·400 등 4xx는 다시 요청해도 결과가 같으므로 즉시 실패시켜
+        // 불필요한 요청과 에러 표시 지연(재시도 백오프 약 7초)을 없앤다.
         retry: (failureCount, error) => {
-          if (error instanceof ApiError && error.status === 401) {
+          if (error instanceof ApiError && !isRetryableStatus(error.status)) {
             return false;
           }
           return failureCount < 3;

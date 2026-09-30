@@ -1,21 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  ComposedChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-  LineChart,
-  Line,
-} from "recharts";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   DollarSign,
   AlertCircle,
@@ -27,12 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RefreshFab } from "@/components/common/refresh-fab";
-import {
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-} from "@/components/ui/responsive-modal";
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open";
 import {
   Select,
   SelectContent,
@@ -41,12 +22,29 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toKSTDateString } from "@/lib/date-utils";
-import {
-  useDashboard,
-  type DashboardPeriod,
-  type ChartDataPoint,
-  type CompareTailPoint,
-} from "../hooks/use-dashboard";
+import { useDashboard, type DashboardPeriod } from "../hooks/use-dashboard";
+
+// 차트(recharts)는 무거우므로 초기 번들에서 분리한다.
+// 마운트 직후 청크를 미리 받기 시작해 대시보드 데이터 조회와 병렬로 내려받는다 (아래 useEffect)
+// 로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다
+const loadDashboardCharts = () => import("./dashboard-charts");
+const DashboardCharts = dynamic(
+  () => loadDashboardCharts().then((m) => m.DashboardCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6 h-[330px] flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+// 제거/추가 매장 "더보기" 모달은 열 때만 필요하므로 분리한다
+const StoreListModal = dynamic(
+  () => import("./store-list-modal").then((m) => m.StoreListModal),
+  { ssr: false },
+);
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
@@ -60,38 +58,6 @@ function getYearOptions(): number[] {
 
 // 월 옵션 (1~12)
 const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
-
-// 수금 현황 파이차트 색상
-const COLLECTION_COLORS = {
-  collected: "#3b82f6",
-  uncollected: "#ef4444",
-} as const;
-
-// 전월 비교 라인 색상 (결제유형 색상과 구분되는 중립 회색 + 점선)
-const COMPARE_LINE_COLOR = "#6b7280";
-
-// 누적 매출 라인 색상 (결제유형 색상·전월 회색과 구분되는 파랑)
-const CUMULATIVE_LINE_COLOR = "#2563eb";
-
-// 매출/누적 차트 툴팁 정렬: 전월 항목을 맨 위에, 나머지는 기본 정렬(시리즈명순) 그대로
-// Recharts 3 Tooltip 기본 itemSorter는 "name"이라 "전월"이 결제유형 사이에 끼어들어 이를 분리한다
-const compareFirstTooltipSorter = (item: {
-  dataKey?: unknown;
-  name?: unknown;
-}) =>
-  item.dataKey === "compareRevenue" || item.dataKey === "compareCumulative"
-    ? ""
-    : String(item.name ?? "");
-
-/** 누적 매출 차트 데이터 포인트. chart[]·compareTail[]에서 클라이언트 파생 */
-interface CumulativeChartPoint {
-  label: string;
-  compareLabel: string | null;
-  // 당월(일별)/당해(월별) 누적 매출. 오늘/이번 달 이후 구간과 당월에 없는 일자는 null → 라인 끊김
-  cumulative: number | null;
-  // 전월 같은 일자까지의 누적 매출 (일별 모드 전용). 전월에 없는 날짜부터 null
-  compareCumulative: number | null;
-}
 
 /** KST 기준 오늘 (연/월/일) */
 interface TodayParts {
@@ -123,60 +89,6 @@ function resolveVisibleCount(
   if (month < today.month) return Infinity;
   if (month > today.month) return 0;
   return today.day;
-}
-
-/**
- * chart[]의 revenue / compareRevenue를 누적합으로 변환
- * 서버가 1일~말일(일별) 또는 1~12월(월별) 순서로 빈 구간까지 채워 보내므로 인덱스 = 일/월 - 1
- *
- * 전월이 당월보다 긴 달이면(예: 9월 30일 ↔ 8월 31일) compareTail[]로 가로축을 긴 달에 맞춰
- * 늘리고, 그 구간은 전월 라인만 그린다
- */
-function buildCumulativeChart(
-  chart: readonly ChartDataPoint[],
-  compareTail: readonly CompareTailPoint[],
-  visibleCount: number,
-  compareVisibleCount: number,
-): CumulativeChartPoint[] {
-  let running = 0;
-  let compareRunning: number | null = 0;
-  const points = chart.map((point, index) => {
-    running += point.revenue;
-    if (compareRunning !== null) {
-      compareRunning =
-        point.compareRevenue === null
-          ? null
-          : compareRunning + point.compareRevenue;
-    }
-    return {
-      label: point.label,
-      compareLabel: point.compareLabel,
-      cumulative: index < visibleCount ? running : null,
-      compareCumulative:
-        compareRunning !== null && index < compareVisibleCount
-          ? compareRunning
-          : null,
-    };
-  });
-
-  // 당월에 없는 일자(예: 9월 조회 시 8월 31일)는 당월 누적을 항상 null로 두고 전월 누적만 잇는다
-  compareTail.forEach((point, offset) => {
-    const index = chart.length + offset;
-    if (compareRunning !== null) {
-      compareRunning += point.compareRevenue;
-    }
-    points.push({
-      label: point.label,
-      compareLabel: point.compareLabel,
-      cumulative: null,
-      compareCumulative:
-        compareRunning !== null && index < compareVisibleCount
-          ? compareRunning
-          : null,
-    });
-  });
-
-  return points;
 }
 
 /**
@@ -237,22 +149,24 @@ export function DashboardContent() {
     }
   };
 
-  // 수금 현황 파이차트 데이터
-  const collectionData = data
-    ? [
-        { name: "수금 완료", value: data.collectionStatus.collected },
-        { name: "미수", value: data.collectionStatus.uncollected },
-      ]
-    : [];
+  // 차트 청크를 마운트 직후부터 받아 두어, 데이터가 도착하면 바로 그릴 수 있게 한다
+  // (next/dynamic은 컴포넌트가 처음 렌더링될 때 불러오므로, 데이터 도착 후 청크를 받는 순차 대기를 피함)
+  useEffect(() => {
+    loadDashboardCharts().catch(() => {});
+  }, []);
 
-  const collectionColors = [
-    COLLECTION_COLORS.collected,
-    COLLECTION_COLORS.uncollected,
-  ];
+  // 매출 추이 막대 클릭: 같은 막대를 다시 누르면 상세 패널을 닫는다
+  const handleBarSelect = (label: string) => {
+    setSelection((prev) =>
+      prev?.key === periodKey && prev.label === label
+        ? null
+        : { key: periodKey, label },
+    );
+  };
 
   // 누적 매출 차트: 현재 기간은 오늘(KST)/이번 달까지만 그리고,
   // 전월 라인은 전월이 이번 달인 경우(미래 월 조회)에만 오늘까지 자른다.
-  // 가로축은 당월/전월 중 일수가 많은 달 기준 (data.compareTail)
+  // 가로축은 당월/전월 중 일수가 많은 달 기준 (data.compareTail, 차트 컴포넌트에서 파생)
   const today = getTodayKST(now);
   const visibleCount = resolveVisibleCount(period, year, month, today);
   const prevYear = month === 1 ? year - 1 : year;
@@ -261,18 +175,6 @@ export function DashboardContent() {
     period === "daily"
       ? resolveVisibleCount("daily", prevYear, prevMonth, today)
       : 0;
-  const cumulativeChart = useMemo(
-    () =>
-      data
-        ? buildCumulativeChart(
-            data.chart,
-            data.compareTail,
-            visibleCount,
-            compareVisibleCount,
-          )
-        : [],
-    [data, visibleCount, compareVisibleCount],
-  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-4">
@@ -541,237 +443,16 @@ export function DashboardContent() {
               );
             })()}
 
-          {/* 차트 섹션 */}
-          <div className="space-y-6 mb-6">
-            {/* 매출 추이 차트 */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                매출 추이
-              </h3>
-              {data.chart.length > 0 ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <ComposedChart
-                    data={data.chart}
-                    onClick={(state) => {
-                      if (state?.activeLabel != null) {
-                        const label = String(state.activeLabel);
-                        setSelection((prev) =>
-                          prev?.key === periodKey && prev.label === label
-                            ? null
-                            : { key: periodKey, label },
-                        );
-                      }
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} width="auto" />
-                    <Tooltip
-                      itemSorter={compareFirstTooltipSorter}
-                      formatter={(value, name, item) => {
-                        // 전월 비교 라인은 시리즈명("2026년 8월") 대신 해당 전월 일자("08/03")로 표기
-                        const point = item?.payload as ChartDataPoint | undefined;
-                        const displayName =
-                          item?.dataKey === "compareRevenue" && point?.compareLabel
-                            ? point.compareLabel
-                            : name;
-                        return [`${Number(value).toLocaleString()}원`, displayName];
-                      }}
-                      labelFormatter={(label) => {
-                        const point = data.chart.find((d) => d.label === label);
-                        return point
-                          ? `${label} (합계: ${point.revenue.toLocaleString()}원)`
-                          : String(label);
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="card"
-                      stackId="a"
-                      fill="#f97316"
-                      name="카드"
-                    />
-                    <Bar
-                      dataKey="cash"
-                      stackId="a"
-                      fill="#16a34a"
-                      name="현금"
-                    />
-                    <Bar
-                      dataKey="account"
-                      stackId="a"
-                      fill="#7c3aed"
-                      name="계좌이체"
-                      radius={[4, 4, 0, 0]}
-                    />
-                    {/* 전월 매출 (같은 축, 점선). 일별 모드에서 항상 표시, 전월에 없는 날짜는 끊어서 표시 */}
-                    {period === "daily" && (
-                      <Line
-                        type="monotone"
-                        dataKey="compareRevenue"
-                        name="전월"
-                        stroke={COMPARE_LINE_COLOR}
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={false}
-                        isAnimationActive={false}
-                      />
-                    )}
-                  </ComposedChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
-                  데이터가 없습니다
-                </div>
-              )}
-            </div>
-
-            {/* 누적 매출 차트. 일별: 당월 누적 + 전월 같은 일자까지 누적(점선), 월별: 당해 연 누적 */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                {period === "daily" ? "월 누적 매출" : "연 누적 매출"}
-              </h3>
-              {cumulativeChart.length > 0 ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={cumulativeChart}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} width="auto" />
-                    <Tooltip
-                      itemSorter={compareFirstTooltipSorter}
-                      // 두 라인 모두 일자로 표기하므로 툴팁 상단 라벨 행(현재 일자)은 숨긴다
-                      labelStyle={{ display: "none" }}
-                      formatter={(value, name, item) => {
-                        // 시리즈명("9월 누적"/"전월") 대신 해당 일자("09/03"/"08/03")로 표기
-                        const point = item?.payload as
-                          | CumulativeChartPoint
-                          | undefined;
-                        const dateLabel =
-                          item?.dataKey === "compareCumulative"
-                            ? point?.compareLabel
-                            : point?.label;
-                        return [
-                          `${Number(value).toLocaleString()}원`,
-                          dateLabel ?? name,
-                        ];
-                      }}
-                    />
-                    <Legend />
-                    {/* 보이는 포인트가 1개뿐이면(매월 1일, 1월) 선이 그려지지 않으므로 점으로 표시 */}
-                    <Line
-                      type="monotone"
-                      dataKey="cumulative"
-                      name={
-                        period === "daily"
-                          ? `${month}월 누적`
-                          : `${year}년 누적`
-                      }
-                      stroke={CUMULATIVE_LINE_COLOR}
-                      strokeWidth={2}
-                      dot={visibleCount <= 1}
-                      activeDot={{ r: 4 }}
-                      connectNulls={false}
-                      isAnimationActive={false}
-                    />
-                    {/* 전월 누적 (점선). 일별 모드에서만, 전월에 없는 날짜부터 끊어서 표시 */}
-                    {period === "daily" && (
-                      <Line
-                        type="monotone"
-                        dataKey="compareCumulative"
-                        name="전월"
-                        stroke={COMPARE_LINE_COLOR}
-                        strokeWidth={2}
-                        strokeDasharray="4 4"
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                        connectNulls={false}
-                        isAnimationActive={false}
-                      />
-                    )}
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
-                  데이터가 없습니다
-                </div>
-              )}
-            </div>
-
-            {/* 비용 추이 차트 (월별 모드에서만) */}
-            {period === "monthly" && (
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-4">
-                  비용 추이
-                </h3>
-                {data.expenseChart.some((d) => d.amount > 0) ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <LineChart data={data.expenseChart}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        formatter={(value) => [
-                          `${Number(value).toLocaleString()}원`,
-                          "비용",
-                        ]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="amount"
-                        stroke="#f97316"
-                        strokeWidth={2}
-                        dot={{ fill: "#f97316", r: 4 }}
-                        name="비용"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
-                    데이터가 없습니다
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 수금 현황 파이차트 */}
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-4">
-                수금 현황
-              </h3>
-              {collectionData.some((d) => d.value > 0) ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={collectionData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => `${entry.name}: ${entry.value}건`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {collectionData.map((_, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={collectionColors[index]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value, name) => [`${value}건`, name]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[250px] text-sm text-gray-400">
-                  데이터가 없습니다
-                </div>
-              )}
-            </div>
-          </div>
+          {/* 차트 섹션 (지연 로드) */}
+          <DashboardCharts
+            data={data}
+            period={period}
+            year={year}
+            month={month}
+            visibleCount={visibleCount}
+            compareVisibleCount={compareVisibleCount}
+            onBarSelect={handleBarSelect}
+          />
 
           {/* 제거된 매장 + 추가된 매장 */}
           <div className="space-y-6">
@@ -864,73 +545,37 @@ export function DashboardContent() {
             </div>
           </div>
 
-          {/* 제거된 매장 전체 목록 모달 */}
-          <ResponsiveModal
-            open={isDeletedStoresModalOpen}
-            onOpenChange={setIsDeletedStoresModalOpen}
-          >
-            <ResponsiveModalContent className="sm:max-w-md">
-              <ResponsiveModalHeader>
-                <ResponsiveModalTitle>
-                  제거된 매장 ({data.deletedStores.length}곳)
-                </ResponsiveModalTitle>
-              </ResponsiveModalHeader>
-              <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 overflow-y-auto space-y-2 sm:flex-none sm:max-h-[60vh]">
-                {data.deletedStores.map((store) => (
-                  <div
-                    key={store.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded border-l-4 border-gray-400"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {store.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {store.address}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-500 ml-3 shrink-0">
-                      {store.deletedAt}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </ResponsiveModalContent>
-          </ResponsiveModal>
+          {/* 제거된 매장 전체 목록 모달 (처음 열 때 마운트) */}
+          <MountOnFirstOpen open={isDeletedStoresModalOpen}>
+            <StoreListModal
+              open={isDeletedStoresModalOpen}
+              onOpenChange={setIsDeletedStoresModalOpen}
+              title={`제거된 매장 (${data.deletedStores.length}곳)`}
+              stores={data.deletedStores.map((store) => ({
+                id: store.id,
+                name: store.name,
+                address: store.address,
+                date: store.deletedAt,
+              }))}
+              variant="deleted"
+            />
+          </MountOnFirstOpen>
 
-          {/* 추가된 매장 전체 목록 모달 */}
-          <ResponsiveModal
-            open={isNewlyAddedStoresModalOpen}
-            onOpenChange={setIsNewlyAddedStoresModalOpen}
-          >
-            <ResponsiveModalContent className="sm:max-w-md">
-              <ResponsiveModalHeader>
-                <ResponsiveModalTitle>
-                  추가된 매장 ({data.newlyAddedStores.length}곳)
-                </ResponsiveModalTitle>
-              </ResponsiveModalHeader>
-              <div className="px-4 sm:px-6 pb-4 flex-1 min-h-0 overflow-y-auto space-y-2 sm:flex-none sm:max-h-[60vh]">
-                {data.newlyAddedStores.map((store) => (
-                  <div
-                    key={store.id}
-                    className="flex items-center justify-between p-3 bg-emerald-50 rounded border-l-4 border-emerald-500"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {store.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {store.address}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-500 ml-3 shrink-0">
-                      {store.createdAt}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </ResponsiveModalContent>
-          </ResponsiveModal>
+          {/* 추가된 매장 전체 목록 모달 (처음 열 때 마운트) */}
+          <MountOnFirstOpen open={isNewlyAddedStoresModalOpen}>
+            <StoreListModal
+              open={isNewlyAddedStoresModalOpen}
+              onOpenChange={setIsNewlyAddedStoresModalOpen}
+              title={`추가된 매장 (${data.newlyAddedStores.length}곳)`}
+              stores={data.newlyAddedStores.map((store) => ({
+                id: store.id,
+                name: store.name,
+                address: store.address,
+                date: store.createdAt,
+              }))}
+              variant="added"
+            />
+          </MountOnFirstOpen>
         </>
       )}
 

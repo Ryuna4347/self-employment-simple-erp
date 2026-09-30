@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { RefreshFab } from "@/components/common/refresh-fab"
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open"
 import {
   Select,
   SelectContent,
@@ -13,11 +15,28 @@ import {
 } from "@/components/ui/select"
 import { useCosts, type CostRecord } from "../hooks/use-costs"
 import { CostCard } from "./cost-card"
-import { CostModal } from "./cost-modal"
-import { DeleteCostModal } from "./delete-cost-modal"
-import { RecurringCostModal } from "./recurring-cost-modal"
 import { useUser } from "@/components/providers/app-providers"
 import { canWrite } from "@/lib/role-utils"
+import { preloadOnIdle } from "@/lib/preload-on-idle"
+
+// 모달은 열 때만 필요하므로 초기 번들에서 분리한다 (고정비용 모달은 열 때 목록을 조회)
+// 로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다
+const loadCostModal = () => import("./cost-modal")
+const loadDeleteCostModal = () => import("./delete-cost-modal")
+const loadRecurringCostModal = () => import("./recurring-cost-modal")
+
+const CostModal = dynamic(
+  () => loadCostModal().then((m) => m.CostModal),
+  { ssr: false }
+)
+const DeleteCostModal = dynamic(
+  () => loadDeleteCostModal().then((m) => m.DeleteCostModal),
+  { ssr: false }
+)
+const RecurringCostModal = dynamic(
+  () => loadRecurringCostModal().then((m) => m.RecurringCostModal),
+  { ssr: false }
+)
 
 // 연도 옵션 생성 (2024 ~ 현재 연도)
 function getYearOptions(): number[] {
@@ -47,6 +66,13 @@ export function CostsContent() {
 
   const { data, isLoading, isError, isFetching, refetch } = useCosts(year, month)
   const yearOptions = getYearOptions()
+
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModals = writable && !isLoading
+  useEffect(() => {
+    if (!shouldPreloadModals) return
+    return preloadOnIdle([loadCostModal, loadDeleteCostModal, loadRecurringCostModal])
+  }, [shouldPreloadModals])
 
   const handleEdit = (cost: CostRecord) => {
     setEditingCost(cost)
@@ -178,13 +204,15 @@ export function CostsContent() {
         </div>
       )}
 
-      {/* 생성/수정 모달 */}
+      {/* 생성/수정 모달 (처음 열 때 마운트) */}
       {writable && (
-        <CostModal
-          open={costModalOpen}
-          onOpenChange={handleModalClose}
-          editingCost={editingCost}
-        />
+        <MountOnFirstOpen open={costModalOpen}>
+          <CostModal
+            open={costModalOpen}
+            onOpenChange={handleModalClose}
+            editingCost={editingCost}
+          />
+        </MountOnFirstOpen>
       )}
 
       {/* 삭제 확인 모달 */}
@@ -196,12 +224,14 @@ export function CostsContent() {
         />
       )}
 
-      {/* 고정비용 관리 모달 */}
+      {/* 고정비용 관리 모달 (처음 열 때 마운트 → 그 전에는 고정비용 목록도 조회하지 않음) */}
       {writable && (
-        <RecurringCostModal
-          open={recurringModalOpen}
-          onOpenChange={setRecurringModalOpen}
-        />
+        <MountOnFirstOpen open={recurringModalOpen}>
+          <RecurringCostModal
+            open={recurringModalOpen}
+            onOpenChange={setRecurringModalOpen}
+          />
+        </MountOnFirstOpen>
       )}
 
       {/* 새로고침 버튼 */}

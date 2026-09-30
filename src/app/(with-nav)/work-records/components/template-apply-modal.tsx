@@ -45,13 +45,15 @@ export function TemplateApplyModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [selectedUserId, setSelectedUserId] = useState<string>(userId)
 
-  // 유저 목록 조회
-  const { data: users } = useUsers()
+  // 유저 목록 조회 (모달이 열려 있을 때만)
+  const { data: users } = useUsers(open)
   const currentUser = users?.find((u) => u.id === userId)
   const currentUserName = currentUser?.name || "나"
 
-  // 코스 목록 조회 (선택된 유저 기준)
-  const { data: templates = [], isLoading: isLoadingTemplates } = useStoreTemplates(selectedUserId)
+  // 코스 목록 조회 (선택된 유저 기준, 모달이 열려 있을 때만)
+  const { data: templates = [], isLoading: isLoadingTemplates } = useStoreTemplates(selectedUserId, {
+    enabled: open,
+  })
 
   // 코스 적용 mutation
   const applyMutation = useApplyStoreTemplate()

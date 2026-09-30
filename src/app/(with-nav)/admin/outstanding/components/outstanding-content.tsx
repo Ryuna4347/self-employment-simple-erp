@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Loader2, Search, Users } from "lucide-react";
 import {
@@ -27,7 +28,17 @@ import { OutstandingCard } from "./outstanding-card";
 import type { OutstandingRecord } from "./outstanding-card";
 import { StoreOutstandingCard } from "./store-outstanding-card";
 import type { StoreGroup } from "./store-outstanding-card";
-import { CollectionRequestModal } from "@/app/(with-nav)/work-records/components/collection-request-modal";
+import { MountOnFirstOpen } from "@/components/common/mount-on-first-open";
+import { preloadOnIdle } from "@/lib/preload-on-idle";
+
+// 일괄 수금 모달은 열 때만 필요하므로 초기 번들에서 분리한다
+// (로더는 next/dynamic과 미리 받기에서 함께 써야 같은 청크를 재사용한다)
+const loadCollectionRequestModal = () =>
+  import("@/app/(with-nav)/work-records/components/collection-request-modal");
+const CollectionRequestModal = dynamic(
+  () => loadCollectionRequestModal().then((m) => m.CollectionRequestModal),
+  { ssr: false },
+);
 
 type ViewMode = "date" | "store";
 
@@ -75,8 +86,8 @@ export function OutstandingContent() {
   const [selectedUserId, setSelectedUserId] = useState(initialUserId);
   const [agedOnly, setAgedOnly] = useState<boolean>(initialAgedOnly);
 
-  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 1초 후 적용)
-  const searchStoreName = useDebounce(storeName, 1000).trim();
+  // 매장명 입력을 디바운스하여 실시간 검색 (입력이 멈추면 0.5초 후 적용)
+  const searchStoreName = useDebounce(storeName, 500).trim();
 
   // 직원 목록 조회
   const { data: users } = useUsers();
@@ -129,6 +140,13 @@ export function OutstandingContent() {
     isFetchingNextPage,
   } = useOutstanding(queryParams);
   const { data: agedCount = 0 } = useAgedOutstandingCount();
+
+  // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
+  const shouldPreloadModal = writable && !isLoading;
+  useEffect(() => {
+    if (!shouldPreloadModal) return;
+    return preloadOnIdle([loadCollectionRequestModal]);
+  }, [shouldPreloadModal]);
 
   // 페이지 플래튼
   const allRecords = useMemo(
@@ -435,15 +453,17 @@ export function OutstandingContent() {
         </div>
       )}
 
-      {/* 일괄 수금 처리 모달 */}
+      {/* 일괄 수금 처리 모달 (처음 열 때 마운트) */}
       {writable && (
-        <CollectionRequestModal
-          open={modalOpen}
-          onOpenChange={setModalOpen}
-          storeId={modalStoreId}
-          storeName={modalStoreName}
-          userRole="ADMIN"
-        />
+        <MountOnFirstOpen open={modalOpen}>
+          <CollectionRequestModal
+            open={modalOpen}
+            onOpenChange={setModalOpen}
+            storeId={modalStoreId}
+            storeName={modalStoreName}
+            userRole="ADMIN"
+          />
+        </MountOnFirstOpen>
       )}
 
       {/* 새로고침 버튼 */}
