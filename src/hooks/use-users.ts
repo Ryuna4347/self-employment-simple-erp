@@ -5,7 +5,7 @@ export interface UserOption {
   id: string
   name: string
   loginId: string
-  role: "ADMIN" | "USER"
+  role: "ADMIN" | "USER" | "VIEWER"
 }
 
 interface ApiResponse {

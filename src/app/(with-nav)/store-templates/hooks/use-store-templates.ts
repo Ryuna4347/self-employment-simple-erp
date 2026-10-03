@@ -8,6 +8,7 @@ interface MemberStore {
   address: string
   PaymentType: "CASH" | "ACCOUNT" | "CARD"
   managerName: string | null
+  assignedUserId: string | null
 }
 
 // 코스 멤버 타입
@@ -37,6 +38,17 @@ export interface StoreTemplateInput {
     storeId: string
     order: number
   }[]
+}
+
+// 코스 수정 입력 타입 (담당자 이전 포함)
+export interface UpdateStoreTemplateInput extends StoreTemplateInput {
+  ownerId?: string // 이전할 직원 ID (현재 담당자와 다를 때만 이전)
+  transferStores?: boolean // 코스 내 매장 담당자도 함께 이전할지 여부
+}
+
+// 코스 수정 결과 타입
+export interface UpdateStoreTemplateResult extends StoreTemplate {
+  transferredStoreCount: number // 담당자가 이전된 매장 수
 }
 
 // 코스 적용 결과 타입
@@ -76,12 +88,17 @@ interface StoreTemplateResponse {
   data: StoreTemplate
 }
 
+interface UpdateStoreTemplateResponse {
+  data: UpdateStoreTemplateResult
+}
+
 interface ApplyTemplateResponse {
   data: ApplyTemplateResult
 }
 
 // 쿼리 키
 const STORE_TEMPLATES_KEY = ["store-templates"] as const
+const STORES_KEY = ["stores"] as const
 const WORK_RECORDS_KEY = ["work-records"] as const
 
 // 모달의 코스 선택 목록(페이지네이션 없음)은 자주 바뀌지 않으므로 1분간 신선하게 유지한다
@@ -176,15 +193,22 @@ export function useUpdateStoreTemplate() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, ...data }: StoreTemplateInput & { id: string }) => {
-      const response = await apiClient<StoreTemplateResponse>(`/api/store-templates/${id}`, {
-        method: "PUT",
-        json: data,
-      })
+    mutationFn: async ({ id, ...data }: UpdateStoreTemplateInput & { id: string }) => {
+      const response = await apiClient<UpdateStoreTemplateResponse>(
+        `/api/store-templates/${id}`,
+        {
+          method: "PUT",
+          json: data,
+        }
+      )
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: STORE_TEMPLATES_KEY })
+      // 매장 담당자가 함께 이전된 경우 매장 목록도 갱신
+      if (result.transferredStoreCount > 0) {
+        queryClient.invalidateQueries({ queryKey: STORES_KEY })
+      }
     },
   })
 }

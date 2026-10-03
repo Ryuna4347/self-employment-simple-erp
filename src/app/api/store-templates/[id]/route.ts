@@ -16,6 +16,10 @@ const updateTemplateSchema = z.object({
       })
     )
     .default([]),
+  // 담당자 이전: 현재 담당자와 다른 직원 ID를 보내면 코스를 그 직원에게 이전
+  ownerId: z.string().min(1, "이전할 직원 ID가 필요합니다").optional(),
+  // 이전 시 코스 내 매장 담당자(기존 코스 담당자 또는 미지정 매장만)도 함께 이전할지 여부
+  transferStores: z.boolean().default(false),
 })
 
 interface RouteParams {
@@ -47,6 +51,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
                 address: true,
                 PaymentType: true,
                 managerName: true,
+                assignedUserId: true,
               },
             },
           },
@@ -106,15 +111,51 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       ])
     }
 
-    const { name, description, members } = parseResult.data
+    const { name, description, members, ownerId, transferStores } = parseResult.data
+
+    // 현재 담당자와 다른 직원을 지정한 경우만 이전으로 처리 (같으면 무시)
+    const newOwnerId = ownerId && ownerId !== existingTemplate.userId ? ownerId : null
+
+    if (newOwnerId) {
+      // 이전 대상: 활성 직원(삭제·초대 미완료 제외), 읽기 전용(VIEWER) 제외
+      const newOwner = await prisma.user.findFirst({
+        where: {
+          id: newOwnerId,
+          isDeleted: false,
+          password: { not: null },
+          role: { not: "VIEWER" },
+        },
+        select: { id: true },
+      })
+
+      if (!newOwner) {
+        return ApiErrors.validationError("이전할 직원을 찾을 수 없습니다", [
+          { field: "ownerId", message: "이전할 직원을 찾을 수 없습니다" },
+        ])
+      }
+    }
 
     // 트랜잭션으로 코스과 멤버 함께 수정
+    let transferredStoreCount = 0
     const template = await prisma.$transaction(async (tx) => {
-      // 코스 정보 수정
+      // 코스 정보 수정 (이전 시 담당자 변경 포함)
       await tx.storeTemplate.update({
         where: { id },
-        data: { name, description },
+        data: { name, description, ...(newOwnerId && { userId: newOwnerId }) },
       })
+
+      // 매장 담당자 함께 이전: 기존 코스 담당자 담당이거나 미지정인 활성 매장만 변경
+      if (newOwnerId && transferStores && members.length > 0) {
+        const result = await tx.store.updateMany({
+          where: {
+            id: { in: members.map((member) => member.storeId) },
+            isDeleted: false,
+            OR: [{ assignedUserId: existingTemplate.userId }, { assignedUserId: null }],
+          },
+          data: { assignedUserId: newOwnerId },
+        })
+        transferredStoreCount = result.count
+      }
 
       // 기존 멤버 삭제 후 새로 생성
       await tx.storeTemplateMember.deleteMany({
@@ -141,6 +182,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
                   id: true,
                   name: true,
                   address: true,
+                  assignedUserId: true,
                 },
               },
             },
@@ -152,6 +194,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return apiSuccess({
       ...template,
       memberCount: template?.members.length ?? 0,
+      transferredStoreCount,
     })
   } catch (error) {
     console.error("코스 수정 오류:", error)
