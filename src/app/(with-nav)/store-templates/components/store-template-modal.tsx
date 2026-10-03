@@ -32,11 +32,19 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { SearchableDropdown } from "@/components/common"
 import { useDropdownState } from "@/hooks/use-dropdown-state"
+import { useUsers } from "@/hooks/use-users"
 import { cn } from "@/lib/utils"
 import { useStores, type Store } from "@/app/(with-nav)/stores/hooks/use-stores"
-import type { StoreTemplate, StoreTemplateInput } from "../hooks/use-store-templates"
+import type { StoreTemplate, UpdateStoreTemplateInput } from "../hooks/use-store-templates"
 
 // 코스 스키마
 const templateSchema = z.object({
@@ -57,7 +65,7 @@ interface SelectedStore {
 interface StoreTemplateModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: StoreTemplateInput) => void
+  onSubmit: (data: UpdateStoreTemplateInput) => void
   editTemplate?: StoreTemplate | null
   isLoading?: boolean
 }
@@ -154,6 +162,23 @@ export function StoreTemplateModal({
   // 매장 목록 조회 (모달이 열려 있을 때만)
   const { data: stores = [], isLoading: isLoadingStores } = useStores(undefined, { enabled: open })
 
+  // 담당자 이전: 선택된 담당자 ID와 매장 함께 이전 확인 대기 중인 제출 데이터
+  const [ownerId, setOwnerId] = useState("")
+  const [pendingSubmit, setPendingSubmit] = useState<UpdateStoreTemplateInput | null>(null)
+
+  // 직원 목록 조회 (수정 모드로 열려 있을 때만), 읽기 전용(VIEWER)은 이전 대상에서 제외
+  const { data: users = [] } = useUsers(open && !!editTemplate)
+  const currentOwnerId = internalEditTemplate?.userId ?? ""
+  const ownerOptions = useMemo(() => {
+    const writableUsers = users.filter((user) => user.role !== "VIEWER")
+    // 현재 담당자를 맨 위에 표시
+    return [
+      ...writableUsers.filter((user) => user.id === currentOwnerId),
+      ...writableUsers.filter((user) => user.id !== currentOwnerId),
+    ]
+  }, [users, currentOwnerId])
+  const getUserName = (id: string) => users.find((user) => user.id === id)?.name
+
   // DnD 센서 설정
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -183,6 +208,8 @@ export function StoreTemplateModal({
     if (open) {
       setInternalEditTemplate(editTemplate ?? null)
       storeDropdown.reset()
+      setOwnerId(editTemplate?.userId ?? "")
+      setPendingSubmit(null)
 
       if (editTemplate) {
         // 수정 모드
@@ -204,7 +231,7 @@ export function StoreTemplateModal({
             kakaoPlaceId: null,
             latitude: null,
             longitude: null,
-            assignedUserId: null,
+            assignedUserId: member.store.assignedUserId,
             note: null,
             assignedUser: null,
             storeItems: [],
@@ -270,9 +297,14 @@ export function StoreTemplateModal({
       .slice(0, 5)
   }, [stores, storeDropdown.searchTerm, selectedStores])
 
+  // 함께 이전 가능한 매장 수 (기존 코스 담당자 담당이거나 담당자 미지정인 매장)
+  const transferableStoreCount = selectedStores.filter(
+    (s) => s.store.assignedUserId === currentOwnerId || s.store.assignedUserId === null
+  ).length
+
   // 폼 제출 핸들러
   const handleFormSubmit = (data: TemplateFormData) => {
-    const submitData: StoreTemplateInput = {
+    const submitData: UpdateStoreTemplateInput = {
       name: data.name,
       description: data.description,
       members: selectedStores.map((s) => ({
@@ -280,7 +312,28 @@ export function StoreTemplateModal({
         order: s.order,
       })),
     }
-    onSubmit(submitData)
+
+    // 담당자를 바꾸지 않았으면 기존대로 저장
+    const isTransfer = isEditMode && !!ownerId && ownerId !== currentOwnerId
+    if (!isTransfer) {
+      onSubmit(submitData)
+      return
+    }
+
+    // 함께 이전할 매장이 없으면 묻지 않고 코스만 이전
+    if (transferableStoreCount === 0) {
+      onSubmit({ ...submitData, ownerId, transferStores: false })
+      return
+    }
+
+    // 매장 담당자도 이전할지 확인 단계로 전환
+    setPendingSubmit({ ...submitData, ownerId })
+  }
+
+  // 확인 단계에서 선택한 방식으로 이전
+  const handleTransferConfirm = (transferStores: boolean) => {
+    if (!pendingSubmit) return
+    onSubmit({ ...pendingSubmit, transferStores })
   }
 
   return (
@@ -288,13 +341,62 @@ export function StoreTemplateModal({
       <ResponsiveModalContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <ResponsiveModalHeader>
           <ResponsiveModalTitle>
-            {isEditMode ? "매장 코스 수정" : "매장 코스 추가"}
+            {pendingSubmit
+              ? "코스 담당자 이전"
+              : isEditMode
+                ? "매장 코스 수정"
+                : "매장 코스 추가"}
           </ResponsiveModalTitle>
         </ResponsiveModalHeader>
 
+        {/* 매장 담당자 함께 이전 확인 단계 (모달 안에서 전환, 폼 입력값은 유지) */}
+        {pendingSubmit && (
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto space-y-3 px-4 sm:px-1">
+              <p className="text-sm text-gray-900">
+                코스 내 매장 {transferableStoreCount}개의 담당자도{" "}
+                <span className="font-semibold">
+                  {getUserName(pendingSubmit.ownerId ?? "") ?? "선택한 직원"}
+                </span>
+                님에게 이전할까요?
+              </p>
+              <p className="text-xs text-gray-500">
+                기존 담당자({getUserName(currentOwnerId) ?? "기존 담당자"}) 또는 담당자 미지정
+                매장만 변경되며, 다른 직원이 담당하는 매장은 그대로 유지됩니다.
+              </p>
+            </div>
+
+            <ResponsiveModalFooter className="gap-2 sm:gap-2 pt-4 border-t border-gray-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingSubmit(null)}
+                disabled={isLoading}
+              >
+                돌아가기
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleTransferConfirm(false)}
+                disabled={isLoading}
+              >
+                코스만 이전
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleTransferConfirm(true)}
+                disabled={isLoading}
+              >
+                {isLoading ? "처리 중..." : "매장도 함께 이전"}
+              </Button>
+            </ResponsiveModalFooter>
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit(handleFormSubmit)}
-          className="flex flex-col flex-1 overflow-hidden"
+          className={cn("flex flex-col flex-1 overflow-hidden", pendingSubmit && "hidden")}
         >
           <div className="flex-1 overflow-y-auto space-y-4 px-4 sm:px-1">
           {/* 코스 이름 */}
@@ -320,6 +422,30 @@ export function StoreTemplateModal({
               {...register("description")}
             />
           </div>
+
+          {/* 코스 담당자 (수정 모드에서만, 다른 직원 선택 시 이전) */}
+          {isEditMode && (
+            <div className="space-y-2">
+              <Label htmlFor="ownerId">코스 담당자</Label>
+              <Select value={ownerId} onValueChange={setOwnerId}>
+                <SelectTrigger id="ownerId">
+                  <SelectValue placeholder="담당자를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ownerOptions.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.id === currentOwnerId ? `${user.name} (현재)` : user.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {ownerId && ownerId !== currentOwnerId && (
+                <p className="text-xs text-blue-600">
+                  저장하면 코스가 {getUserName(ownerId)}님에게 이전됩니다
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 매장 검색 및 선택 */}
           <div className="border-t border-gray-200 pt-4">

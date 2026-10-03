@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import dynamic from "next/dynamic"
 import { Plus, Search, LayoutTemplate } from "lucide-react"
+import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { UserFilter } from "@/components/common/user-filter"
@@ -15,7 +16,7 @@ import {
   useUpdateStoreTemplate,
   useDeleteStoreTemplate,
   type StoreTemplate,
-  type StoreTemplateInput,
+  type UpdateStoreTemplateInput,
 } from "../hooks/use-store-templates"
 import type { Role } from "@/generated/prisma/client"
 import { canWrite } from "@/lib/role-utils"
@@ -116,19 +117,28 @@ export function StoreTemplatesClient({ userId, userRole }: StoreTemplatesClientP
   }
 
   // 모달 제출 핸들러
-  const handleModalSubmit = (data: StoreTemplateInput) => {
+  const handleModalSubmit = (data: UpdateStoreTemplateInput) => {
     if (editingTemplate) {
       updateMutation.mutate(
         { id: editingTemplate.id, ...data },
         {
-          onSuccess: () => {
+          onSuccess: (result) => {
             setIsModalOpen(false)
             setEditingTemplate(null)
+            // 담당자 이전 결과 안내 (이전된 코스는 본인 필터 목록에서 빠짐)
+            if (data.ownerId) {
+              toast.success(
+                result.transferredStoreCount > 0
+                  ? `코스를 이전했습니다 (매장 ${result.transferredStoreCount}개 담당자 변경)`
+                  : "코스를 이전했습니다"
+              )
+            }
           },
         }
       )
     } else {
-      createMutation.mutate(data, {
+      const { name, description, members } = data
+      createMutation.mutate({ name, description, members }, {
         onSuccess: () => {
           setIsModalOpen(false)
         },

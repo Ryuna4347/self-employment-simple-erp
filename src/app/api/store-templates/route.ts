@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
             address: true,
             PaymentType: true,
             managerName: true,
+            assignedUserId: true,
           },
         },
       },
