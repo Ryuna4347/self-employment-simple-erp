@@ -164,7 +164,7 @@ src/app/api/
 ├── places/search/route.ts              # GET 매장 검색 (Kakao 키워드 장소 검색 프록시, 쓰기 권한, 키 없으면 503)
 ├── upload/route.ts                     # POST 파일 업로드 (Supabase)
 └── admin/
-    ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month, 일별 모드는 전월 비교 포함)
+    ├── dashboard/route.ts              # GET 대시보드 데이터 (period/year/month, 일별 모드는 전월·전전월 비교 포함)
     ├── staff/
     │   ├── route.ts                    # GET/POST 직원 목록/초대
     │   └── [id]/route.ts              # DELETE 직원 삭제 (soft delete)
@@ -325,3 +325,4 @@ src/app/api/
 | 2026-09-29 | 매장 모달 매장명 옆 "매장 검색"(상호 검색) 추가 — Kakao 로컬 키워드 장소 검색을 서버 프록시(`GET /api/places/search`)로 호출, 선택 시 주소·좌표·`kakaoPlaceId` 저장. `KAKAO_REST_API_KEY` 미설정 시 버튼 숨김 + API 503(기존 동작 그대로). 매장 POST/PUT에 `kakaoPlaceId` 중복 확인(활성 매장 중복 409, 삭제 매장 연결은 해제) | lib/kakao-local, lib/store-place, api/places/search, api/stores, stores/place-search-dialog, stores/store-modal, .env.example, stores AGENTS.md | 우편번호 서비스는 상호로 검색되지 않아 상호만 아는 매장을 등록하기 어려움. 키 없이 배포돼도 영향 없도록 기능 플래그를 서버 환경변수로 둠 |
 | 2026-09-30 | 주소 탭 선택지에 티맵 추가 (`tmap://search?name=` 통합 검색, Android 패키지 `com.skt.tmap.ku`). 웹 지도가 없어 미설치 시 Android는 Play 스토어, iOS는 App Store 설치 안내 토스트. 데스크톱 시트에서는 숨기고 저장값이 tmap이어도 네이버지도 웹 | lib/map-links, common/address-action-sheet, providers/address-action-provider, profile AGENTS.md | 차량 순회 직원 중 티맵을 쓰는 경우가 있어 선택지로 제공 |
 | 2026-10-03 | 매장 코스 담당자 이전 — 코스 수정 모달에 "코스 담당자" 선택 추가(관리자 또는 본인, 현재 담당자·VIEWER·삭제 직원 제외), 이전 시 모달 안 확인 단계에서 코스 내 매장 담당자 함께 이전 여부 선택(기존 코스 담당자 담당·미지정 매장만 변경). PUT `/api/store-templates/[id]`에 `ownerId`·`transferStores`, 응답 `transferredStoreCount` 추가 | api/store-templates, store-templates 모달·클라이언트·훅, hooks/use-users, store-templates AGENTS.md | 직원 간 순회 코스 인수인계 시 코스 재생성과 매장별 담당자 수동 변경을 없애기 위함. 다른 직원 담당 매장을 실수로 가져가지 않도록 이전 범위를 제한 |
+| 2026-11-04 | 대시보드 일별 모드 매출 추이·월 누적 매출 차트에 전전월 라인 추가 (전월 청록 파선 / 전전월 분홍 점선으로 색 구분, 범례 "전전월", 툴팁은 `MM/DD`). 응답 `chart[]`·`compareTail[]`에 `compare2Revenue`·`compare2Label` 추가, 누적 차트 가로축은 세 달 중 가장 긴 달 기준 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 전월뿐 아니라 전전월 매출 흐름도 같은 차트에서 함께 비교하기 위함 |

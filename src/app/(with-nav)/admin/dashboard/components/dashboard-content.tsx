@@ -91,6 +91,16 @@ function resolveVisibleCount(
   return today.day;
 }
 
+/** monthsBack개월 전의 연/월 (1월 기준 1개월 전 → 전년 12월) */
+function shiftMonth(
+  year: number,
+  month: number,
+  monthsBack: number,
+): { year: number; month: number } {
+  const serial = year * 12 + (month - 1) - monthsBack;
+  return { year: Math.floor(serial / 12), month: (serial % 12) + 1 };
+}
+
 /**
  * 관리자 대시보드 메인 컨텐츠
  *
@@ -103,7 +113,7 @@ export function DashboardContent() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  // 월별 모드에서는 month를 전달하지 않음. 일별 모드면 API가 전월 비교를 항상 함께 반환
+  // 월별 모드에서는 month를 전달하지 않음. 일별 모드면 API가 전월·전전월 비교를 항상 함께 반환
   const { data, isLoading, isError, isFetching, refetch } = useDashboard(
     period,
     year,
@@ -165,15 +175,19 @@ export function DashboardContent() {
   };
 
   // 누적 매출 차트: 현재 기간은 오늘(KST)/이번 달까지만 그리고,
-  // 전월 라인은 전월이 이번 달인 경우(미래 월 조회)에만 오늘까지 자른다.
-  // 가로축은 당월/전월 중 일수가 많은 달 기준 (data.compareTail, 차트 컴포넌트에서 파생)
+  // 전월·전전월 라인은 완결된 달이라 전체를 그린다. 단 미래 월 조회로 그 달이 이번 달이면 오늘까지, 미래 달이면 그리지 않는다.
+  // 가로축은 당월/전월/전전월 중 일수가 가장 많은 달 기준 (data.compareTail, 차트 컴포넌트에서 파생)
   const today = getTodayKST(now);
   const visibleCount = resolveVisibleCount(period, year, month, today);
-  const prevYear = month === 1 ? year - 1 : year;
-  const prevMonth = month === 1 ? 12 : month - 1;
+  const prev = shiftMonth(year, month, 1);
+  const prev2 = shiftMonth(year, month, 2);
   const compareVisibleCount =
     period === "daily"
-      ? resolveVisibleCount("daily", prevYear, prevMonth, today)
+      ? resolveVisibleCount("daily", prev.year, prev.month, today)
+      : 0;
+  const compare2VisibleCount =
+    period === "daily"
+      ? resolveVisibleCount("daily", prev2.year, prev2.month, today)
       : 0;
 
   return (
@@ -451,6 +465,7 @@ export function DashboardContent() {
             month={month}
             visibleCount={visibleCount}
             compareVisibleCount={compareVisibleCount}
+            compare2VisibleCount={compare2VisibleCount}
             onBarSelect={handleBarSelect}
           />
 
