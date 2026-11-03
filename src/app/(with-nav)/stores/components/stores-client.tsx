@@ -28,6 +28,13 @@ const StoreModal = dynamic(
   { ssr: false }
 )
 
+// 방문일 모달도 열 때만 필요하므로 분리 (로더는 미리 받기와 공유)
+const loadVisitDatesModal = () => import("./store-visit-dates-modal")
+const StoreVisitDatesModal = dynamic(
+  () => loadVisitDatesModal().then((m) => m.StoreVisitDatesModal),
+  { ssr: false }
+)
+
 /**
  * 매장 관리 클라이언트 컴포넌트
  */
@@ -43,6 +50,9 @@ export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) 
   const [searchStoreName, setSearchStoreName] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingStore, setEditingStore] = useState<Store | null>(null)
+  // 방문일 모달 (닫는 애니메이션 동안 내용이 유지되도록 매장은 닫을 때 비우지 않음)
+  const [isVisitDatesOpen, setIsVisitDatesOpen] = useState(false)
+  const [visitDatesStore, setVisitDatesStore] = useState<Store | null>(null)
 
   // react-query 훅
   const {
@@ -65,11 +75,13 @@ export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) 
   )
 
   // 목록을 그린 뒤 유휴 시간에 모달 청크를 미리 받아 첫 오픈 지연을 없앤다
-  const shouldPreloadModal = writable && !isLoading
+  // (방문일 모달은 읽기 전용이라 권한과 무관하게, 매장 모달은 쓰기 권한이 있을 때만)
   useEffect(() => {
-    if (!shouldPreloadModal) return
-    return preloadOnIdle([loadStoreModal])
-  }, [shouldPreloadModal])
+    if (isLoading) return
+    return preloadOnIdle(
+      writable ? [loadStoreModal, loadVisitDatesModal] : [loadVisitDatesModal]
+    )
+  }, [isLoading, writable])
 
   // 무한 스크롤 트리거
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -106,6 +118,12 @@ export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) 
     setEditingStore(store)
     setIsModalOpen(true)
   }
+
+  // 방문일 모달 열기 (StoreCard memo 유지를 위해 참조 고정)
+  const handleShowVisitDates = useCallback((store: Store) => {
+    setVisitDatesStore(store)
+    setIsVisitDatesOpen(true)
+  }, [])
 
   // 매장 삭제 핸들러
   const handleDeleteStore = (id: string) => {
@@ -191,6 +209,7 @@ export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) 
               index={index}
               onEdit={writable ? handleEditStore : undefined}
               onDelete={writable ? handleDeleteStore : undefined}
+              onShowVisitDates={handleShowVisitDates}
               isDeleting={deletingId === store.id}
             />
           ))
@@ -237,6 +256,15 @@ export function StoresClient({ placeSearchEnabled = false }: StoresClientProps) 
           />
         </MountOnFirstOpen>
       )}
+
+      {/* 매장 방문일 모달 (처음 열 때 마운트, 목록 전체에서 1개만 사용) */}
+      <MountOnFirstOpen open={isVisitDatesOpen}>
+        <StoreVisitDatesModal
+          open={isVisitDatesOpen}
+          onOpenChange={setIsVisitDatesOpen}
+          store={visitDatesStore}
+        />
+      </MountOnFirstOpen>
     </div>
   )
 }

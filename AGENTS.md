@@ -143,7 +143,7 @@ src/app/api/
 │   ├── [id]/
 │   │   ├── route.ts                    # GET/PUT/DELETE 근무기록 CRUD
 │   │   └── save-store/route.ts        # POST 매장 저장
-│   ├── store-visits/route.ts          # GET 매장 방문 이력
+│   ├── store-visits/route.ts          # GET 매장 방문 이력 (months/status 선택 파라미터)
 │   ├── store-uncollected/route.ts     # GET 매장별 미수금
 │   ├── batch-collect/route.ts         # PATCH 일괄 수금처리
 │   ├── bulk/route.ts                  # POST 일괄 삭제
@@ -326,3 +326,4 @@ src/app/api/
 | 2026-09-30 | 주소 탭 선택지에 티맵 추가 (`tmap://search?name=` 통합 검색, Android 패키지 `com.skt.tmap.ku`). 웹 지도가 없어 미설치 시 Android는 Play 스토어, iOS는 App Store 설치 안내 토스트. 데스크톱 시트에서는 숨기고 저장값이 tmap이어도 네이버지도 웹 | lib/map-links, common/address-action-sheet, providers/address-action-provider, profile AGENTS.md | 차량 순회 직원 중 티맵을 쓰는 경우가 있어 선택지로 제공 |
 | 2026-10-03 | 매장 코스 담당자 이전 — 코스 수정 모달에 "코스 담당자" 선택 추가(관리자 또는 본인, 현재 담당자·VIEWER·삭제 직원 제외), 이전 시 모달 안 확인 단계에서 코스 내 매장 담당자 함께 이전 여부 선택(기존 코스 담당자 담당·미지정 매장만 변경). PUT `/api/store-templates/[id]`에 `ownerId`·`transferStores`, 응답 `transferredStoreCount` 추가 | api/store-templates, store-templates 모달·클라이언트·훅, hooks/use-users, store-templates AGENTS.md | 직원 간 순회 코스 인수인계 시 코스 재생성과 매장별 담당자 수동 변경을 없애기 위함. 다른 직원 담당 매장을 실수로 가져가지 않도록 이전 범위를 제한 |
 | 2026-11-04 | 대시보드 일별 모드 매출 추이·월 누적 매출 차트에 전전월 라인 추가 (전월 청록 파선 / 전전월 분홍 점선으로 색 구분, 범례 "전전월", 툴팁은 `MM/DD`). 응답 `chart[]`·`compareTail[]`에 `compare2Revenue`·`compare2Label` 추가, 누적 차트 가로축은 세 달 중 가장 긴 달 기준 | dashboard API/훅/컴포넌트, dashboard AGENTS.md | 전월뿐 아니라 전전월 매출 흐름도 같은 차트에서 함께 비교하기 위함 |
+| 2026-11-04 | 매장 카드 헤더에 "방문일" 버튼 추가 (접힌 상태에서도 보임) → 최근 3개월 수금완료(COLLECTED) 방문일 모달 (KST 날짜 중복 제거, 최신순·월별 묶음, "N일 전"). `GET /api/work-records/store-visits`에 선택 파라미터 `months`(1~12, 기본 6)·`status` 추가 (기존 호출 동작 그대로), `useStoreVisits`에 옵션 인자 추가 | api/work-records/store-visits, work-records/hooks/use-store-visits, stores 카드·클라이언트·방문일 모달, stores·work-records AGENTS.md | 근무기록 카드에서만 볼 수 있던 방문 이력을 매장 목록에서 아무 매장이나 바로 확인하기 위함. 펼침 영역에 다 넣으면 카드가 길어져 버튼 + 모달로 분리 |

@@ -9,6 +9,7 @@
 - 매장별 기본 품목 템플릿 관리
 - 주소 검색: Kakao 우편번호 서비스 임베드 (`src/components/common/address-search-dialog.tsx`, `src/lib/postcode.ts`)
 - 매장 검색(상호 검색): Kakao 로컬 키워드 장소 검색 → 주소·좌표·장소ID(`kakaoPlaceId`) 저장 (`KAKAO_REST_API_KEY` 있을 때만)
+- 방문일 조회: 카드의 "방문일" 버튼 → 최근 3개월 수금완료 방문일 모달
 
 ## 데이터 모델
 
@@ -58,14 +59,22 @@
 - Kakao 오류 매핑: 쿼터 초과(429 / code -10) → 503, 키 오류(401/403) → 502, 그 외·타임아웃(5초) → 502
 - 무료 쿼터: 키워드 장소 검색 일 100,000건 (개발자 계정 기준 **첫 번째** 카카오맵 API 활성화 앱만), 초과 시 비즈월렛 유료 설정 필요(2원/건)
 
+### 방문일 모달
+- 카드 헤더(접힌 상태에서도 보임)의 "방문일" 버튼 → `StoreVisitDatesModal`. 버튼 클릭은 카드 펼침 토글로 전파하지 않는다
+- 조회: `GET /api/work-records/store-visits?storeId=&months=3&status=COLLECTED` (`useStoreVisits`를 work-records 훅에서 재사용, `enabled: open`)
+- **수금완료(COLLECTED) 기록만** 방문일로 본다. 일괄 수금(이월 수금)으로 함께 처리된 이전 미수 방문도 COLLECTED가 되므로 포함된다
+- 날짜는 KST `YYYY-MM-DD`로 변환해 같은 날 여러 건은 하나로 표시, 최신순·월별 묶음, 오늘 기준 "N일 전"
+- 모달은 목록 전체에서 1개만 두고 `next/dynamic` + `MountOnFirstOpen` + `preloadOnIdle`로 지연 로드 (읽기 전용이라 쓰기 권한과 무관하게 노출. VIEWER는 `/stores` 진입 시 대시보드로 리다이렉트)
+
 ## 파일 구조
 
 ```
 stores/
 ├── page.tsx
 ├── components/
-│   ├── store-card.tsx
+│   ├── store-card.tsx       # 헤더에 "방문일" 버튼 (onShowVisitDates)
 │   ├── store-modal.tsx      # 매장명 + "매장 검색", 주소 + "주소 검색", 장소 연결 표시
+│   ├── store-visit-dates-modal.tsx  # 최근 3개월 수금완료 방문일
 │   ├── place-search-dialog.tsx  # 매장 검색 (상호 → Kakao 장소)
 │   ├── stores-client.tsx
 │   └── index.ts
@@ -79,6 +88,7 @@ stores/
 - `GET/POST /api/stores`
 - `GET/PUT/DELETE /api/stores/[id]`
 - `GET /api/places/search` - 매장 검색 (Kakao 키워드 장소 검색 프록시)
+- `GET /api/work-records/store-visits` - 방문일 모달 (`months=3&status=COLLECTED`)
 
 ## 관련 페이지
 

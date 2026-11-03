@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useCallback, useState } from "react"
-import { ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
+import { CalendarCheck, ChevronDown, Pencil, Trash2, Loader2 } from "lucide-react"
 import { AddressButton } from "@/components/common/address-button"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -13,6 +13,8 @@ interface StoreCardProps {
   index: number
   onEdit?: (store: Store) => void
   onDelete?: (id: string) => void
+  /** 방문일 모달 열기 (카드가 접혀 있어도 보이는 버튼) */
+  onShowVisitDates?: (store: Store) => void
   isDeleting?: boolean
 }
 
@@ -33,6 +35,7 @@ export const StoreCard = React.memo(function StoreCard({
   index,
   onEdit,
   onDelete,
+  onShowVisitDates,
   isDeleting,
 }: StoreCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -54,6 +57,12 @@ export const StoreCard = React.memo(function StoreCard({
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation()
     onEdit?.(store)
+  }
+
+  const handleShowVisitDates = (e: React.MouseEvent) => {
+    // 카드 펼침 토글로 전파되지 않도록 차단
+    e.stopPropagation()
+    onShowVisitDates?.(store)
   }
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -101,12 +110,28 @@ export const StoreCard = React.memo(function StoreCard({
             <AddressButton address={store.address} />
           </div>
 
-          <ChevronDown
-            className={cn(
-              "size-5 text-gray-400 transition-transform duration-300 flex-shrink-0",
-              isExpanded && "rotate-180"
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {onShowVisitDates && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-xs has-[>svg]:px-2"
+                aria-label={`${store.name} 방문일 보기`}
+                onClick={handleShowVisitDates}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <CalendarCheck className="size-3.5" />
+                방문일
+              </Button>
             )}
-          />
+            <ChevronDown
+              className={cn(
+                "size-5 text-gray-400 transition-transform duration-300 flex-shrink-0",
+                isExpanded && "rotate-180"
+              )}
+            />
+          </div>
         </div>
       </div>
 
