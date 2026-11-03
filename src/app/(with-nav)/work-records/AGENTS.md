@@ -113,7 +113,9 @@ work-records/
 - 카드 확장 시 최근 6개월 방문 이력 표시 (lazy load)
 - CLOSED 상태 제외, 현재 날짜 제외
 - API: `GET /api/work-records/store-visits?storeId=...`
-- Hook: `useStoreVisits`
+  - 선택 파라미터: `months`(1~12, 기본 6), `status`(`COLLECTED`|`UNCOLLECTED`, 미지정 시 CLOSED만 제외). 응답 `[{ date, collectionStatus }]` 날짜 ASC
+- Hook: `useStoreVisits(storeId, enabled, { months?, status? })` — key `["store-visits", storeId, { months, status }]`, 근무기록 변경 시 `["store-visits"]` 접두사로 무효화
+- 매장 목록의 방문일 모달(`stores/components/store-visit-dates-modal.tsx`)도 같은 API/훅을 `months=3, status=COLLECTED`로 사용
 
 ### 일별 통계 (DailyStats)
 - 방문 수, 총매출, 수금완료/미수금 금액 표시
