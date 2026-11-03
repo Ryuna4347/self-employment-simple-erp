@@ -49,26 +49,72 @@ async function fetchRevenueByPeriod(
   `
 }
 
+/** 비교 기간 (전월/전전월) */
+interface CompareRange {
+  start: Date
+  end: Date
+  year: number
+  month: number
+}
+
 /**
- * 전월 비교 기간 계산 (매출 차트 점선용)
+ * 비교 기간 계산 (매출 추이·누적 매출 차트 점선용)
  *
- * 일별 모드에서는 항상 전월(같은 일자끼리)을 비교한다. 월별 모드는 "전월" 개념이 없어 null.
+ * 일별 모드에서는 항상 monthsBack개월 전(1: 전월, 2: 전전월)과 같은 일자끼리 비교한다.
+ * 연도 경계도 처리한다 (1월 조회 → 전년 12월/11월). 월별 모드는 "전월" 개념이 없어 null.
  */
 function resolveCompareRange(
   period: "daily" | "monthly",
   year: number,
   month: number | undefined,
-): { start: Date; end: Date; year: number; month: number } | null {
+  monthsBack: number,
+): CompareRange | null {
   if (period !== "daily" || !month) return null
 
-  const prevYear = month === 1 ? year - 1 : year
-  const prevMonth = month === 1 ? 12 : month - 1
+  // 0부터 세는 월 일련번호로 바꿔 빼면 연도 경계를 따로 분기하지 않아도 된다
+  const serial = year * 12 + (month - 1) - monthsBack
+  const compareYear = Math.floor(serial / 12)
+  const compareMonth = (serial % 12) + 1
   return {
-    start: startOfMonthKST(prevYear, prevMonth),
-    end: endOfMonthKST(prevYear, prevMonth),
-    year: prevYear,
-    month: prevMonth,
+    start: startOfMonthKST(compareYear, compareMonth),
+    end: endOfMonthKST(compareYear, compareMonth),
+    year: compareYear,
+    month: compareMonth,
   }
+}
+
+/**
+ * 비교 기간의 일(1~말일)별 매출 합계
+ * 비교 기간에 존재하지 않는 날(예: 31일 ↔ 2월)은 키가 없다 → 차트에서 null(라인 끊김)
+ */
+function buildCompareRevenueMap(
+  range: CompareRange | null,
+  rows: readonly { period: Date; revenue: bigint }[],
+): Map<number, number> {
+  const map = new Map<number, number>()
+  if (!range) return map
+
+  const dayCount = getDaysInMonth(new Date(range.year, range.month - 1, 1))
+  for (let day = 1; day <= dayCount; day++) {
+    map.set(day, 0)
+  }
+  for (const row of rows) {
+    // DB period(KST 벽시계 값의 timestamp without time zone → JS에서는 UTC로 해석됨) → 일자
+    const day = new Date(row.period).getUTCDate()
+    map.set(day, (map.get(day) ?? 0) + Number(row.revenue))
+  }
+  return map
+}
+
+/** 비교 기간 같은 일자 라벨 "MM/DD" (툴팁 표기용). 비교 기간에 없는 날은 null */
+function compareDayLabel(
+  range: CompareRange | null,
+  revenueMap: Map<number, number>,
+  day: number,
+): string | null {
+  return range && revenueMap.has(day)
+    ? `${String(range.month).padStart(2, "0")}/${String(day).padStart(2, "0")}`
+    : null
 }
 
 export async function GET(request: NextRequest) {
@@ -105,7 +151,8 @@ export async function GET(request: NextRequest) {
     }
 
     const truncUnit = period === "daily" && month ? "day" : "month"
-    const compareRange = resolveCompareRange(period, year, month)
+    const compareRange = resolveCompareRange(period, year, month, 1)
+    const compare2Range = resolveCompareRange(period, year, month, 2)
 
     // 모든 집계를 DB 레벨에서 병렬 실행
     const [
@@ -114,6 +161,7 @@ export async function GET(request: NextRequest) {
       uniqueStoresResult,
       chartData,
       compareChartData,
+      compare2ChartData,
       expenseChartData,
       expenseAggregate,
       deletedStoresList,
@@ -151,6 +199,11 @@ export async function GET(request: NextRequest) {
       // 4-1) 전월 비교 매출 (일별 모드)
       compareRange
         ? fetchRevenueByPeriod(truncUnit, compareRange.start, compareRange.end)
+        : Promise.resolve([]),
+
+      // 4-2) 전전월 비교 매출 (일별 모드)
+      compare2Range
+        ? fetchRevenueByPeriod(truncUnit, compare2Range.start, compare2Range.end)
         : Promise.resolve([]),
 
       // 5) 비용 추이 (항상 연도 전체 월별 집계)
@@ -268,40 +321,32 @@ export async function GET(request: NextRequest) {
       chartRevenueMap.set(idx, entry)
     }
 
-    // 전월 비교(매출 차트 점선 전용): 일(1~말일)별 매출 합계. 전월에 존재하지 않는 날(예: 31일 ↔ 2월)은 null
-    const compareRevenueMap = new Map<number, number>()
-    if (compareRange) {
-      const compareIndexCount = getDaysInMonth(new Date(compareRange.year, compareRange.month - 1, 1))
-      for (let i = 1; i <= compareIndexCount; i++) {
-        compareRevenueMap.set(i, 0)
-      }
-      for (const row of compareChartData) {
-        const idx = periodToIndex(row.period)
-        compareRevenueMap.set(idx, (compareRevenueMap.get(idx) ?? 0) + Number(row.revenue))
-      }
-    }
-    // 전월 같은 일자 라벨 "MM/DD" (툴팁/상세 패널 표기용). 전월에 없는 날은 null
-    const compareIndexToLabel = (idx: number) =>
-      compareRange && compareRevenueMap.has(idx)
-        ? `${String(compareRange.month).padStart(2, "0")}/${String(idx).padStart(2, "0")}`
-        : null
+    // 전월/전전월 비교(매출 추이·누적 매출 차트 점선 전용): 일별 매출 합계. 월별 모드는 빈 Map
+    const compareRevenueMap = buildCompareRevenueMap(compareRange, compareChartData)
+    const compare2RevenueMap = buildCompareRevenueMap(compare2Range, compare2ChartData)
 
     const chart = Array.from(chartRevenueMap.entries()).map(([idx, entry]) => ({
       label: indexToLabel(idx),
       ...entry,
-      compareRevenue: compareRange ? (compareRevenueMap.get(idx) ?? null) : null,
-      compareLabel: compareIndexToLabel(idx),
+      compareRevenue: compareRevenueMap.get(idx) ?? null,
+      compareLabel: compareDayLabel(compareRange, compareRevenueMap, idx),
+      compare2Revenue: compare2RevenueMap.get(idx) ?? null,
+      compare2Label: compareDayLabel(compare2Range, compare2RevenueMap, idx),
     }))
 
-    // 전월이 당월보다 긴 달일 때(예: 9월 30일 조회 ↔ 8월 31일) 당월에 없는 일자의 전월 매출.
-    // 누적 매출 차트가 두 달 중 일수가 많은 쪽에 가로축을 맞추기 위해 사용한다
+    // 전월이 당월보다 긴 달일 때(예: 9월 30일 조회 ↔ 8월 31일) 당월에 없는 일자의 전월/전전월 매출.
+    // 누적 매출 차트가 세 달 중 일수가 가장 많은 쪽에 가로축을 맞추기 위해 사용한다.
+    // 30일 달(4·6·9·11월)끼리는 이웃하지 않고 2월 앞은 1월(31일)이라, 당월이 31일 미만이면 전월은 항상 31일이다.
+    // 즉 가장 긴 달은 언제나 당월 또는 전월 → 전월 일자 기준으로 만들고 전전월은 없는 날 null
     const compareTail = Array.from(compareRevenueMap.entries())
       .filter(([idx]) => idx > indexCount)
       .map(([idx, revenue]) => ({
         // 당월에 없는 날이라 "MM/DD" 대신 일자 번호만 라벨로 쓴다
         label: String(idx),
         compareRevenue: revenue,
-        compareLabel: compareIndexToLabel(idx),
+        compareLabel: compareDayLabel(compareRange, compareRevenueMap, idx),
+        compare2Revenue: compare2RevenueMap.get(idx) ?? null,
+        compare2Label: compareDayLabel(compare2Range, compare2RevenueMap, idx),
       }))
 
     // === expenseChart 조립 (월별 빈 월 채우기) ===
